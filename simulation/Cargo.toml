@@ -7,4 +7,5 @@ edition = "2024"
 consensus = { path = "../consensus" }
 utils = { path = "../utils" }
 rocksdb = { workspace = true }
-
+serde = { workspace = true }
+anyhow = { workspace = true }

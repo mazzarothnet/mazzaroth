@@ -2,12 +2,13 @@ use crate::{
     MAX_PART_SORT_SIZE,
     traits::{DagStorage, Key, SortStruct},
 };
+use serde::{de::DeserializeOwned, Serialize};
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use utils::error::{Error, Result};
 
 type TopSort<K> = BTreeMap<u64, BTreeSet<K>>;
 
-fn push_top_sort<K: Clone + Key + Ord + Send + 'static>(
+fn push_top_sort<K:  Key>(
     top_sort: &mut TopSort<K>,
     key: K,
     size: u64,
@@ -15,7 +16,7 @@ fn push_top_sort<K: Clone + Key + Ord + Send + 'static>(
     top_sort.entry(size).or_insert(BTreeSet::new()).insert(key);
 }
 
-fn pop_top_sort<K: Clone + Key + Ord + Send + 'static>(top_sort: &mut TopSort<K>) -> Option<K> {
+fn pop_top_sort<K: Key>(top_sort: &mut TopSort<K>) -> Option<K> {
     let (size, mut keys) = top_sort.pop_first()?;
     let key = keys.pop_first()?;
     if keys.is_empty() {
@@ -24,7 +25,7 @@ fn pop_top_sort<K: Clone + Key + Ord + Send + 'static>(top_sort: &mut TopSort<K>
     Some(key)
 }
 
-fn get_part_sort<K: Eq + Clone + Send + 'static + Ord + Key, S: DagStorage<Key = K>>(
+fn get_part_sort<K: Key, S: DagStorage<KeyType = K>>(
     storage: &S,
     key: &K,
 ) -> Result<SortStruct<K>> {
@@ -32,13 +33,13 @@ fn get_part_sort<K: Eq + Clone + Send + 'static + Ord + Key, S: DagStorage<Key =
         Ok(part_sort)
     } else {
         Err(Error::ParentNotSorted {
-            message: format!("{}", key.to_string()),
+            message: format!("{:?}", serde_json::to_string(key)),
         })
     }
 }
 
 /// can't recursion because of the size limit of the stack
-pub fn part_sort<K: Eq + Clone + Send + 'static + Ord + Key, S: DagStorage<Key = K>>(
+pub fn part_sort<K: Key, S: DagStorage<KeyType = K>>(
     storage: &mut S,
     now_key: K,
 ) -> Result<SortStruct<K>> {
@@ -69,7 +70,7 @@ pub fn part_sort<K: Eq + Clone + Send + 'static + Ord + Key, S: DagStorage<Key =
     }
     if selected_head_size == 0 || selected_head_key == now_key {
         return Err(Error::IsolateBlock {
-            message: format!("{}", now_key.to_string()),
+            message: format!("{:?}", serde_json::to_string(&now_key)),
         });
     }
 
@@ -102,7 +103,7 @@ pub fn part_sort<K: Eq + Clone + Send + 'static + Ord + Key, S: DagStorage<Key =
                 // check
                 else if *degree < 0 {
                     return Err(Error::CycleDependency {
-                        message: format!("{}", parent_key.to_string()),
+                        message: format!("{:?}", serde_json::to_string(&parent_key)),
                     });
                 }
             }
@@ -116,8 +117,8 @@ pub fn part_sort<K: Eq + Clone + Send + 'static + Ord + Key, S: DagStorage<Key =
         let sort_set = temp_sort.iter().cloned().collect::<BTreeSet<_>>();
         if sort_set.len() != temp_sort.len() {
             tracing::error!(
-                "sort_set.len() != well_connected_keys.len() {}",
-                now_key.to_string()
+                "sort_set.len() != well_connected_keys.len() {:?}",
+                serde_json::to_string(&now_key)
             );
         }
     }
@@ -133,7 +134,7 @@ pub fn part_sort<K: Eq + Clone + Send + 'static + Ord + Key, S: DagStorage<Key =
     Ok(self_part_sort)
 }
 
-pub fn get_temp_link_set<K: Clone + Key + Ord + Send + 'static, S: DagStorage<Key = K>>(
+pub fn get_temp_link_set<K: Key, S: DagStorage<KeyType = K>>(
     storage: &S,
     head_key: &K,
 ) -> Result<BTreeSet<K>> {
@@ -153,7 +154,7 @@ pub fn get_temp_link_set<K: Clone + Key + Ord + Send + 'static, S: DagStorage<Ke
     Ok(link_set)
 }
 
-pub fn check_well_connected_block<K: Clone + Key + Ord + Send + 'static, S: DagStorage<Key = K>>(
+pub fn check_well_connected_block<K: Key, S: DagStorage<KeyType = K>>(
     storage: &S,
     key: &K,
     link_set: &BTreeSet<K>,
