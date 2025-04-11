@@ -2,7 +2,6 @@ use crate::{
     MAX_PART_SORT_SIZE,
     traits::{DagStorage, Key, SortStruct},
 };
-use serde::{de::DeserializeOwned, Serialize};
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use utils::error::{Error, Result};
 

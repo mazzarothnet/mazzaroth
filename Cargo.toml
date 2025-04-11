@@ -8,6 +8,6 @@ thiserror = "2"
 tracing = "0.1"
 tracing-subscriber = "0.3"
 rocksdb = "0.23"
-bincode = "2.0"
+bincode = "1"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"

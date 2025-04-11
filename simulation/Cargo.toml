@@ -9,3 +9,4 @@ utils = { path = "../utils" }
 rocksdb = { workspace = true }
 serde = { workspace = true }
 anyhow = { workspace = true }
+bincode = {workspace = true}
