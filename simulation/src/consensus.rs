@@ -28,15 +28,15 @@ impl SimDagStorage {
         Self { db }
     }
 
-    pub fn set_block(&mut self, key: SimKey, block: SimBlock) -> Result<()> {
-        let key_vec = bincode::serialize(&key).context("set_block error")?;
-        let value = bincode::serialize(&block).context("set_block error")?;
+    pub fn set_block(&mut self, key: &SimKey, block: &SimBlock) -> Result<()> {
+        let key_vec = bincode::serialize(key).context("set_block error")?;
+        let value = bincode::serialize(block).context("set_block error")?;
         self.db.put(&key_vec, &value).context("set block failed")?;
         Ok(())
     }
 
-    pub fn get_block(&self, key: SimKey) -> Result<Option<SimBlock>> {
-        let key_vec = bincode::serialize(&key).context("get_block error")?;
+    pub fn get_block(&self, key: &SimKey) -> Result<Option<SimBlock>> {
+        let key_vec = bincode::serialize(key).context("get_block error")?;
         let value = if let Some(value) = self.db.get(&key_vec).context("get block failed")? {
             value
         } else {

@@ -7,12 +7,8 @@ use utils::error::{Error, Result};
 
 type TopSort<K> = BTreeMap<u64, BTreeSet<K>>;
 
-fn push_top_sort<K:  Key>(
-    top_sort: &mut TopSort<K>,
-    key: K,
-    size: u64,
-) {
-    top_sort.entry(size).or_insert(BTreeSet::new()).insert(key);
+fn push_top_sort<K: Key>(top_sort: &mut TopSort<K>, key: K, size: u64) {
+    top_sort.entry(size).or_default().insert(key);
 }
 
 fn pop_top_sort<K: Key>(top_sort: &mut TopSort<K>) -> Option<K> {
@@ -38,6 +34,7 @@ fn get_part_sort<K: Key, S: DagStorage<KeyType = K>>(
 }
 
 /// can't recursion because of the size limit of the stack
+#[allow(clippy::comparison_chain)]
 pub fn part_sort<K: Key, S: DagStorage<KeyType = K>>(
     storage: &mut S,
     now_key: K,
