@@ -112,7 +112,7 @@ pub fn part_sort<K: Key, S: DagStorage<KeyType = K>>(
     {
         let sort_set = temp_sort.iter().cloned().collect::<BTreeSet<_>>();
         if sort_set.len() != temp_sort.len() {
-            tracing::error!(
+            log::error!(
                 "sort_set.len() != well_connected_keys.len() {:?}",
                 serde_json::to_string(&now_key)
             );

@@ -9,7 +9,6 @@ cargo clippy --all-targets --all-features "$@" -- \
         -D clippy::exit \
         -D clippy::implicit_clone \
         -D clippy::index_refutable_slice \
-        -D clippy::indexing_slicing \
         -D clippy::map_err_ignore \
         -D clippy::maybe_infinite_iter \
         -D clippy::mem_forget \

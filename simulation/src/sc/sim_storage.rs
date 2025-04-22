@@ -1,23 +1,8 @@
 use anyhow::Context;
-use consensus::traits::{DagStorage, Key, SortStruct};
-use serde::{Deserialize, Serialize};
+use consensus::traits::{DagStorage, SortStruct};
 use utils::error::{Error, Result};
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
-pub struct SimKey(i64);
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SimBlock {
-    pub key: SimKey,
-    pub ts: i64,
-    pub parent_keys: Vec<SimKey>,
-}
-
-impl Key for SimKey {
-    fn is_genesis(&self) -> bool {
-        self.0 == 0
-    }
-}
+use super::sim_block::{SimBlock, SimKey};
 
 pub struct SimDagStorage {
     db: rocksdb::DB,
@@ -29,14 +14,14 @@ impl SimDagStorage {
     }
 
     pub fn set_block(&mut self, key: &SimKey, block: &SimBlock) -> Result<()> {
-        let key_vec = bincode::serialize(key).context("set_block error")?;
-        let value = bincode::serialize(block).context("set_block error")?;
+        let key_vec = bincode::serialize(&key).context("set_block error")?;
+        let value = bincode::serialize(&block).context("set_block error")?;
         self.db.put(&key_vec, &value).context("set block failed")?;
         Ok(())
     }
 
     pub fn get_block(&self, key: &SimKey) -> Result<Option<SimBlock>> {
-        let key_vec = bincode::serialize(key).context("get_block error")?;
+        let key_vec = bincode::serialize(&key).context("get_block error")?;
         let value = if let Some(value) = self.db.get(&key_vec).context("get block failed")? {
             value
         } else {

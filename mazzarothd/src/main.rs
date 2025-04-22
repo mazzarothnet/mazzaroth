@@ -1,3 +1,5 @@
+use utils::log::init_log;
+
 fn main() {
-    println!("Hello, world!");
+    init_log();
 }

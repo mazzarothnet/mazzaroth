@@ -1,6 +1,8 @@
+use utils::log::init_log;
 
 #[allow(clippy::unwrap_used)]
 fn main() {
+    init_log();
     let db = rocksdb::DB::open_default("test.db").unwrap();
 
     //db.put(b"key", b"value").unwrap();
