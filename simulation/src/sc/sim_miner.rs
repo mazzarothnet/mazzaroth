@@ -51,13 +51,13 @@ pub fn select_miner(miners: &[SimMiner]) -> SimMiner {
     miners[0].clone()
 }
 
-pub fn calc_distance_delay(miner1: &Position, miner2: &Position) -> i64 {
+pub fn calc_distance_delay(miner1: &Position, miner2: &Position) -> u64 {
     let dx = miner1.x - miner2.x;
     let dy = miner1.y - miner2.y;
     let distance = (dx * dx + dy * dy).sqrt();
     let max_distance = (HEIGHT as f64 * HEIGHT as f64 + WIDTH as f64 * WIDTH as f64).sqrt();
     let delay = distance / max_distance * MAX_DELAY;
-    delay as i64
+    delay as u64
 }
 
 #[cfg(test)]

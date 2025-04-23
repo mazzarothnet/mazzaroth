@@ -71,13 +71,17 @@ pub fn part_sort<K: Key, S: DagStorage<KeyType = K>>(
     }
 
     let link_set = get_temp_link_set(storage, &selected_head_key)?;
-    let mut in_degree: BTreeMap<K, i32> = BTreeMap::new();
-    let mut well_connected_keys: BTreeSet<K> = BTreeSet::new();
-    let mut readded_set: BTreeSet<K> = BTreeSet::new();
+    let mut well_connected_keys: Vec<K> = Vec::new();
     for key in parent_keys {
-        if check_well_connected_block(storage, &key, &link_set, &mut in_degree, &mut readded_set)? {
-            well_connected_keys.insert(key);
+        if check_well_connected_block(storage, &key, &link_set)? {
+            well_connected_keys.push(key);
         }
+    }
+    
+    let mut in_degree: BTreeMap<K, i32> = BTreeMap::new();
+    let mut degree_set: BTreeSet<K> = link_set.clone();
+    for key in &well_connected_keys {
+        cal_in_degree_without_check(storage, key, &link_set, &mut in_degree, &mut degree_set)?;
     }
 
     let mut top_sort: TopSort<K> = Default::default();
@@ -145,42 +149,64 @@ pub fn get_temp_link_set<K: Key, S: DagStorage<KeyType = K>>(
         link_set.extend(part_sort.part_sort.into_iter());
         checked_set.insert(now_key);
         now_key = part_sort.head_key;
+        if now_key.is_genesis() {
+            break;
+        }
     }
 
     Ok(link_set)
+}
+
+pub fn cal_in_degree_without_check<K: Key, S: DagStorage<KeyType = K>>(
+    storage: &S,
+    key: &K,
+    link_set: &BTreeSet<K>,
+    in_degree: &mut BTreeMap<K, i32>,
+    degree_set: &mut BTreeSet<K>,
+) -> Result<()> {
+    let mut queue: VecDeque<K> = VecDeque::new();
+    queue.push_back(key.clone());
+    while let Some(now_key) = queue.pop_front() {
+        if degree_set.contains(&now_key) {
+            continue;
+        }
+        degree_set.insert(now_key.clone());
+        let parent_keys = storage.get_parent_keys(&now_key)?;
+        for parent_key in parent_keys {
+            if !link_set.contains(&parent_key) {
+                *in_degree.entry(parent_key.clone()).or_insert(0) += 1;
+                queue.push_back(parent_key);
+            }
+        }
+    }
+    Ok(())
 }
 
 pub fn check_well_connected_block<K: Key, S: DagStorage<KeyType = K>>(
     storage: &S,
     key: &K,
     link_set: &BTreeSet<K>,
-    in_degree: &mut BTreeMap<K, i32>,
-    readded_set: &mut BTreeSet<K>,
 ) -> Result<bool> {
-    let mut queue: VecDeque<K> = VecDeque::new();
-    let mut temp_in_degree: BTreeMap<K, i32> = BTreeMap::new();
-    if readded_set.contains(key) {
+    if link_set.contains(key) {
         return Ok(false);
     }
+    let mut queue: VecDeque<K> = VecDeque::new();
+    let mut readded_set: BTreeSet<K> = BTreeSet::new();
     queue.push_back(key.clone());
-    readded_set.insert(key.clone());
     while let Some(now_key) = queue.pop_front() {
+        if readded_set.contains(&now_key) {
+            continue;
+        }
+        readded_set.insert(now_key.clone());
+        if readded_set.len() >= MAX_PART_SORT_SIZE || now_key.is_genesis() {
+            return Ok(false);
+        }
         let parent_keys = storage.get_parent_keys(&now_key)?;
         for parent_key in parent_keys {
             if !link_set.contains(&parent_key) {
-                *temp_in_degree.entry(parent_key.clone()).or_insert(0) += 1;
-                if !readded_set.contains(&parent_key) {
-                    readded_set.insert(parent_key.clone());
-                    queue.push_back(parent_key);
-                    if readded_set.len() >= MAX_PART_SORT_SIZE {
-                        return Ok(false);
-                    }
-                }
+                queue.push_back(parent_key);
             }
         }
-    }
-    for (key, degree) in temp_in_degree {
-        *in_degree.entry(key).or_insert(0) += degree;
     }
 
     Ok(true)

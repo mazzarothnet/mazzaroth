@@ -4,12 +4,12 @@ use serde::{Deserialize, Serialize};
 use super::sim_miner::Position;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
-pub struct SimKey(i64);
+pub struct SimKey(u64);
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SimBlock {
     pub key: SimKey,
-    pub ts: i64,
+    pub ts: u64,
     pub creator_position: Position,
     pub parent_keys: Vec<SimKey>,
 }
