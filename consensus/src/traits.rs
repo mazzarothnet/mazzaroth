@@ -1,7 +1,9 @@
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use utils::error::Result;
 
-pub trait Key: Clone + Ord + Eq + Serialize + DeserializeOwned + Sized + Send + 'static {
+pub trait Key:
+    Clone + Copy + Ord + Eq + Serialize + DeserializeOwned + Sized + Send + 'static
+{
     fn is_genesis(&self) -> bool;
 }
 
@@ -9,7 +11,7 @@ pub trait Key: Clone + Ord + Eq + Serialize + DeserializeOwned + Sized + Send + 
 #[serde(bound(deserialize = "K: DeserializeOwned", serialize = "K: Serialize"))]
 pub struct SortStruct<K: Key> {
     pub key: K,
-    pub head_key: K,
+    pub head_key: Option<K>,
     pub part_sort: Vec<K>,
     pub size: u64,
 }

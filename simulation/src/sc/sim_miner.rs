@@ -3,14 +3,15 @@ use serde::{Deserialize, Serialize};
 const HEIGHT: i64 = 100;
 const WIDTH: i64 = 100;
 const MAX_DELAY: f64 = 10.0;
+const MIN_DELAY: f64 = 3.0;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct Position {
     pub x: f64,
     pub y: f64,
 }
 
-#[derive(Clone)]
+#[derive(Copy, Clone)]
 pub struct SimMiner {
     pub id: u64,
     pub position: Position,
@@ -44,11 +45,11 @@ pub fn select_miner(miners: &[SimMiner]) -> SimMiner {
     let r = rng.random_range(0..end);
     for i in 0..vv.len() {
         if r <= vv[i] {
-            return miners[i].clone();
+            return miners[i];
         }
     }
 
-    miners[0].clone()
+    miners[0]
 }
 
 pub fn calc_distance_delay(miner1: &Position, miner2: &Position) -> u64 {
@@ -57,7 +58,7 @@ pub fn calc_distance_delay(miner1: &Position, miner2: &Position) -> u64 {
     let distance = (dx * dx + dy * dy).sqrt();
     let max_distance = (HEIGHT as f64 * HEIGHT as f64 + WIDTH as f64 * WIDTH as f64).sqrt();
     let delay = distance / max_distance * MAX_DELAY;
-    delay as u64
+    if delay < MIN_DELAY { 0 } else { delay as u64 }
 }
 
 #[cfg(test)]

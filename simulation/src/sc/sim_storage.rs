@@ -1,8 +1,18 @@
 use anyhow::Context;
 use consensus::traits::{DagStorage, SortStruct};
+use serde::{Deserialize, Serialize};
 use utils::error::{Error, Result};
 
 use super::sim_block::{SimBlock, SimKey};
+
+pub const BLOCK_DATA_TYPE: u8 = 0;
+pub const PART_SORT_DATA_TYPE: u8 = 1;
+
+#[derive(Serialize, Deserialize)]
+pub struct KeyWrapper {
+    pub key: SimKey,
+    pub data_type: u8,
+}
 
 pub struct SimDagStorage {
     db: rocksdb::DB,
@@ -13,15 +23,23 @@ impl SimDagStorage {
         Self { db }
     }
 
-    pub fn set_block(&mut self, key: &SimKey, block: &SimBlock) -> Result<()> {
-        let key_vec = bincode::serialize(&key).context("set_block error")?;
+    pub fn set_block(&mut self, key: SimKey, block: &SimBlock) -> Result<()> {
+        let key_wrapper = KeyWrapper {
+            key,
+            data_type: BLOCK_DATA_TYPE,
+        };
+        let key_vec = bincode::serialize(&key_wrapper).context("set_block error")?;
         let value = bincode::serialize(&block).context("set_block error")?;
         self.db.put(&key_vec, &value).context("set block failed")?;
         Ok(())
     }
 
     pub fn get_block(&self, key: &SimKey) -> Result<Option<SimBlock>> {
-        let key_vec = bincode::serialize(&key).context("get_block error")?;
+        let key_wrapper = KeyWrapper {
+            key: *key,
+            data_type: BLOCK_DATA_TYPE,
+        };
+        let key_vec = bincode::serialize(&key_wrapper).context("get_block error")?;
         let value = if let Some(value) = self.db.get(&key_vec).context("get block failed")? {
             value
         } else {
@@ -33,11 +51,19 @@ impl SimDagStorage {
     }
 }
 
+pub struct DagStorageKey {
+    pub key: SimKey,
+}
+
 impl DagStorage for SimDagStorage {
     type KeyType = SimKey;
 
     fn get_parent_keys(&self, key: &Self::KeyType) -> Result<Vec<Self::KeyType>> {
-        let key_vec = bincode::serialize(key).context("get_parent_keys error")?;
+        let key_wrapper = KeyWrapper {
+            key: *key,
+            data_type: BLOCK_DATA_TYPE,
+        };
+        let key_vec = bincode::serialize(&key_wrapper).context("get_parent_keys error")?;
         let value = self
             .db
             .get(&key_vec)
@@ -54,12 +80,16 @@ impl DagStorage for SimDagStorage {
         &self,
         key: &Self::KeyType,
     ) -> Result<Option<SortStruct<Self::KeyType>>> {
-        let key_vec = bincode::serialize(key).context("get_part_sort_of_key error")?;
-        let value = if let Some(value) = self
+        let key_wrapper = KeyWrapper {
+            key: *key,
+            data_type: PART_SORT_DATA_TYPE,
+        };
+        let key_vec = bincode::serialize(&key_wrapper).context("get_part_sort_of_key error")?;
+        let vv = self
             .db
             .get(&key_vec)
-            .context("get part sort of key failed")?
-        {
+            .context("get part sort of key failed")?;
+        let value = if let Some(value) = vv {
             value
         } else {
             return Ok(None);
@@ -74,7 +104,11 @@ impl DagStorage for SimDagStorage {
         key: Self::KeyType,
         package: SortStruct<Self::KeyType>,
     ) -> Result<()> {
-        let key_vec = bincode::serialize(&key).context("set_part_sort_of_key error")?;
+        let key_wrapper = KeyWrapper {
+            key,
+            data_type: PART_SORT_DATA_TYPE,
+        };
+        let key_vec = bincode::serialize(&key_wrapper).context("set_part_sort_of_key error")?;
         let value = bincode::serialize(&package).context("set_part_sort_of_key error")?;
         self.db
             .put(&key_vec, &value)

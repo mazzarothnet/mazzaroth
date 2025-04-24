@@ -1,3 +1,7 @@
 /target
 test.db
 /logs
+tt.txt
+distance.json
+output.conf
+perf.svg
