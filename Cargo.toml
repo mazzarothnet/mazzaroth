@@ -2,6 +2,9 @@
 members = ["consensus", "mazzarothd", "simulation", "utils"]
 resolver = "2"
 
+[profile.release]
+overflow-checks = true
+
 [workspace.dependencies]
 anyhow = "1"
 thiserror = "2"

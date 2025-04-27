@@ -5,3 +5,6 @@ tt.txt
 distance.json
 output.conf
 perf.svg
+/distance
+.DS_Store
+/venv1

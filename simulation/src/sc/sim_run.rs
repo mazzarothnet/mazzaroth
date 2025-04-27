@@ -17,7 +17,7 @@ use log::info;
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use utils::file::write_to_json;
 
-pub fn run_sim(db_path: &str, miner_num: u64, block_num: u64) {
+pub fn run_sim(db_path: &str, miner_num: u64, block_num: u64, block_per_step: f64) {
     std::fs::remove_dir_all(db_path).unwrap();
     let db = rocksdb::DB::open_default(db_path).unwrap();
     let mut storage = SimDagStorage::new(db);
@@ -35,7 +35,13 @@ pub fn run_sim(db_path: &str, miner_num: u64, block_num: u64) {
     let mut lca_distance: BTreeMap<i64, i64> = BTreeMap::new();
     for i in 1..block_num {
         let selected_miner = select_miner(&miners);
-        let local_tips = cal_tips_by_position(tips.clone(), selected_miner.position, i, &storage);
+        let local_tips = cal_tips_by_position(
+            tips.clone(),
+            selected_miner.position,
+            i,
+            &storage,
+            block_per_step,
+        );
         info!("now: {}", i);
         let now_key = SimKey(i);
         let block = SimBlock {
@@ -49,21 +55,23 @@ pub fn run_sim(db_path: &str, miner_num: u64, block_num: u64) {
         for parent in block.parent_keys {
             tips.remove(&parent);
         }
-        part_sort_with_cache(&mut storage, now_key).unwrap();
+        let now_size = part_sort_with_cache(&mut storage, now_key).unwrap().size;
         let lca = cal_lca_of_tips(tips.clone(), &storage);
         if let Some(lca) = lca {
-            let value = lca.0;
-            let distance = (i - value) as i64;
-            info!("lca: {} distance: {}", value, distance);
+            let lca_size = storage.get_part_sort_of_key(&lca).unwrap().unwrap().size;
+            let distance = (now_size - lca_size) as i64;
+            info!("lca: {} distance: {}", lca_size, distance);
             let entry = lca_distance.entry(distance).or_insert(0);
             *entry += 1;
         } else {
             let entry = lca_distance.entry(-1).or_insert(0);
             *entry += 1;
             info!("Error: lca is None");
+            break;
         }
     }
-    write_to_json("distance.json", &lca_distance).unwrap();
+    let output_path = format!("distance/distance_{}.json", (block_per_step as u64));
+    write_to_json(&output_path, &lca_distance).unwrap();
 }
 
 fn cal_ancestors(key: SimKey, storage: &SimDagStorage) -> Vec<SimKey> {
@@ -109,6 +117,7 @@ pub fn cal_tips_by_position(
     position: Position,
     now: u64,
     storage: &SimDagStorage,
+    block_per_step: f64,
 ) -> Vec<SimKey> {
     let mut readded_tips = BTreeSet::new();
     let mut queue = tips.into_iter().collect::<VecDeque<_>>();
@@ -120,7 +129,7 @@ pub fn cal_tips_by_position(
         readded_tips.insert(tip);
         let block = storage.get_block(&tip).unwrap().unwrap();
         let observed_time =
-            block.key.0 + calc_distance_delay(&block.creator_position, &position) + 20;
+            block.key.0 + calc_distance_delay(&block.creator_position, &position, block_per_step);
         if observed_time <= now || tip.is_genesis() {
             ans.insert(tip);
         } else {

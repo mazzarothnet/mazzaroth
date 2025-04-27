@@ -1,8 +1,16 @@
 #![allow(clippy::unwrap_used)]
 use simulation::sc::sim_run::run_sim;
+use std::path::Path;
 use utils::log::init_log;
 
 fn main() {
     init_log();
-    run_sim("test.db", 1000, 10000);
+    // create dir distance
+    let dir = "distance";
+    if !Path::new(dir).exists() {
+        std::fs::create_dir(dir).unwrap();
+    }
+    for i in 1..20 {
+        run_sim("test.db", 1000, 100000, f64::from(i));
+    }
 }
