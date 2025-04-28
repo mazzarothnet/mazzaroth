@@ -47,7 +47,7 @@ pub fn run_sim(db_path: &str, miner_num: u64, block_num: u64, block_per_step: f6
         let block = SimBlock {
             key: now_key,
             creator_position: selected_miner.position,
-            parent_keys: local_tips,
+            parent_keys: local_tips.clone(),
         };
         info!("block parent len: {}", block.parent_keys.len());
         storage.set_block(block.key, &block).unwrap();
@@ -56,7 +56,7 @@ pub fn run_sim(db_path: &str, miner_num: u64, block_num: u64, block_per_step: f6
             tips.remove(&parent);
         }
         let now_size = part_sort_with_cache(&mut storage, now_key).unwrap().size;
-        let lca = cal_lca_of_tips(tips.clone(), &storage);
+        let lca = cal_lca_of_tips(local_tips.into_iter().collect(), &storage);
         if let Some(lca) = lca {
             let lca_size = storage.get_part_sort_of_key(&lca).unwrap().unwrap().size;
             let distance = (now_size - lca_size) as i64;
@@ -143,7 +143,7 @@ pub fn cal_tips_by_position(
     let link_set = get_link_set(storage, selected_tips).unwrap();
     let well_connected_keys = get_well_connected_keys(storage, &link_set, &parent_keys).unwrap();
     let in_degree = cal_in_degree_without_check(storage, &well_connected_keys, &link_set).unwrap();
-    let mut real_tips = cal_real_tips_without_head(well_connected_keys, &in_degree).unwrap();
-    real_tips.push(selected_tips);
-    real_tips
+    let mut parent_keys = cal_real_tips_without_head(well_connected_keys, &in_degree).unwrap();
+    parent_keys.push(selected_tips);
+    parent_keys
 }
