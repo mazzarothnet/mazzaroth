@@ -6,7 +6,7 @@ use utils::log::init_log;
 fn main() {
     init_log();
     // create dir distance
-    let dir = "distance";
+    let dir = "simulation/distance";
     if !Path::new(dir).exists() {
         std::fs::create_dir(dir).unwrap();
     }

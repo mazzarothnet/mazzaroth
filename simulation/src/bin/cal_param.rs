@@ -9,7 +9,7 @@ fn main() {
     y_data.push(0.001);
     let mut tm: BTreeMap<i64, f64> = BTreeMap::new();
     for i in 1..18 {
-        let file_path = format!("distance/distance_{}.json", i);
+        let file_path = format!("simulation/distance/distance_{}.json", i);
         println!("path: {}", file_path);
         let mut nm: BTreeMap<i64, i64> = read_from_json(&file_path).unwrap();
         nm.remove(&-1);
