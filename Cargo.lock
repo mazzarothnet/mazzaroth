@@ -166,6 +166,7 @@ dependencies = [
 name = "consensus"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "log",
  "serde",
  "serde_json",
@@ -769,9 +770,11 @@ dependencies = [
  "anyhow",
  "bincode",
  "consensus",
+ "log",
  "rand 0.9.1",
  "rocksdb",
  "serde",
+ "serde_json",
  "utils",
 ]
 
@@ -890,6 +893,8 @@ dependencies = [
  "anyhow",
  "log",
  "log4rs",
+ "serde",
+ "serde_json",
  "thiserror 2.0.12",
 ]
 

@@ -1,3 +1,8 @@
 /target
 test.db
 /logs
+tt.txt
+output.conf
+perf.svg
+.DS_Store
+/venv1
