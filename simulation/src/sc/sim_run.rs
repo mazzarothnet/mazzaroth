@@ -70,7 +70,7 @@ pub fn run_sim(db_path: &str, miner_num: u64, block_num: u64, block_per_step: f6
             break;
         }
     }
-    let output_path = format!("distance/distance_{}.json", (block_per_step as u64));
+    let output_path = format!("simulation/distance/distance_{}.json", (block_per_step as u64));
     write_to_json(&output_path, &lca_distance).unwrap();
 }
 
