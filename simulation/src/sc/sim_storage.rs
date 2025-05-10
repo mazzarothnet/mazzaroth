@@ -1,9 +1,8 @@
+use super::sim_block::{SimBlock, SimKey};
 use anyhow::Context;
-use consensus::traits::{DagStorage, SortStruct};
+use consensus::traits::{ConsensusBlock, DagStorage, Key};
 use serde::{Deserialize, Serialize};
 use utils::error::{Error, Result};
-
-use super::sim_block::{SimBlock, SimKey};
 
 pub const BLOCK_DATA_TYPE: u8 = 0;
 pub const PART_SORT_DATA_TYPE: u8 = 1;
@@ -69,17 +68,17 @@ impl DagStorage for SimDagStorage {
             .get(&key_vec)
             .context("get parent keys failed")?
             .ok_or_else(|| Error::UnknownBlock {
-                message: format!("unknown block: {:?}", key),
+                key: key.serde_to_string(),
             })?;
         let block: SimBlock =
             bincode::deserialize(&value).context("deserialize sim block failed")?;
         Ok(block.parent_keys)
     }
 
-    fn get_part_sort_of_key(
+    fn get_consensus_block_of_key(
         &self,
         key: &Self::KeyType,
-    ) -> Result<Option<SortStruct<Self::KeyType>>> {
+    ) -> Result<Option<ConsensusBlock<Self::KeyType>>> {
         let key_wrapper = KeyWrapper {
             key: *key,
             data_type: PART_SORT_DATA_TYPE,
@@ -94,15 +93,15 @@ impl DagStorage for SimDagStorage {
         } else {
             return Ok(None);
         };
-        let sort_struct: SortStruct<SimKey> =
-            bincode::deserialize(&value).context("deserialize sort struct failed")?;
-        Ok(Some(sort_struct))
+        let consensus_block: ConsensusBlock<SimKey> =
+            bincode::deserialize(&value).context("deserialize consensus block failed")?;
+        Ok(Some(consensus_block))
     }
 
-    fn set_part_sort_of_key(
+    fn set_consensus_block_of_key(
         &mut self,
         key: Self::KeyType,
-        package: SortStruct<Self::KeyType>,
+        package: &ConsensusBlock<Self::KeyType>,
     ) -> Result<()> {
         let key_wrapper = KeyWrapper {
             key,

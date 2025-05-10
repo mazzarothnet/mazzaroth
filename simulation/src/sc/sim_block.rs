@@ -1,5 +1,7 @@
+use anyhow::Context;
 use consensus::traits::Key;
 use serde::{Deserialize, Serialize};
+use utils::error::Result;
 
 use super::sim_miner::Position;
 
@@ -17,5 +19,13 @@ pub struct SimBlock {
 impl Key for SimKey {
     fn is_genesis(&self) -> bool {
         self.0 == 0
+    }
+    fn serde_to_string(&self) -> String {
+        self.0.to_string()
+    }
+    fn from_string(s: &str) -> Result<Self> {
+        Ok(SimKey(
+            s.parse().context(format!("SimKey from_string: {}", s))?,
+        ))
     }
 }

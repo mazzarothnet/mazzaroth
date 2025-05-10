@@ -24,7 +24,7 @@ fn main() {
         x_data.push(ans);
         y_data.push(i as f64);
     }
-    let output_path = "distance/tm.json";
+    let output_path = "simulation/distance/tm.json";
     write_to_json(output_path, &tm).unwrap();
     println!("x_data = np.array({:?})", x_data);
     println!("y_data = np.array({:?})", y_data);
