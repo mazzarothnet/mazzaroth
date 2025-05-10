@@ -1,4 +1,4 @@
-use super::traits::{ConsensusBlock, ConsensusHeader};
+use super::traits::{PartSortBlock, PartSortHeader};
 use crate::{
     MAX_PART_SORT_SIZE,
     traits::{DagStorage, Key},
@@ -6,13 +6,13 @@ use crate::{
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use utils::error::{Error, Result};
 
-pub fn gen_consensus_block<K: Key, S: DagStorage<KeyType = K>>(
+pub fn gen_part_sort_block<K: Key, S: DagStorage<KeyType = K>>(
     storage: &S,
     now_key: K,
     parent_keys: &[K],
-) -> Result<ConsensusBlock<K>> {
+) -> Result<PartSortBlock<K>> {
     if now_key.is_genesis() {
-        return gen_genesis_consensus_block(now_key);
+        return gen_genesis_part_sort_block(now_key);
     }
     let (selected_head_key, selected_head_size) = get_max_size_key(storage, now_key, parent_keys)?;
     let link_set = get_link_set(storage, selected_head_key)?;
@@ -25,18 +25,18 @@ pub fn gen_consensus_block<K: Key, S: DagStorage<KeyType = K>>(
     parent_keys.push(selected_head_key);
     let lca = cal_lca_of_tips(&parent_keys, storage)?;
     let now_size = selected_head_size + top_sort.len() as u64;
-    let lca_size = get_consensus_block(storage, &lca)?.header.size;
-    let consensus_block = ConsensusBlock {
+    let lca_size = get_part_sort_block(storage, &lca)?.header.size;
+    let part_sort_block = PartSortBlock {
         key: now_key,
         part_sort: top_sort,
-        header: ConsensusHeader {
+        header: PartSortHeader {
             head_key: Some(selected_head_key),
             size: now_size,
-            distance: Some(now_size - lca_size),
+            distance: now_size - lca_size,
             parent_keys,
         },
     };
-    Ok(consensus_block)
+    Ok(part_sort_block)
 }
 
 pub fn cal_lca_of_tips<K: Key, S: DagStorage<KeyType = K>>(tips: &[K], storage: &S) -> Result<K> {
@@ -72,18 +72,18 @@ fn cal_ancestors_link<K: Key, S: DagStorage<KeyType = K>>(key: K, storage: &S) -
             return Ok(ans);
         }
         ans.push(key);
-        let block = get_consensus_block(storage, &key)?;
+        let block = get_part_sort_block(storage, &key)?;
         current = block.header.head_key;
     }
     Ok(ans)
 }
 
-fn get_consensus_block<K: Key, S: DagStorage<KeyType = K>>(
+fn get_part_sort_block<K: Key, S: DagStorage<KeyType = K>>(
     storage: &S,
     key: &K,
-) -> Result<ConsensusBlock<K>> {
-    if let Some(consensus_block) = storage.get_consensus_block_of_key(key)? {
-        Ok(consensus_block)
+) -> Result<PartSortBlock<K>> {
+    if let Some(part_sort_block) = storage.get_part_sort_block_of_key(key)? {
+        Ok(part_sort_block)
     } else {
         Err(Error::ParentNotSorted {
             key: key.serde_to_string(),
@@ -91,14 +91,14 @@ fn get_consensus_block<K: Key, S: DagStorage<KeyType = K>>(
     }
 }
 
-fn gen_genesis_consensus_block<K: Key>(now_key: K) -> Result<ConsensusBlock<K>> {
-    let ans = ConsensusBlock {
+fn gen_genesis_part_sort_block<K: Key>(now_key: K) -> Result<PartSortBlock<K>> {
+    let ans = PartSortBlock {
         key: now_key,
         part_sort: vec![now_key],
-        header: ConsensusHeader {
+        header: PartSortHeader {
             head_key: None,
             size: 1,
-            distance: Some(0),
+            distance: 0,
             parent_keys: vec![],
         },
     };
@@ -112,15 +112,15 @@ fn get_max_size_key<K: Key, S: DagStorage<KeyType = K>>(
 ) -> Result<(K, u64)> {
     let mut size_and_key: Option<(K, u64)> = None;
     for parent_key in parent_keys {
-        let consensus_block = get_consensus_block(storage, parent_key)?;
+        let part_sort_block = get_part_sort_block(storage, parent_key)?;
         if let Some(comp) = size_and_key {
-            if consensus_block.header.size > comp.1
-                || (consensus_block.header.size == comp.1 && consensus_block.key > comp.0)
+            if part_sort_block.header.size > comp.1
+                || (part_sort_block.header.size == comp.1 && part_sort_block.key > comp.0)
             {
-                size_and_key = Some((consensus_block.key, consensus_block.header.size));
+                size_and_key = Some((part_sort_block.key, part_sort_block.header.size));
             }
         } else {
-            size_and_key = Some((consensus_block.key, consensus_block.header.size));
+            size_and_key = Some((part_sort_block.key, part_sort_block.header.size));
         }
     }
     if let Some(size_and_key) = size_and_key {
@@ -139,7 +139,7 @@ fn get_link_set<K: Key, S: DagStorage<KeyType = K>>(
     let mut link_set: BTreeSet<K> = BTreeSet::new();
     let mut now_key = head_key;
     while link_set.len() < MAX_PART_SORT_SIZE {
-        let part_sort = get_consensus_block(storage, &now_key)?;
+        let part_sort = get_part_sort_block(storage, &now_key)?;
         link_set.extend(part_sort.part_sort.into_iter());
         if let Some(head_key) = part_sort.header.head_key {
             now_key = head_key;
@@ -260,7 +260,7 @@ fn cal_top_sort<K: Key, S: DagStorage<KeyType = K>>(
 ) -> Result<Vec<K>> {
     let mut top_sort: TopSort<K> = Default::default();
     for key in real_tips {
-        let part_sort = get_consensus_block(storage, key)?;
+        let part_sort = get_part_sort_block(storage, key)?;
         push_top_sort(&mut top_sort, *key, part_sort.header.size);
     }
     let mut temp_sort: VecDeque<K> = VecDeque::new();
@@ -269,7 +269,7 @@ fn cal_top_sort<K: Key, S: DagStorage<KeyType = K>>(
             if let Some(degree) = in_degree.get_mut(&parent_key) {
                 *degree -= 1;
                 if *degree == 0 {
-                    let part_sort = get_consensus_block(storage, &parent_key)?;
+                    let part_sort = get_part_sort_block(storage, &parent_key)?;
                     push_top_sort(&mut top_sort, parent_key, part_sort.header.size);
                 }
                 // check

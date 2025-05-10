@@ -1,6 +1,6 @@
 use super::sim_block::{SimBlock, SimKey};
 use anyhow::Context;
-use consensus::traits::{ConsensusBlock, DagStorage, Key};
+use consensus::traits::{PartSortBlock, DagStorage, Key};
 use serde::{Deserialize, Serialize};
 use utils::error::{Error, Result};
 
@@ -75,10 +75,10 @@ impl DagStorage for SimDagStorage {
         Ok(block.parent_keys)
     }
 
-    fn get_consensus_block_of_key(
+    fn get_part_sort_block_of_key(
         &self,
         key: &Self::KeyType,
-    ) -> Result<Option<ConsensusBlock<Self::KeyType>>> {
+    ) -> Result<Option<PartSortBlock<Self::KeyType>>> {
         let key_wrapper = KeyWrapper {
             key: *key,
             data_type: PART_SORT_DATA_TYPE,
@@ -93,15 +93,15 @@ impl DagStorage for SimDagStorage {
         } else {
             return Ok(None);
         };
-        let consensus_block: ConsensusBlock<SimKey> =
-            bincode::deserialize(&value).context("deserialize consensus block failed")?;
-        Ok(Some(consensus_block))
+        let part_sort_block: PartSortBlock<SimKey> =
+            bincode::deserialize(&value).context("deserialize part_sort block failed")?;
+        Ok(Some(part_sort_block))
     }
 
-    fn set_consensus_block_of_key(
+    fn set_part_sort_block_of_key(
         &mut self,
         key: Self::KeyType,
-        package: &ConsensusBlock<Self::KeyType>,
+        package: &PartSortBlock<Self::KeyType>,
     ) -> Result<()> {
         let key_wrapper = KeyWrapper {
             key,

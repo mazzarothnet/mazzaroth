@@ -5,21 +5,21 @@ use super::{
 };
 use crate::sc::sim_miner::calc_distance_delay;
 use consensus::{
-    consensus_header::gen_consensus_block,
-    traits::{ConsensusBlock, DagStorage, Key},
+    part_sort_header::gen_part_sort_block,
+    traits::{PartSortBlock, DagStorage, Key},
 };
 use log::info;
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use utils::file::write_to_json;
 
-fn cal_consensus_block_and_storage(
+fn cal_part_sort_block_and_storage(
     storage: &mut SimDagStorage,
     now_key: SimKey,
     parent_keys: &[SimKey],
-) -> anyhow::Result<ConsensusBlock<SimKey>> {
-    let consensus_block = gen_consensus_block(storage, now_key, parent_keys)?;
-    storage.set_consensus_block_of_key(now_key, &consensus_block)?;
-    Ok(consensus_block)
+) -> anyhow::Result<PartSortBlock<SimKey>> {
+    let part_sort_block = gen_part_sort_block(storage, now_key, parent_keys)?;
+    storage.set_part_sort_block_of_key(now_key, &part_sort_block)?;
+    Ok(part_sort_block)
 }
 
 pub fn run_sim(db_path: &str, miner_num: u64, block_num: u64, block_per_step: f64) {
@@ -35,7 +35,7 @@ pub fn run_sim(db_path: &str, miner_num: u64, block_num: u64, block_per_step: f6
         parent_keys: vec![],
     };
     storage.set_block(genesis_key, &genesis_block).unwrap();
-    cal_consensus_block_and_storage(&mut storage, genesis_key, &[]).unwrap();
+    cal_part_sort_block_and_storage(&mut storage, genesis_key, &[]).unwrap();
     tips.insert(genesis_key);
     let mut lca_distance: BTreeMap<i64, i64> = BTreeMap::new();
     for i in 1..block_num {
@@ -47,14 +47,14 @@ pub fn run_sim(db_path: &str, miner_num: u64, block_num: u64, block_per_step: f6
             &storage,
             block_per_step,
         );
-        let consensus_block =
-            cal_consensus_block_and_storage(&mut storage, SimKey(i), &local_tips).unwrap();
+        let part_sort_block =
+            cal_part_sort_block_and_storage(&mut storage, SimKey(i), &local_tips).unwrap();
         info!("now: {}", i);
         let now_key = SimKey(i);
         let block = SimBlock {
             key: now_key,
             creator_position: selected_miner.position,
-            parent_keys: consensus_block.header.parent_keys.clone(),
+            parent_keys: part_sort_block.header.parent_keys.clone(),
         };
         info!("block parent len: {}", block.parent_keys.len());
         storage.set_block(block.key, &block).unwrap();
@@ -62,7 +62,7 @@ pub fn run_sim(db_path: &str, miner_num: u64, block_num: u64, block_per_step: f6
         for parent in block.parent_keys {
             tips.remove(&parent);
         }
-        let distance = consensus_block.header.distance.unwrap_or(0) as i64;
+        let distance = part_sort_block.header.distance as i64;
         let entry = lca_distance.entry(distance).or_insert(0);
         *entry += 1;
         if distance == 0 {
