@@ -6,7 +6,7 @@ use super::{
 use crate::sc::sim_miner::calc_distance_delay;
 use consensus::{
     part_sort_header::gen_part_sort_block,
-    traits::{PartSortBlock, DagStorage, Key},
+    traits::{DagStorage, Key, PartSortBlock},
 };
 use log::info;
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
@@ -38,6 +38,7 @@ pub fn run_sim(db_path: &str, miner_num: u64, block_num: u64, block_per_step: f6
     cal_part_sort_block_and_storage(&mut storage, genesis_key, &[]).unwrap();
     tips.insert(genesis_key);
     let mut lca_distance: BTreeMap<i64, i64> = BTreeMap::new();
+    let mut part_sort_size: BTreeMap<usize, i64> = BTreeMap::new();
     for i in 1..block_num {
         let selected_miner = select_miner(&miners);
         let local_tips = cal_tips_by_position(
@@ -50,6 +51,9 @@ pub fn run_sim(db_path: &str, miner_num: u64, block_num: u64, block_per_step: f6
         let part_sort_block =
             cal_part_sort_block_and_storage(&mut storage, SimKey(i), &local_tips).unwrap();
         info!("now: {}", i);
+        *part_sort_size
+            .entry(part_sort_block.part_sort.len())
+            .or_insert(0) += 1;
         let now_key = SimKey(i);
         let block = SimBlock {
             key: now_key,
@@ -76,6 +80,11 @@ pub fn run_sim(db_path: &str, miner_num: u64, block_num: u64, block_per_step: f6
         (block_per_step as u64)
     );
     write_to_json(&output_path, &lca_distance).unwrap();
+    let output_path = format!(
+        "simulation/distance/part_sort_size_{}.json",
+        (block_per_step as u64)
+    );
+    write_to_json(&output_path, &part_sort_size).unwrap();
 }
 
 pub fn cal_tips_by_position(
