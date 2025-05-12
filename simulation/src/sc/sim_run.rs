@@ -40,6 +40,7 @@ pub fn run_sim(db_path: &str, miner_num: u64, block_num: u64, block_per_step: f6
     let mut lca_distance: BTreeMap<i64, i64> = BTreeMap::new();
     let mut part_sort_size: BTreeMap<usize, i64> = BTreeMap::new();
     for i in 1..block_num {
+        //let time = std::time::Instant::now();
         let selected_miner = select_miner(&miners);
         let local_tips = cal_tips_by_position(
             tips.clone(),
@@ -48,8 +49,12 @@ pub fn run_sim(db_path: &str, miner_num: u64, block_num: u64, block_per_step: f6
             &storage,
             block_per_step,
         );
+        //let time_cal_tips = time.elapsed();
+        //info!("time_cal_tips: {:?}", time_cal_tips);
         let part_sort_block =
             cal_part_sort_block_and_storage(&mut storage, SimKey(i), &local_tips).unwrap();
+        //let time_cal_part_sort_block = time.elapsed();
+        //info!("time_cal_part_sort_block: {:?}", time_cal_part_sort_block);
         info!("now: {}", i);
         *part_sort_size
             .entry(part_sort_block.part_sort.len())
@@ -62,6 +67,8 @@ pub fn run_sim(db_path: &str, miner_num: u64, block_num: u64, block_per_step: f6
         };
         info!("block parent len: {}", block.parent_keys.len());
         storage.set_block(block.key, &block).unwrap();
+        //let time_set_block = time.elapsed();
+        //info!("time_set_block: {:?}", time_set_block);
         tips.insert(now_key);
         for parent in block.parent_keys {
             tips.remove(&parent);

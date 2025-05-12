@@ -1,7 +1,6 @@
 use super::traits::{PartSortBlock, PartSortHeader};
 use crate::{
-    MAX_PART_SORT_SIZE,
-    traits::{DagStorage, Key},
+    traits::{DagStorage, Key}, MAX_ANCESTOR_SIZE, MAX_PART_SORT_SIZE
 };
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use utils::error::{Error, Result};
@@ -68,7 +67,7 @@ fn cal_ancestors_link<K: Key, S: DagStorage<KeyType = K>>(key: K, storage: &S) -
     let mut ans = Vec::new();
     let mut current = Some(key);
     while let Some(key) = current {
-        if ans.len() > MAX_PART_SORT_SIZE {
+        if ans.len() > MAX_ANCESTOR_SIZE {
             return Ok(ans);
         }
         ans.push(key);
