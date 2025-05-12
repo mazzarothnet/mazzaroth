@@ -3,17 +3,12 @@ use serde::{Deserialize, Serialize};
 use utils::error::Result;
 
 use crate::{
-    RECALCULATE_POW_LONG_TARGET_INTERVAL,
+    EXPECT_BLOCK_PER_DELAY, PARAM_A, PARAM_B, PARAM_C, RECALCULATE_POW_LONG_TARGET_INTERVAL,
     traits::{Key, PartSortHeader},
 };
 
 pub type BlockKey = crypto_bigint::U256;
 pub type TargetSum = crypto_bigint::U512;
-
-const PARAM_A: u64 = 4495;
-const PARAM_B: u64 = 42;
-const PARAM_C: u64 = 108;
-const EXPECT_BLOCK_PER_DELAY: u64 = 5;
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct BlockHeader {
@@ -40,7 +35,7 @@ pub fn gen_pow_header(
     now_distance: u64,
 ) -> PowHeader {
     let average_target = cal_total_distance_and_target(parent_real_target);
-    let (block_key_average_target, _ ): (BlockKey, BlockKey) = average_target.split();
+    let (block_key_average_target, _): (BlockKey, BlockKey) = average_target.split();
     let short_target = cal_target_by_distance(now_distance, block_key_average_target);
     let part_sort_size = now_size - head_size;
     let pow_header = if head_size / RECALCULATE_POW_LONG_TARGET_INTERVAL
@@ -59,7 +54,7 @@ pub fn gen_pow_header(
     } else {
         let average_distance =
             head_block_pow_header.distance_sum / RECALCULATE_POW_LONG_TARGET_INTERVAL;
-        let (average_long_target, _ ): (BlockKey, BlockKey) = (head_block_pow_header.target_sum
+        let (average_long_target, _): (BlockKey, BlockKey) = (head_block_pow_header.target_sum
             / TargetSum::from(RECALCULATE_POW_LONG_TARGET_INTERVAL as u64))
         .split();
         let long_target = cal_target_by_distance(average_distance, average_long_target);
@@ -159,7 +154,10 @@ mod tests {
         let head_size = 100;
         let now_size = 110;
         let now_distance = 50;
-        let parent_real_target = vec![BlockKey::from_u64(900_000_000u64), BlockKey::from_u64(900_000_000u64)];
+        let parent_real_target = vec![
+            BlockKey::from_u64(900_000_000u64),
+            BlockKey::from_u64(900_000_000u64),
+        ];
         let pow_header = gen_pow_header(
             head_block_pow_header,
             head_size,
@@ -179,12 +177,15 @@ mod tests {
             target_sum: TargetSum::from_u64(900_000_000u64) * TargetSum::from_u64(1209600u64),
             long_target: BlockKey::from_u64(900_000_000u64),
             short_target: BlockKey::from_u64(1_000_000_000u64),
-            distance_sum: 1209600* 15,
+            distance_sum: 1209600 * 15,
         };
         let head_size = 1209500;
         let now_size = 1209700;
         let now_distance = 50;
-        let parent_real_target = vec![BlockKey::from_u64(900_000_000u64), BlockKey::from_u64(900_000_000u64)];
+        let parent_real_target = vec![
+            BlockKey::from_u64(900_000_000u64),
+            BlockKey::from_u64(900_000_000u64),
+        ];
         let pow_header = gen_pow_header(
             head_block_pow_header,
             head_size,
@@ -192,10 +193,12 @@ mod tests {
             now_size,
             now_distance,
         );
-        assert_eq!(pow_header.target_sum, TargetSum::from_u64(180_000_000_000u64));
+        assert_eq!(
+            pow_header.target_sum,
+            TargetSum::from_u64(180_000_000_000u64)
+        );
         assert_eq!(pow_header.distance_sum, 10000);
         assert_eq!(pow_header.long_target, BlockKey::from_u64(824_887_815u64));
         assert_eq!(pow_header.short_target, BlockKey::from_u64(332_087_560u64));
     }
-    
 }
