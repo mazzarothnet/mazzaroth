@@ -10,7 +10,7 @@ fn main() {
     if !Path::new(dir).exists() {
         std::fs::create_dir(dir).unwrap();
     }
-    for i in 5..18 {
+    for i in 1..18 {
         run_sim("test.db", 1000, 100000, f64::from(i));
     }
 }

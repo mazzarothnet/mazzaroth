@@ -32,6 +32,9 @@ pub enum Error {
 
     #[error("no lca found for tips")]
     NoLcaFoundForTips,
+
+    #[error("top sort error")]
+    TopSortError,
 }
 
 pub type Result<T> = std::result::Result<T, Error>;

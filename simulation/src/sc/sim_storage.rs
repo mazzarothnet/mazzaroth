@@ -1,6 +1,6 @@
 use super::sim_block::{SimBlock, SimKey};
 use anyhow::Context;
-use consensus::traits::{PartSortBlock, DagStorage, Key};
+use consensus::traits::{BlockKeyTrait, BlockStorage, PartSortHeader, PartSortPackage};
 use serde::{Deserialize, Serialize};
 use utils::error::{Error, Result};
 
@@ -13,11 +13,11 @@ pub struct KeyWrapper {
     pub data_type: u8,
 }
 
-pub struct SimDagStorage {
+pub struct SimBlockStorage {
     db: rocksdb::DB,
 }
 
-impl SimDagStorage {
+impl SimBlockStorage {
     pub fn new(db: rocksdb::DB) -> Self {
         Self { db }
     }
@@ -50,14 +50,17 @@ impl SimDagStorage {
     }
 }
 
-pub struct DagStorageKey {
+pub struct BlockStorageKey {
     pub key: SimKey,
 }
 
-impl DagStorage for SimDagStorage {
+impl BlockStorage for SimBlockStorage {
     type KeyType = SimKey;
 
     fn get_parent_keys(&self, key: &Self::KeyType) -> Result<Vec<Self::KeyType>> {
+        if key.is_genesis() {
+            return Ok(vec![]);
+        }
         let key_wrapper = KeyWrapper {
             key: *key,
             data_type: BLOCK_DATA_TYPE,
@@ -68,7 +71,7 @@ impl DagStorage for SimDagStorage {
             .get(&key_vec)
             .context("get parent keys failed")?
             .ok_or_else(|| Error::UnknownBlock {
-                key: key.serde_to_string(),
+                key: key.serde_to_string().unwrap_or_default(),
             })?;
         let block: SimBlock =
             bincode::deserialize(&value).context("deserialize sim block failed")?;
@@ -78,7 +81,17 @@ impl DagStorage for SimDagStorage {
     fn get_part_sort_block_of_key(
         &self,
         key: &Self::KeyType,
-    ) -> Result<Option<PartSortBlock<Self::KeyType>>> {
+    ) -> Result<Option<PartSortPackage<Self::KeyType>>> {
+        if key.is_genesis() {
+            return Ok(Some(PartSortPackage {
+                part_sort: vec![],
+                header: PartSortHeader {
+                    head_key: None,
+                    size: 1,
+                    parent_keys: vec![],
+                },
+            }));
+        }
         let key_wrapper = KeyWrapper {
             key: *key,
             data_type: PART_SORT_DATA_TYPE,
@@ -93,7 +106,7 @@ impl DagStorage for SimDagStorage {
         } else {
             return Ok(None);
         };
-        let part_sort_block: PartSortBlock<SimKey> =
+        let part_sort_block: PartSortPackage<SimKey> =
             bincode::deserialize(&value).context("deserialize part_sort block failed")?;
         Ok(Some(part_sort_block))
     }
@@ -101,7 +114,7 @@ impl DagStorage for SimDagStorage {
     fn set_part_sort_block_of_key(
         &mut self,
         key: Self::KeyType,
-        package: &PartSortBlock<Self::KeyType>,
+        package: &PartSortPackage<Self::KeyType>,
     ) -> Result<()> {
         let key_wrapper = KeyWrapper {
             key,

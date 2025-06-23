@@ -1,23 +1,23 @@
 use super::{
     sim_block::{SimBlock, SimKey},
     sim_miner::{Position, gen_sim_minner_list, select_miner},
-    sim_storage::SimDagStorage,
+    sim_storage::SimBlockStorage,
 };
 use crate::sc::sim_miner::calc_distance_delay;
 use consensus::{
     part_sort_header::gen_part_sort_block,
-    traits::{DagStorage, Key, PartSortBlock},
+    traits::{BlockKeyTrait, BlockStorage, PartSortPackage},
 };
 use log::info;
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use utils::file::write_to_json;
 
 fn cal_part_sort_block_and_storage(
-    storage: &mut SimDagStorage,
+    storage: &mut SimBlockStorage,
     now_key: SimKey,
     parent_keys: &[SimKey],
-) -> anyhow::Result<PartSortBlock<SimKey>> {
-    let part_sort_block = gen_part_sort_block(storage, now_key, parent_keys)?;
+) -> anyhow::Result<PartSortPackage<SimKey>> {
+    let part_sort_block = gen_part_sort_block(storage, parent_keys)?;
     storage.set_part_sort_block_of_key(now_key, &part_sort_block)?;
     Ok(part_sort_block)
 }
@@ -25,7 +25,7 @@ fn cal_part_sort_block_and_storage(
 pub fn run_sim(db_path: &str, miner_num: u64, block_num: u64, block_per_step: f64) {
     std::fs::remove_dir_all(db_path).unwrap();
     let db = rocksdb::DB::open_default(db_path).unwrap();
-    let mut storage = SimDagStorage::new(db);
+    let mut storage = SimBlockStorage::new(db);
     let miners = gen_sim_minner_list(miner_num);
     let mut tips = BTreeSet::new();
     let genesis_key = SimKey(0);
@@ -37,7 +37,7 @@ pub fn run_sim(db_path: &str, miner_num: u64, block_num: u64, block_per_step: f6
     storage.set_block(genesis_key, &genesis_block).unwrap();
     cal_part_sort_block_and_storage(&mut storage, genesis_key, &[]).unwrap();
     tips.insert(genesis_key);
-    let mut lca_distance: BTreeMap<i64, i64> = BTreeMap::new();
+    let mut lca_distance: BTreeMap<u64, i64> = BTreeMap::new();
     let mut part_sort_size: BTreeMap<usize, i64> = BTreeMap::new();
     for i in 1..block_num {
         //let time = std::time::Instant::now();
@@ -55,7 +55,7 @@ pub fn run_sim(db_path: &str, miner_num: u64, block_num: u64, block_per_step: f6
             cal_part_sort_block_and_storage(&mut storage, SimKey(i), &local_tips).unwrap();
         //let time_cal_part_sort_block = time.elapsed();
         //info!("time_cal_part_sort_block: {:?}", time_cal_part_sort_block);
-        info!("now: {}", i);
+        info!("now: {i}");
         *part_sort_size
             .entry(part_sort_block.part_sort.len())
             .or_insert(0) += 1;
@@ -73,13 +73,14 @@ pub fn run_sim(db_path: &str, miner_num: u64, block_num: u64, block_per_step: f6
         for parent in block.parent_keys {
             tips.remove(&parent);
         }
-        let distance = part_sort_block.header.distance as i64;
+        // let distance = part_sort_block.header.distance as i64;
+        let distance = i - part_sort_block.header.size;
         let entry = lca_distance.entry(distance).or_insert(0);
         *entry += 1;
         if distance == 0 {
             info!("Error:distance is 0");
         } else {
-            info!("distance: {}", distance);
+            info!("distance: {distance}");
         }
     }
     let output_path = format!(
@@ -98,7 +99,7 @@ pub fn cal_tips_by_position(
     tips: BTreeSet<SimKey>,
     position: Position,
     now: u64,
-    storage: &SimDagStorage,
+    storage: &SimBlockStorage,
     block_per_step: f64,
 ) -> Vec<SimKey> {
     let mut readded_tips = BTreeSet::new();
