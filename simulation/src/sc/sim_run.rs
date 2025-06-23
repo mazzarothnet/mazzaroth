@@ -24,8 +24,7 @@ fn cal_part_sort_block_and_storage(
 
 pub fn run_sim(db_path: &str, miner_num: u64, block_num: u64, block_per_step: f64) {
     std::fs::remove_dir_all(db_path).unwrap();
-    let db = rocksdb::DB::open_default(db_path).unwrap();
-    let mut storage = SimBlockStorage::new(db);
+    let mut storage = SimBlockStorage::new(db_path);
     let miners = gen_sim_minner_list(miner_num);
     let mut tips = BTreeSet::new();
     let genesis_key = SimKey(0);
@@ -35,12 +34,9 @@ pub fn run_sim(db_path: &str, miner_num: u64, block_num: u64, block_per_step: f6
         parent_keys: vec![],
     };
     storage.set_block(genesis_key, &genesis_block).unwrap();
-    cal_part_sort_block_and_storage(&mut storage, genesis_key, &[]).unwrap();
     tips.insert(genesis_key);
-    let mut lca_distance: BTreeMap<u64, i64> = BTreeMap::new();
     let mut part_sort_size: BTreeMap<usize, i64> = BTreeMap::new();
-    for i in 1..block_num {
-        //let time = std::time::Instant::now();
+    for i in 2..block_num {
         let selected_miner = select_miner(&miners);
         let local_tips = cal_tips_by_position(
             tips.clone(),
@@ -49,13 +45,8 @@ pub fn run_sim(db_path: &str, miner_num: u64, block_num: u64, block_per_step: f6
             &storage,
             block_per_step,
         );
-        //let time_cal_tips = time.elapsed();
-        //info!("time_cal_tips: {:?}", time_cal_tips);
         let part_sort_block =
             cal_part_sort_block_and_storage(&mut storage, SimKey(i), &local_tips).unwrap();
-        //let time_cal_part_sort_block = time.elapsed();
-        //info!("time_cal_part_sort_block: {:?}", time_cal_part_sort_block);
-        info!("now: {i}");
         *part_sort_size
             .entry(part_sort_block.part_sort.len())
             .or_insert(0) += 1;
@@ -65,29 +56,20 @@ pub fn run_sim(db_path: &str, miner_num: u64, block_num: u64, block_per_step: f6
             creator_position: selected_miner.position,
             parent_keys: part_sort_block.header.parent_keys.clone(),
         };
-        info!("block parent len: {}", block.parent_keys.len());
         storage.set_block(block.key, &block).unwrap();
-        //let time_set_block = time.elapsed();
-        //info!("time_set_block: {:?}", time_set_block);
         tips.insert(now_key);
         for parent in block.parent_keys {
             tips.remove(&parent);
         }
-        // let distance = part_sort_block.header.distance as i64;
         let distance = i - part_sort_block.header.size;
-        let entry = lca_distance.entry(distance).or_insert(0);
-        *entry += 1;
-        if distance == 0 {
-            info!("Error:distance is 0");
-        } else {
-            info!("distance: {distance}");
+        if i % 1000 == 0 {
+            info!(
+                "i: {i}, distance: {distance}, parent_size: {}, part_sort_size: {}",
+                part_sort_block.header.parent_keys.len(),
+                part_sort_block.part_sort.len()
+            );
         }
     }
-    let output_path = format!(
-        "simulation/distance/distance_{}.json",
-        (block_per_step as u64)
-    );
-    write_to_json(&output_path, &lca_distance).unwrap();
     let output_path = format!(
         "simulation/distance/part_sort_size_{}.json",
         (block_per_step as u64)

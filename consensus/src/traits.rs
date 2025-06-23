@@ -9,6 +9,8 @@ pub trait BlockKeyTrait:
     fn from_string(s: &str) -> Result<Self>;
 }
 
+// 如果旷工只连接少量的parent，那么它的size就会很少，容易无效挖矿
+// 如果连接过多的parent，那么就无法通过验证，无效挖矿
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(bound(deserialize = "K: DeserializeOwned", serialize = "K: Serialize"))]
 pub struct PartSortHeader<K: BlockKeyTrait> {

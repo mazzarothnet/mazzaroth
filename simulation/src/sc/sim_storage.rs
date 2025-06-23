@@ -18,7 +18,12 @@ pub struct SimBlockStorage {
 }
 
 impl SimBlockStorage {
-    pub fn new(db: rocksdb::DB) -> Self {
+    pub fn new(path: &str) -> Self {
+        let cache = rocksdb::Cache::new_lru_cache(1024 * 1024 * 1024);
+        let mut opts = rocksdb::Options::default();
+        opts.set_blob_cache(&cache);
+        opts.create_if_missing(true);
+        let db = rocksdb::DB::open(&opts, path).unwrap();
         Self { db }
     }
 

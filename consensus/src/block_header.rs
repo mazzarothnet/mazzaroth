@@ -40,13 +40,20 @@ pub fn gen_pow_header(
         };
     }
     let cast_time_ms = now_timestamp_ms - head_block_pow_header.target_timestamp_ms;
-    let new_target = head_block_pow_header.target / BlockKey::from_u64(cast_time_ms)
-        * BlockKey::from_u64(POW_TARGET_INTERVAL_MS);
+    let new_target = get_pow_target(
+        head_block_pow_header.target,
+        cast_time_ms,
+        POW_TARGET_INTERVAL_MS,
+    );
     PowHeader {
         target: new_target,
         target_timestamp_ms: now_timestamp_ms,
         now_timestamp_ms,
     }
+}
+
+fn get_pow_target(old_target: BlockKey, cast_time_ms: u64, target_interval_ms: u64) -> BlockKey {
+    old_target / BlockKey::from_u64(target_interval_ms) * BlockKey::from_u64(cast_time_ms)
 }
 
 impl BlockKeyTrait for BlockKey {
@@ -58,5 +65,18 @@ impl BlockKeyTrait for BlockKey {
     }
     fn from_string(s: &str) -> Result<Self> {
         Ok(serde_json::from_str(s).context("parse block key from string error")?)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_get_pow_target() {
+        let target = get_pow_target(BlockKey::from_u64(100), 10 * 2, 10);
+        assert_eq!(target, BlockKey::from_u64(200));
+        let target = get_pow_target(BlockKey::from_u64(100), 5, 10);
+        assert_eq!(target, BlockKey::from_u64(50));
     }
 }

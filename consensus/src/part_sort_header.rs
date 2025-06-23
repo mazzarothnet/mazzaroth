@@ -74,7 +74,7 @@ fn get_link_set<K: BlockKeyTrait, S: BlockStorage<KeyType = K>>(
     let mut link_set: BTreeSet<K> = BTreeSet::new();
     let mut head_link_set: BTreeSet<K> = BTreeSet::new();
     let mut now_key = head_key;
-    while link_set.len() < MAX_ANCESTOR_SIZE {
+    while head_link_set.len() < MAX_ANCESTOR_SIZE {
         let part_sort = get_part_sort_block(storage, &now_key)?;
         link_set.extend(part_sort.part_sort.into_iter());
         link_set.insert(now_key);
