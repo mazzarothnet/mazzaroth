@@ -6,3 +6,4 @@ output.conf
 perf.svg
 .DS_Store
 /venv1
+.VSCodeCounter

@@ -12,20 +12,29 @@ pub enum Error {
     #[error("custom error: {message}")]
     Custom { message: String },
 
-    #[error("isolate block error: {message}")]
-    IsolateBlock { message: String },
+    #[error("isolate block error: {key}")]
+    IsolateBlock { key: String },
 
-    #[error("parent not sorted: {message}")]
-    ParentNotSorted { message: String },
+    #[error("parent not sorted: {key}")]
+    ParentNotSorted { key: String },
 
-    #[error("unknown block: {message}")]
-    UnknownBlock { message: String },
+    #[error("unknown block: {key}")]
+    UnknownBlock { key: String },
 
-    #[error("not well connected block: {message}")]
-    NotWellConnectedBlock { message: String },
+    #[error("not well connected block: {key}")]
+    NotWellConnectedBlock { key: String },
 
-    #[error("cycle dependency: {message}")]
-    CycleDependency { message: String },
+    #[error("cycle dependency: {key}")]
+    CycleDependency { key: String },
+
+    #[error("empty parent keys")]
+    EmptyParentKeys,
+
+    #[error("no lca found for tips")]
+    NoLcaFoundForTips,
+
+    #[error("top sort error")]
+    TopSortError,
 }
 
 pub type Result<T> = std::result::Result<T, Error>;
