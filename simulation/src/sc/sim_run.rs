@@ -6,7 +6,7 @@ use super::{
 use crate::sc::sim_miner::calc_distance_delay;
 use consensus::{
     part_sort_header::gen_part_sort_block,
-    traits::{BlockKeyTrait, BlockStorage, PartSortPackage},
+    traits::{BlockKeyTrait, BlockStorage, PartSortPackage}, MAX_ANCESTOR_SIZE,
 };
 use log::info;
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
@@ -60,6 +60,9 @@ pub fn run_sim(db_path: &str, miner_num: u64, block_num: u64, block_per_step: f6
         tips.insert(now_key);
         for parent in block.parent_keys {
             tips.remove(&parent);
+        }
+        while tips.len() > MAX_ANCESTOR_SIZE * 2 { 
+            tips.pop_first();
         }
         let distance = i - part_sort_block.header.size;
         if i % 1000 == 0 {
