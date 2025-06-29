@@ -35,6 +35,9 @@ pub enum Error {
 
     #[error("top sort error")]
     TopSortError,
+
+    #[error("block not found: {key}")]
+    BlockNotFound { key: String },
 }
 
 pub type Result<T> = std::result::Result<T, Error>;

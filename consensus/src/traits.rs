@@ -1,45 +1,36 @@
-use serde::{Deserialize, Serialize, de::DeserializeOwned};
+use serde::{Deserialize, Serialize};
 use utils::error::Result;
 
-pub trait BlockKeyTrait:
-    Clone + Copy + Ord + Eq + Serialize + DeserializeOwned + Sized + Send + 'static
-{
-    fn is_genesis(&self) -> bool;
-    fn serde_to_string(&self) -> Result<String>;
-    fn from_string(s: &str) -> Result<Self>;
-}
+use crate::block_header::BlockHeader;
 
-// 如果旷工只连接少量的parent，那么它的size就会很少，容易无效挖矿
+pub type BlockKey = crypto_bigint::U256;
+pub type DagWork = crypto_bigint::U256;
+pub const GENESIS_BLOCK_KEY: BlockKey = BlockKey::ZERO;
+
+// 如果旷工只连接少量的parent，那么它的dag_work就会很少，容易无效挖矿
 // 如果连接过多的parent，那么就无法通过验证，无效挖矿
-#[derive(Clone, Serialize, Deserialize)]
-#[serde(bound(deserialize = "K: DeserializeOwned", serialize = "K: Serialize"))]
-pub struct PartSortHeader<K: BlockKeyTrait> {
-    pub head_key: Option<K>,
-    pub size: u64,
-    pub parent_keys: Vec<K>,
-}
-
-#[derive(Clone, Serialize, Deserialize)]
-#[serde(bound(deserialize = "K: DeserializeOwned", serialize = "K: Serialize"))]
-pub struct PartSortPackage<K: BlockKeyTrait> {
-    pub part_sort: Vec<K>,
-    pub header: PartSortHeader<K>,
+#[derive(Clone, Serialize, Deserialize, Default, PartialEq, Eq, Debug)]
+pub struct PartSortHeader {
+    pub head_key: Option<BlockKey>,
+    pub dag_work: DagWork,
+    pub parent_keys: Vec<BlockKey>,
+    pub part_sort: Vec<BlockKey>,
 }
 
 /// Dag must is full connected, no isolated node
 pub trait BlockStorage {
-    type KeyType: BlockKeyTrait;
+    fn get_block_header(&self, key: &BlockKey) -> Result<BlockHeader>;
+}
 
-    fn get_parent_keys(&self, key: &Self::KeyType) -> Result<Vec<Self::KeyType>>;
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-    fn get_part_sort_block_of_key(
-        &self,
-        key: &Self::KeyType,
-    ) -> Result<Option<PartSortPackage<Self::KeyType>>>;
-
-    fn set_part_sort_block_of_key(
-        &mut self,
-        key: Self::KeyType,
-        package: &PartSortPackage<Self::KeyType>,
-    ) -> Result<()>;
+    #[test]
+    fn test_block_key() {
+        let key = BlockKey::from(1u64);
+        let key_u64 = key.to_limbs()[0].0;
+        // println!("key_u64: {}", key_u64);
+        assert_eq!(key_u64, 1);
+    }
 }

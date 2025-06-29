@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 const HEIGHT: i64 = 100;
 const WIDTH: i64 = 100;
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, Default)]
 pub struct Position {
     pub x: f64,
     pub y: f64,

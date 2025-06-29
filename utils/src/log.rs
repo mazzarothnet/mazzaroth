@@ -20,11 +20,12 @@ pub fn init_log() {
                 .additive(false)
                 .build("app::module", log::LevelFilter::Debug),
         )
-        .build(
-            Root::builder()
-                .appender("file")
-                .build(log::LevelFilter::Info),
-        )
+        .build(Root::builder().appender("file").build(
+            #[cfg(debug_assertions)]
+            log::LevelFilter::Debug,
+            #[cfg(not(debug_assertions))]
+            log::LevelFilter::Info,
+        ))
         .unwrap();
 
     log4rs::init_config(config).unwrap();
