@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use utils::error::Result;
 
-use crate::block_header::BlockHeader;
+use crate::block_header::ConsensusHeader;
 
 pub type BlockKey = crypto_bigint::U256;
 pub type DagWork = crypto_bigint::U256;
@@ -13,13 +13,14 @@ pub const GENESIS_BLOCK_KEY: BlockKey = BlockKey::ZERO;
 pub struct PartSortHeader {
     pub head_key: Option<BlockKey>,
     pub dag_work: DagWork,
+    pub size: u64,
     pub parent_keys: Vec<BlockKey>,
     pub part_sort: Vec<BlockKey>,
 }
 
 /// Dag must is full connected, no isolated node
-pub trait BlockStorage {
-    fn get_block_header(&self, key: &BlockKey) -> Result<BlockHeader>;
+pub trait ConsensusHeaderStorage {
+    fn get_consensus_header(&self, key: &BlockKey) -> Result<ConsensusHeader>;
 }
 
 #[cfg(test)]

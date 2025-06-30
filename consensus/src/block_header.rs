@@ -6,10 +6,7 @@ use crate::{
 };
 
 #[derive(Clone, Serialize, Deserialize)]
-pub struct BlockHeader {
-    pub key: BlockKey,
-    pub version: u32,
-    pub nonce: u32,
+pub struct ConsensusHeader {
     pub part_sort_header: PartSortHeader,
     pub pow_header: PowHeader,
 }

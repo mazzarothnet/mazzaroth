@@ -1,12 +1,12 @@
 use super::{
     sim_block::SimBlock,
     sim_miner::{Position, gen_sim_minner_list, select_miner},
-    sim_storage::SimBlockStorage,
+    sim_storage::SimConsensusHeaderStorage,
 };
 use crate::sc::sim_miner::calc_distance_delay;
 use consensus::{
     MAX_ANCESTOR_SIZE,
-    block_header::{BlockHeader, PowHeader},
+    block_header::{ConsensusHeader, PowHeader},
     part_sort_header::gen_part_sort_block,
     traits::{BlockKey, DagWork, GENESIS_BLOCK_KEY},
 };
@@ -20,7 +20,7 @@ fn dag_work_to_u64(dag_work: DagWork) -> u64 {
 
 pub fn run_sim(db_path: &str, miner_num: u64, block_num: u64, block_per_step: f64) {
     std::fs::remove_dir_all(db_path).unwrap();
-    let mut storage = SimBlockStorage::new(db_path);
+    let mut storage = SimConsensusHeaderStorage::new(db_path);
     let miners = gen_sim_minner_list(miner_num);
     let mut tips = BTreeSet::new();
     tips.insert(GENESIS_BLOCK_KEY);
@@ -39,17 +39,19 @@ pub fn run_sim(db_path: &str, miner_num: u64, block_num: u64, block_per_step: f6
         *part_sort_size
             .entry(part_sort_header.part_sort.len())
             .or_insert(0) += 1;
-        let distance = i - dag_work_to_u64(part_sort_header.dag_work);
+        let dw = dag_work_to_u64(part_sort_header.dag_work);
+        if dw != part_sort_header.size {
+            panic!("dw != part_sort_header.size");
+        }
+        let distance = i - dw;
         let now_key = BlockKey::from(i);
         for parent in &part_sort_header.parent_keys {
             tips.remove(parent);
         }
         let block = SimBlock {
+            key: now_key,
             creator_position: selected_miner.position,
-            header: BlockHeader {
-                key: now_key,
-                version: 0,
-                nonce: 0,
+            header: ConsensusHeader {
                 part_sort_header: part_sort_header.clone(),
                 pow_header: PowHeader::default(),
             },
@@ -85,7 +87,7 @@ pub fn cal_tips_by_position(
     tips: BTreeSet<BlockKey>,
     position: Position,
     now: u64,
-    storage: &SimBlockStorage,
+    storage: &SimConsensusHeaderStorage,
     block_per_step: f64,
 ) -> Vec<BlockKey> {
     let mut readded_tips = BTreeSet::new();
@@ -97,7 +99,7 @@ pub fn cal_tips_by_position(
         }
         readded_tips.insert(tip);
         let block = storage.get_block(&tip).unwrap().unwrap();
-        let i64_key = block.header.key.to_limbs()[0].0;
+        let i64_key = block.key.to_limbs()[0].0;
         let observed_time =
             i64_key + calc_distance_delay(&block.creator_position, &position, block_per_step);
         if observed_time <= now || tip == GENESIS_BLOCK_KEY {

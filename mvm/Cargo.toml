@@ -10,3 +10,5 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 bincode = { workspace = true }
 log = { workspace = true }
+sha2 = { workspace = true }
+secp256k1 = { workspace = true }

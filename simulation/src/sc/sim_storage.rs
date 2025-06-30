@@ -3,16 +3,16 @@ use crate::sc::sim_miner::Position;
 use super::sim_block::SimBlock;
 use anyhow::Context;
 use consensus::{
-    block_header::{BlockHeader, PowHeader},
-    traits::{BlockKey, BlockStorage, GENESIS_BLOCK_KEY, PartSortHeader},
+    block_header::{ConsensusHeader, PowHeader},
+    traits::{BlockKey, ConsensusHeaderStorage, GENESIS_BLOCK_KEY, PartSortHeader},
 };
 use utils::error::{Error, Result};
 
-pub struct SimBlockStorage {
+pub struct SimConsensusHeaderStorage {
     db: rocksdb::DB,
 }
 
-impl SimBlockStorage {
+impl SimConsensusHeaderStorage {
     pub fn new(path: &str) -> Self {
         let cache = rocksdb::Cache::new_lru_cache(1024 * 1024 * 1024);
         let mut opts = rocksdb::Options::default();
@@ -32,11 +32,9 @@ impl SimBlockStorage {
     pub fn get_block(&self, key: &BlockKey) -> Result<Option<SimBlock>> {
         if key == &GENESIS_BLOCK_KEY {
             return Ok(Some(SimBlock {
+                key: GENESIS_BLOCK_KEY,
                 creator_position: Position::default(),
-                header: BlockHeader {
-                    key: GENESIS_BLOCK_KEY,
-                    version: 0,
-                    nonce: 0,
+                header: ConsensusHeader {
                     part_sort_header: PartSortHeader::default(),
                     pow_header: PowHeader {
                         target: BlockKey::MAX,
@@ -58,8 +56,8 @@ impl SimBlockStorage {
     }
 }
 
-impl BlockStorage for SimBlockStorage {
-    fn get_block_header(&self, key: &BlockKey) -> Result<BlockHeader> {
+impl ConsensusHeaderStorage for SimConsensusHeaderStorage {
+    fn get_consensus_header(&self, key: &BlockKey) -> Result<ConsensusHeader> {
         let block = self.get_block(key)?.ok_or_else(|| Error::BlockNotFound {
             key: key.to_string(),
         })?;
