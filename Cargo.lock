@@ -79,15 +79,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4c7f02d4ea65f2c1853089ffd8d2787bdbc63de2f0d29dedbcf8ccdfa0ccd4cf"
 
 [[package]]
-name = "bincode"
-version = "1.3.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b1f45e9417d87227c7a56d22e471c6206462cba514c7590c09aff4cf6d1ddcad"
-dependencies = [
- "serde",
-]
-
-[[package]]
 name = "bindgen"
 version = "0.69.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -948,7 +939,6 @@ version = "0.1.0"
 dependencies = [
  "alloy-rlp",
  "anyhow",
- "bincode",
  "consensus",
  "crypto-bigint",
  "log",

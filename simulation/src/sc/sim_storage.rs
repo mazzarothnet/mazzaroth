@@ -26,12 +26,10 @@ impl SimConsensusHeaderStorage {
     }
 
     pub fn set_block(&mut self, key: BlockKey, block: &SimBlock) -> Result<()> {
-        let key_vec = bincode::serialize(&key).context("set_block error")?;
-        let value_vec = bincode::serialize(&block).context("set_block error")?;
-        // let mut key_vec = Vec::new();
-        // key.encode(&mut key_vec);
-        // let mut value_vec = Vec::new();
-        // block.encode(&mut value_vec);
+        let mut key_vec = Vec::new();
+        key.encode(&mut key_vec);
+        let mut value_vec = Vec::new();
+        block.encode(&mut value_vec);
         self.db
             .put(&key_vec, &value_vec)
             .context("set block failed")?;
@@ -59,18 +57,15 @@ impl SimConsensusHeaderStorage {
                 },
             }));
         }
-        let key_vec = bincode::serialize(&key).context("get_block error")?;
-        //let mut key_vec = Vec::new();
-        // key.encode(&mut key_vec);
+        let mut key_vec = Vec::new();
+        key.encode(&mut key_vec);
         let value = if let Some(value) = self.db.get(&key_vec).context("get block failed")? {
             value
         } else {
             return Ok(None);
         };
-        let block: SimBlock =
-            bincode::deserialize(&value).context("deserialize sim block failed")?;
-        // let block =
-        //     SimBlock::decode(&mut value.as_slice()).context("deserialize sim block failed")?;
+        let block =
+            SimBlock::decode(&mut value.as_slice()).context("deserialize sim block failed")?;
         Ok(Some(block))
     }
 }

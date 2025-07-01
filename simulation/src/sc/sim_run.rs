@@ -20,6 +20,7 @@ fn dag_work_to_u64(dag_work: DagWork) -> u64 {
     dag_work.0.to_limbs()[0].0
 }
 
+#[allow(clippy::panic)]
 pub fn run_sim(db_path: &str, miner_num: u64, block_num: u64, block_per_step: f64) {
     std::fs::remove_dir_all(db_path).unwrap();
     let mut storage = SimConsensusHeaderStorage::new(db_path);

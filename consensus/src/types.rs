@@ -1,7 +1,7 @@
 use alloy_rlp::{Decodable, Encodable, Error as RlpError, RlpDecodable, RlpEncodable, bytes};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::ops::Deref;
-use std::ops::{Add, Div, Mul, Sub, AddAssign};
+use std::ops::{Add, AddAssign, Div, Mul, Sub};
 
 macro_rules! define_byte_array {
     ($struct_name:ident, $len:expr) => {
@@ -115,15 +115,15 @@ macro_rules! impl_u256_ops {
             }
         }
 
-        impl Into<crypto_bigint::U256> for $type_name {
-            fn into(self) -> crypto_bigint::U256 {
-                self.0
+        impl From<$type_name> for crypto_bigint::U256 {
+            fn from(value: $type_name) -> crypto_bigint::U256 {
+                value.0
             }
         }
 
-        impl ToString for $type_name {
-            fn to_string(&self) -> String {
-                self.0.to_string()
+        impl std::fmt::Display for $type_name {
+            fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+                write!(f, "{}", self.0)
             }
         }
     };
@@ -135,5 +135,3 @@ define_byte_array!(AccountKey, 33);
 
 impl_u256_ops!(BlockKey);
 impl_u256_ops!(DagWork);
-
-

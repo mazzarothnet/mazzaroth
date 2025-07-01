@@ -1,7 +1,7 @@
+use crate::{POW_TARGET_INTERVAL, POW_TARGET_INTERVAL_MS, traits::PartSortHeader, types::BlockKey};
+use alloy_rlp::{RlpDecodable, RlpEncodable};
 use crypto_bigint::U256;
 use serde::{Deserialize, Serialize};
-use alloy_rlp::{RlpDecodable, RlpEncodable};
-use crate::{POW_TARGET_INTERVAL, POW_TARGET_INTERVAL_MS, traits::PartSortHeader, types::BlockKey};
 
 #[derive(Clone, Serialize, Deserialize, RlpDecodable, RlpEncodable)]
 pub struct ConsensusHeader {

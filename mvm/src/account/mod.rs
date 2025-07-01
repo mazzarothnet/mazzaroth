@@ -7,4 +7,3 @@ pub struct Account {
     pub balance: u128,
     pub action_hash: ActionHash,
 }
-

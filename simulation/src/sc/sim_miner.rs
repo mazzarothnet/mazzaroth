@@ -1,6 +1,6 @@
+use alloy_rlp::{RlpDecodable, RlpEncodable};
 use rand::Rng;
 use serde::{Deserialize, Serialize};
-use alloy_rlp::{RlpDecodable, RlpEncodable};
 const HEIGHT: i64 = 100;
 const WIDTH: i64 = 100;
 
@@ -62,7 +62,7 @@ pub fn select_miner(miners: &[SimMiner]) -> SimMiner {
     miners[0]
 }
 
-pub fn calc_distance_delay(miner1: &Position, miner2: &Position,block_per_step: f64) -> u64 {
+pub fn calc_distance_delay(miner1: &Position, miner2: &Position, block_per_step: f64) -> u64 {
     let dx = (miner1.x as f64 - miner2.x as f64).abs();
     let dy = (miner1.y as f64 - miner2.y as f64).abs();
     let distance = (dx * dx + dy * dy).sqrt();

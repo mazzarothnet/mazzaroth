@@ -20,22 +20,22 @@ pub fn gen_part_sort_block<S: ConsensusHeaderStorage>(
 ) -> Result<PartSortHeader> {
     let (selected_head_key, mut selected_head_dag_work, selected_size) =
         get_max_dag_work_key(storage, parent_keys)?;
-    debug!("selected_head_key: {:?}", selected_head_key);
+    debug!("selected_head_key: {selected_head_key:?}");
     let link_set = get_link_set(storage, selected_head_key)?;
-    debug!("link_set: {:?}", link_set);
+    debug!("link_set: {link_set:?}");
     let well_connected_keys = get_well_connected_keys(storage, &link_set, parent_keys)?;
-    debug!("well_connected_keys: {:?}", well_connected_keys);
+    debug!("well_connected_keys: {well_connected_keys:?}");
     let in_degree = cal_in_degree_without_check(storage, &well_connected_keys, &link_set.link_set)?;
-    debug!("in_degree: {:?}", in_degree);
+    debug!("in_degree: {in_degree:?}");
     let real_tips_without_head = cal_real_tips_without_head(well_connected_keys, &in_degree)?;
-    debug!("real_tips_without_head: {:?}", real_tips_without_head);
+    debug!("real_tips_without_head: {real_tips_without_head:?}");
     let top_sort = cal_top_sort(
         storage,
         &real_tips_without_head,
         &selected_head_key,
         in_degree,
     )?;
-    debug!("top_sort: {:?}", top_sort);
+    debug!("top_sort: {top_sort:?}");
     check_top_sort(&top_sort)?;
     let mut parent_keys = real_tips_without_head;
     parent_keys.push(selected_head_key);
@@ -97,8 +97,8 @@ fn get_link_set<S: ConsensusHeaderStorage>(
         link_set.extend(header.part_sort_header.part_sort.into_iter());
         link_set.insert(now_key);
         head_link_set.insert(now_key);
-        if BlockKey::from(GENESIS_BLOCK_KEY) != header.part_sort_header.head_key {
-            now_key = head_key;
+        if now_key != BlockKey::from(GENESIS_BLOCK_KEY) {
+            now_key = header.part_sort_header.head_key;
         } else {
             break;
         }
@@ -174,7 +174,7 @@ fn check_head_well_connected_block<S: ConsensusHeaderStorage>(
     let mut now_key = key;
     while count < MAX_ANCESTOR_SIZE {
         let header = storage.get_consensus_header(&now_key)?;
-        if BlockKey::from(GENESIS_BLOCK_KEY) != header.part_sort_header.head_key {
+        if now_key != BlockKey::from(GENESIS_BLOCK_KEY) {
             if head_link_set.contains(&header.part_sort_header.head_key) {
                 return Ok(true);
             }

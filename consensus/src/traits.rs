@@ -1,10 +1,10 @@
-use serde::{Deserialize, Serialize};
-use utils::error::Result;
-use alloy_rlp::{RlpDecodable, RlpEncodable};
 use crate::{
     block_header::ConsensusHeader,
     types::{BlockKey, DagWork},
 };
+use alloy_rlp::{RlpDecodable, RlpEncodable};
+use serde::{Deserialize, Serialize};
+use utils::error::Result;
 
 pub const GENESIS_BLOCK_KEY: crypto_bigint::U256 = crypto_bigint::U256::ZERO;
 
@@ -40,7 +40,7 @@ mod tests {
     fn test_block_key_trans_u256() {
         let kk = crypto_bigint::U256::from(123123u64);
         let kk2 = BlockKey::from(kk);
-        let kk3: crypto_bigint::U256 = kk2.clone().into();
+        let kk3: crypto_bigint::U256 = kk2.into();
         let kk4: BlockKey = kk3.into();
         // println!("kk: {:?}", kk);
         // println!("kk2: {:?}", kk2);

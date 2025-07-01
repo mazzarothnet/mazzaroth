@@ -1,5 +1,5 @@
-use consensus::{block_header::ConsensusHeader, types::BlockKey};
 use alloy_rlp::{RlpDecodable, RlpEncodable};
+use consensus::{block_header::ConsensusHeader, types::BlockKey};
 use serde::{Deserialize, Serialize};
 
 use super::sim_miner::Position;
