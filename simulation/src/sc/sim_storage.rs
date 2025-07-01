@@ -4,8 +4,10 @@ use super::sim_block::SimBlock;
 use anyhow::Context;
 use consensus::{
     block_header::{ConsensusHeader, PowHeader},
-    traits::{BlockKey, ConsensusHeaderStorage, GENESIS_BLOCK_KEY, PartSortHeader},
+    traits::{ConsensusHeaderStorage, PartSortHeader, GENESIS_BLOCK_KEY},
+    types::{BlockKey, DagWork},
 };
+use crypto_bigint::U256;
 use utils::error::{Error, Result};
 
 pub struct SimConsensusHeaderStorage {
@@ -30,14 +32,20 @@ impl SimConsensusHeaderStorage {
     }
 
     pub fn get_block(&self, key: &BlockKey) -> Result<Option<SimBlock>> {
-        if key == &GENESIS_BLOCK_KEY {
+        if key == &BlockKey::from(GENESIS_BLOCK_KEY) {
             return Ok(Some(SimBlock {
-                key: GENESIS_BLOCK_KEY,
+                key: BlockKey::from(GENESIS_BLOCK_KEY),
                 creator_position: Position::default(),
                 header: ConsensusHeader {
-                    part_sort_header: PartSortHeader::default(),
+                    part_sort_header: PartSortHeader {
+                        head_key: None,
+                        dag_work: DagWork::from(U256::ZERO),
+                        size: 0,
+                        parent_keys: vec![],
+                        part_sort: vec![],
+                    },
                     pow_header: PowHeader {
-                        target: BlockKey::MAX,
+                        target: BlockKey::from(U256::MAX),
                         target_timestamp_ms: 0,
                         now_timestamp_ms: 0,
                     },

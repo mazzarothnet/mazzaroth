@@ -1,15 +1,16 @@
 use serde::{Deserialize, Serialize};
 use utils::error::Result;
 
-use crate::block_header::ConsensusHeader;
+use crate::{
+    block_header::ConsensusHeader,
+    types::{BlockKey, DagWork},
+};
 
-pub type BlockKey = crypto_bigint::U256;
-pub type DagWork = crypto_bigint::U256;
-pub const GENESIS_BLOCK_KEY: BlockKey = BlockKey::ZERO;
+pub const GENESIS_BLOCK_KEY: crypto_bigint::U256 = crypto_bigint::U256::ZERO;
 
 // 如果旷工只连接少量的parent，那么它的dag_work就会很少，容易无效挖矿
 // 如果连接过多的parent，那么就无法通过验证，无效挖矿
-#[derive(Clone, Serialize, Deserialize, Default, PartialEq, Eq, Debug)]
+#[derive(Clone, Serialize, Deserialize, PartialEq, Eq, Debug)]
 pub struct PartSortHeader {
     pub head_key: Option<BlockKey>,
     pub dag_work: DagWork,
@@ -29,9 +30,23 @@ mod tests {
 
     #[test]
     fn test_block_key() {
-        let key = BlockKey::from(1u64);
+        let key = crypto_bigint::U256::from(1u64);
         let key_u64 = key.to_limbs()[0].0;
         // println!("key_u64: {}", key_u64);
         assert_eq!(key_u64, 1);
+    }
+
+    #[test]
+    fn test_block_key_trans_u256() {
+        let kk = crypto_bigint::U256::from(123123u64);
+        let kk2 = BlockKey::from(kk);
+        let kk3: crypto_bigint::U256 = kk2.clone().into();
+        let kk4: BlockKey = kk3.into();
+        println!("kk: {:?}", kk);
+        println!("kk2: {:?}", kk2);
+        println!("kk3: {:?}", kk3);
+        println!("kk4: {:?}", kk4);
+        assert_eq!(kk, kk3);
+        assert_eq!(kk2, kk4);
     }
 }

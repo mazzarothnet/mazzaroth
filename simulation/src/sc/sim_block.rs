@@ -1,4 +1,4 @@
-use consensus::{block_header::ConsensusHeader, traits::BlockKey};
+use consensus::{block_header::ConsensusHeader, types::BlockKey};
 use serde::{Deserialize, Serialize};
 
 use super::sim_miner::Position;

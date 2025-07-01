@@ -1,6 +1,7 @@
 pub mod block_header;
 pub mod part_sort_header;
 pub mod traits;
+pub mod types;
 
 pub const EXPECTED_BLOCK_SIZE: usize = 1024 * 256; // 256KB
 pub const MAX_PART_SORT_SIZE: usize = 200;

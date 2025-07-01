@@ -1,9 +1,7 @@
+use crypto_bigint::U256;
 use serde::{Deserialize, Serialize};
-
-use crate::{
-    POW_TARGET_INTERVAL, POW_TARGET_INTERVAL_MS,
-    traits::{BlockKey, PartSortHeader},
-};
+use alloy_rlp::{RlpDecodable, RlpEncodable};
+use crate::{POW_TARGET_INTERVAL, POW_TARGET_INTERVAL_MS, traits::PartSortHeader, types::BlockKey};
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct ConsensusHeader {
@@ -21,7 +19,7 @@ pub struct PowHeader {
 impl Default for PowHeader {
     fn default() -> Self {
         Self {
-            target: BlockKey::MAX,
+            target: BlockKey::from(U256::MAX),
             target_timestamp_ms: 0,
             now_timestamp_ms: 0,
         }
@@ -55,7 +53,8 @@ pub fn gen_pow_header(
 }
 
 fn get_pow_target(old_target: BlockKey, cast_time_ms: u64, target_interval_ms: u64) -> BlockKey {
-    old_target / BlockKey::from_u64(target_interval_ms) * BlockKey::from_u64(cast_time_ms)
+    old_target / BlockKey::from(U256::from_u64(target_interval_ms))
+        * BlockKey::from(U256::from_u64(cast_time_ms))
 }
 
 // impl BlockKeyTrait for BlockKey {
@@ -76,9 +75,9 @@ mod tests {
 
     #[test]
     fn test_get_pow_target() {
-        let target = get_pow_target(BlockKey::from_u64(100), 10 * 2, 10);
-        assert_eq!(target, BlockKey::from_u64(200));
-        let target = get_pow_target(BlockKey::from_u64(100), 5, 10);
-        assert_eq!(target, BlockKey::from_u64(50));
+        let target = get_pow_target(BlockKey::from(U256::from_u64(100)), 10 * 2, 10);
+        assert_eq!(target, BlockKey::from(U256::from_u64(200)));
+        let target = get_pow_target(BlockKey::from(U256::from_u64(100)), 5, 10);
+        assert_eq!(target, BlockKey::from(U256::from_u64(50)));
     }
 }

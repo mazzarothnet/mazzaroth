@@ -8,14 +8,16 @@ use consensus::{
     MAX_ANCESTOR_SIZE,
     block_header::{ConsensusHeader, PowHeader},
     part_sort_header::gen_part_sort_block,
-    traits::{BlockKey, DagWork, GENESIS_BLOCK_KEY},
+    traits::GENESIS_BLOCK_KEY,
+    types::{BlockKey, DagWork},
 };
+use crypto_bigint::U256;
 use log::info;
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use utils::file::write_to_json;
 
 fn dag_work_to_u64(dag_work: DagWork) -> u64 {
-    dag_work.to_limbs()[0].0
+    dag_work.0.to_limbs()[0].0
 }
 
 pub fn run_sim(db_path: &str, miner_num: u64, block_num: u64, block_per_step: f64) {
@@ -23,7 +25,7 @@ pub fn run_sim(db_path: &str, miner_num: u64, block_num: u64, block_per_step: f6
     let mut storage = SimConsensusHeaderStorage::new(db_path);
     let miners = gen_sim_minner_list(miner_num);
     let mut tips = BTreeSet::new();
-    tips.insert(GENESIS_BLOCK_KEY);
+    tips.insert(BlockKey::from(GENESIS_BLOCK_KEY));
     let mut part_sort_size: BTreeMap<usize, i64> = BTreeMap::new();
     // let mut tmp_block = Vec::new();
     for i in 2..block_num {
@@ -44,7 +46,7 @@ pub fn run_sim(db_path: &str, miner_num: u64, block_num: u64, block_per_step: f6
             panic!("dw != part_sort_header.size");
         }
         let distance = i - dw;
-        let now_key = BlockKey::from(i);
+        let now_key = BlockKey::from(U256::from_u64(i));
         for parent in &part_sort_header.parent_keys {
             tips.remove(parent);
         }
@@ -99,10 +101,10 @@ pub fn cal_tips_by_position(
         }
         readded_tips.insert(tip);
         let block = storage.get_block(&tip).unwrap().unwrap();
-        let i64_key = block.key.to_limbs()[0].0;
+        let i64_key = block.key.0.to_limbs()[0].0;
         let observed_time =
             i64_key + calc_distance_delay(&block.creator_position, &position, block_per_step);
-        if observed_time <= now || tip == GENESIS_BLOCK_KEY {
+        if observed_time <= now || tip == BlockKey::from(GENESIS_BLOCK_KEY) {
             ans.insert(tip);
         } else {
             for parent in block.header.part_sort_header.parent_keys {

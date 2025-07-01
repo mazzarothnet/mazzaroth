@@ -1,4 +1,4 @@
-use crate::types::{AccountKey, ActionHash};
+use consensus::types::{AccountKey, ActionHash};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize)]

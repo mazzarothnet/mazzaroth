@@ -1,14 +1,17 @@
 use super::traits::PartSortHeader;
 use crate::{
     MAX_ANCESTOR_SIZE, MAX_PART_SORT_SIZE,
-    traits::{BlockKey, ConsensusHeaderStorage, DagWork, GENESIS_BLOCK_KEY},
+    traits::{ConsensusHeaderStorage, GENESIS_BLOCK_KEY},
+    types::{BlockKey, DagWork},
 };
+use crypto_bigint::U256;
 use log::debug;
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use utils::error::{Error, Result};
 
-fn get_work_from_target(target: &BlockKey) -> DagWork {
-    DagWork::MAX / *target
+fn get_work_from_target(target: BlockKey) -> DagWork {
+    let u256_target: U256 = target.into();
+    DagWork::from(U256::MAX / u256_target)
 }
 
 pub fn gen_part_sort_block<S: ConsensusHeaderStorage>(
@@ -38,7 +41,7 @@ pub fn gen_part_sort_block<S: ConsensusHeaderStorage>(
     parent_keys.push(selected_head_key);
     for key in &top_sort {
         let block_header = storage.get_consensus_header(key)?;
-        selected_head_dag_work += get_work_from_target(&block_header.pow_header.target);
+        selected_head_dag_work += get_work_from_target(block_header.pow_header.target);
     }
     let part_sort_block = PartSortHeader {
         head_key: Some(selected_head_key),
@@ -55,7 +58,7 @@ fn get_max_dag_work_key<S: ConsensusHeaderStorage>(
     parent_keys: &[BlockKey],
 ) -> Result<(BlockKey, DagWork, u64)> {
     let mut selected_key = *parent_keys.first().ok_or_else(|| Error::EmptyParentKeys)?;
-    let mut selected_dag_work = DagWork::ZERO;
+    let mut selected_dag_work = DagWork::from(U256::ZERO);
     let mut selected_size = 0;
     for parent_key in parent_keys {
         let block_header = storage.get_consensus_header(parent_key)?;
@@ -141,7 +144,7 @@ fn check_well_connected_block<S: ConsensusHeaderStorage>(
             .part_sort_header
             .parent_keys;
         if readded_set.len() >= MAX_PART_SORT_SIZE
-            || now_key == GENESIS_BLOCK_KEY
+            || now_key == BlockKey::from(GENESIS_BLOCK_KEY)
             || parent_keys.is_empty()
         {
             return Ok(false);
