@@ -130,6 +130,7 @@ macro_rules! impl_u256_ops {
 }
 
 define_byte_array!(ActionHash, 32);
+define_byte_array!(StateHash, 32);
 define_byte_array!(Signature, 64);
 define_byte_array!(AccountKey, 33);
 
