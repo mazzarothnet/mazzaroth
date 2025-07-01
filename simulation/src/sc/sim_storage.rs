@@ -1,23 +1,21 @@
-use super::sim_block::{SimBlock, SimKey};
+use crate::sc::sim_miner::Position;
+
+use super::sim_block::SimBlock;
+use alloy_rlp::{Decodable, Encodable};
 use anyhow::Context;
-use consensus::traits::{BlockKeyTrait, BlockStorage, PartSortHeader, PartSortPackage};
-use serde::{Deserialize, Serialize};
+use consensus::{
+    block_header::{ConsensusHeader, PowHeader},
+    traits::{ConsensusHeaderStorage, GENESIS_BLOCK_KEY, PartSortHeader},
+    types::{BlockKey, DagWork},
+};
+use crypto_bigint::U256;
 use utils::error::{Error, Result};
 
-pub const BLOCK_DATA_TYPE: u8 = 0;
-pub const PART_SORT_DATA_TYPE: u8 = 1;
-
-#[derive(Serialize, Deserialize)]
-pub struct KeyWrapper {
-    pub key: SimKey,
-    pub data_type: u8,
-}
-
-pub struct SimBlockStorage {
+pub struct SimConsensusHeaderStorage {
     db: rocksdb::DB,
 }
 
-impl SimBlockStorage {
+impl SimConsensusHeaderStorage {
     pub fn new(path: &str) -> Self {
         let cache = rocksdb::Cache::new_lru_cache(1024 * 1024 * 1024);
         let mut opts = rocksdb::Options::default();
@@ -27,109 +25,56 @@ impl SimBlockStorage {
         Self { db }
     }
 
-    pub fn set_block(&mut self, key: SimKey, block: &SimBlock) -> Result<()> {
-        let key_wrapper = KeyWrapper {
-            key,
-            data_type: BLOCK_DATA_TYPE,
-        };
-        let key_vec = bincode::serialize(&key_wrapper).context("set_block error")?;
-        let value = bincode::serialize(&block).context("set_block error")?;
-        self.db.put(&key_vec, &value).context("set block failed")?;
+    pub fn set_block(&mut self, key: BlockKey, block: &SimBlock) -> Result<()> {
+        let mut key_vec = Vec::new();
+        key.encode(&mut key_vec);
+        let mut value_vec = Vec::new();
+        block.encode(&mut value_vec);
+        self.db
+            .put(&key_vec, &value_vec)
+            .context("set block failed")?;
         Ok(())
     }
 
-    pub fn get_block(&self, key: &SimKey) -> Result<Option<SimBlock>> {
-        let key_wrapper = KeyWrapper {
-            key: *key,
-            data_type: BLOCK_DATA_TYPE,
-        };
-        let key_vec = bincode::serialize(&key_wrapper).context("get_block error")?;
+    pub fn get_block(&self, key: &BlockKey) -> Result<Option<SimBlock>> {
+        if key == &BlockKey::from(GENESIS_BLOCK_KEY) {
+            return Ok(Some(SimBlock {
+                key: BlockKey::from(GENESIS_BLOCK_KEY),
+                creator_position: Position::default(),
+                header: ConsensusHeader {
+                    part_sort_header: PartSortHeader {
+                        head_key: BlockKey::from(GENESIS_BLOCK_KEY),
+                        dag_work: DagWork::from(U256::ZERO),
+                        size: 0,
+                        parent_keys: vec![],
+                        part_sort: vec![],
+                    },
+                    pow_header: PowHeader {
+                        target: BlockKey::from(U256::MAX),
+                        target_timestamp_ms: 0,
+                        now_timestamp_ms: 0,
+                    },
+                },
+            }));
+        }
+        let mut key_vec = Vec::new();
+        key.encode(&mut key_vec);
         let value = if let Some(value) = self.db.get(&key_vec).context("get block failed")? {
             value
         } else {
             return Ok(None);
         };
-        let block: SimBlock =
-            bincode::deserialize(&value).context("deserialize sim block failed")?;
+        let block =
+            SimBlock::decode(&mut value.as_slice()).context("deserialize sim block failed")?;
         Ok(Some(block))
     }
 }
 
-pub struct BlockStorageKey {
-    pub key: SimKey,
-}
-
-impl BlockStorage for SimBlockStorage {
-    type KeyType = SimKey;
-
-    fn get_parent_keys(&self, key: &Self::KeyType) -> Result<Vec<Self::KeyType>> {
-        if key.is_genesis() {
-            return Ok(vec![]);
-        }
-        let key_wrapper = KeyWrapper {
-            key: *key,
-            data_type: BLOCK_DATA_TYPE,
-        };
-        let key_vec = bincode::serialize(&key_wrapper).context("get_parent_keys error")?;
-        let value = self
-            .db
-            .get(&key_vec)
-            .context("get parent keys failed")?
-            .ok_or_else(|| Error::UnknownBlock {
-                key: key.serde_to_string().unwrap_or_default(),
-            })?;
-        let block: SimBlock =
-            bincode::deserialize(&value).context("deserialize sim block failed")?;
-        Ok(block.parent_keys)
-    }
-
-    fn get_part_sort_block_of_key(
-        &self,
-        key: &Self::KeyType,
-    ) -> Result<Option<PartSortPackage<Self::KeyType>>> {
-        if key.is_genesis() {
-            return Ok(Some(PartSortPackage {
-                part_sort: vec![],
-                header: PartSortHeader {
-                    head_key: None,
-                    size: 1,
-                    parent_keys: vec![],
-                },
-            }));
-        }
-        let key_wrapper = KeyWrapper {
-            key: *key,
-            data_type: PART_SORT_DATA_TYPE,
-        };
-        let key_vec = bincode::serialize(&key_wrapper).context("get_part_sort_of_key error")?;
-        let vv = self
-            .db
-            .get(&key_vec)
-            .context("get part sort of key failed")?;
-        let value = if let Some(value) = vv {
-            value
-        } else {
-            return Ok(None);
-        };
-        let part_sort_block: PartSortPackage<SimKey> =
-            bincode::deserialize(&value).context("deserialize part_sort block failed")?;
-        Ok(Some(part_sort_block))
-    }
-
-    fn set_part_sort_block_of_key(
-        &mut self,
-        key: Self::KeyType,
-        package: &PartSortPackage<Self::KeyType>,
-    ) -> Result<()> {
-        let key_wrapper = KeyWrapper {
-            key,
-            data_type: PART_SORT_DATA_TYPE,
-        };
-        let key_vec = bincode::serialize(&key_wrapper).context("set_part_sort_of_key error")?;
-        let value = bincode::serialize(&package).context("set_part_sort_of_key error")?;
-        self.db
-            .put(&key_vec, &value)
-            .context("set part sort of key failed")?;
-        Ok(())
+impl ConsensusHeaderStorage for SimConsensusHeaderStorage {
+    fn get_consensus_header(&self, key: &BlockKey) -> Result<ConsensusHeader> {
+        let block = self.get_block(key)?.ok_or_else(|| Error::BlockNotFound {
+            key: key.to_string(),
+        })?;
+        Ok(block.header)
     }
 }

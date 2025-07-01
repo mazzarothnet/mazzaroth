@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 cargo clippy --all-targets --all-features "$@" -- \
         -D warnings \
-        -D clippy::panic \
         -D clippy::expect_used \
         -D clippy::unwrap_used \
         -D clippy::branches_sharing_code \

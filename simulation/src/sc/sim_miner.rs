@@ -1,12 +1,13 @@
+use alloy_rlp::{RlpDecodable, RlpEncodable};
 use rand::Rng;
 use serde::{Deserialize, Serialize};
 const HEIGHT: i64 = 100;
 const WIDTH: i64 = 100;
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, Default, RlpDecodable, RlpEncodable)]
 pub struct Position {
-    pub x: f64,
-    pub y: f64,
+    pub x: u64,
+    pub y: u64,
 }
 
 #[derive(Copy, Clone)]
@@ -21,8 +22,8 @@ pub fn gen_sim_minner_list(miner_num: u64) -> Vec<SimMiner> {
     let mut rng = rand::rng();
     let mut miners = Vec::new();
     for i in 0..poor_minner_num {
-        let x = rng.random_range(0..HEIGHT * 10) as f64;
-        let y = rng.random_range(0..WIDTH * 10) as f64;
+        let x = rng.random_range(0..HEIGHT * 10) as u64;
+        let y = rng.random_range(0..WIDTH * 10) as u64;
         let power = f64::from(rng.random_range(0..100));
         miners.push(SimMiner {
             id: i,
@@ -31,8 +32,8 @@ pub fn gen_sim_minner_list(miner_num: u64) -> Vec<SimMiner> {
         });
     }
     for i in poor_minner_num..miner_num {
-        let x = rng.random_range(0..HEIGHT) as f64;
-        let y = rng.random_range(0..WIDTH) as f64;
+        let x = rng.random_range(0..HEIGHT) as u64;
+        let y = rng.random_range(0..WIDTH) as u64;
         let power = f64::from(rng.random_range(0..100));
         miners.push(SimMiner {
             id: i,
@@ -61,9 +62,9 @@ pub fn select_miner(miners: &[SimMiner]) -> SimMiner {
     miners[0]
 }
 
-pub fn calc_distance_delay(miner1: &Position, miner2: &Position,block_per_step: f64) -> u64 {
-    let dx = miner1.x - miner2.x;
-    let dy = miner1.y - miner2.y;
+pub fn calc_distance_delay(miner1: &Position, miner2: &Position, block_per_step: f64) -> u64 {
+    let dx = (miner1.x as f64 - miner2.x as f64).abs();
+    let dy = (miner1.y as f64 - miner2.y as f64).abs();
     let distance = (dx * dx + dy * dy).sqrt();
     let max_distance = (HEIGHT as f64 * HEIGHT as f64 + WIDTH as f64 * WIDTH as f64).sqrt();
     let delay = distance / max_distance * block_per_step;

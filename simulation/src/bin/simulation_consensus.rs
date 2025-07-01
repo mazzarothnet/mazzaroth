@@ -11,7 +11,7 @@ fn main() {
     if !Path::new(dir).exists() {
         std::fs::create_dir(dir).unwrap();
     }
-    for i in 1..18 {
+    for i in 12..18 {
         let block_num = 20000;
         let now = std::time::Instant::now();
         run_sim("test.db", 1000, block_num, f64::from(i));

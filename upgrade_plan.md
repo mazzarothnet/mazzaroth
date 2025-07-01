@@ -1,0 +1,1 @@
+1. Before 2035, update the block reward scheme to ensure the benefits of absenteeism when the block benefits decrease

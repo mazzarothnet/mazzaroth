@@ -7,6 +7,6 @@ edition = "2024"
 utils = { path = "../utils" }
 log = { workspace = true }
 serde = { workspace = true }
-serde_json = { workspace = true }
 anyhow = { workspace = true }
 crypto-bigint = { workspace = true }
+alloy-rlp = { workspace = true }

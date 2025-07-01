@@ -7,3 +7,5 @@ perf.svg
 .DS_Store
 /venv1
 .VSCodeCounter
+check_tmp_block.db
+debug

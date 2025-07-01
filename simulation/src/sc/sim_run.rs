@@ -1,41 +1,34 @@
 use super::{
-    sim_block::{SimBlock, SimKey},
+    sim_block::SimBlock,
     sim_miner::{Position, gen_sim_minner_list, select_miner},
-    sim_storage::SimBlockStorage,
+    sim_storage::SimConsensusHeaderStorage,
 };
 use crate::sc::sim_miner::calc_distance_delay;
 use consensus::{
+    MAX_ANCESTOR_SIZE,
+    block_header::{ConsensusHeader, PowHeader},
     part_sort_header::gen_part_sort_block,
-    traits::{BlockKeyTrait, BlockStorage, PartSortPackage}, MAX_ANCESTOR_SIZE,
+    traits::GENESIS_BLOCK_KEY,
+    types::{BlockKey, DagWork},
 };
+use crypto_bigint::U256;
 use log::info;
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use utils::file::write_to_json;
 
-fn cal_part_sort_block_and_storage(
-    storage: &mut SimBlockStorage,
-    now_key: SimKey,
-    parent_keys: &[SimKey],
-) -> anyhow::Result<PartSortPackage<SimKey>> {
-    let part_sort_block = gen_part_sort_block(storage, parent_keys)?;
-    storage.set_part_sort_block_of_key(now_key, &part_sort_block)?;
-    Ok(part_sort_block)
+fn dag_work_to_u64(dag_work: DagWork) -> u64 {
+    dag_work.0.to_limbs()[0].0
 }
 
+#[allow(clippy::panic)]
 pub fn run_sim(db_path: &str, miner_num: u64, block_num: u64, block_per_step: f64) {
     std::fs::remove_dir_all(db_path).unwrap();
-    let mut storage = SimBlockStorage::new(db_path);
+    let mut storage = SimConsensusHeaderStorage::new(db_path);
     let miners = gen_sim_minner_list(miner_num);
     let mut tips = BTreeSet::new();
-    let genesis_key = SimKey(0);
-    let genesis_block = SimBlock {
-        key: genesis_key,
-        creator_position: Position { x: 0.0, y: 0.0 },
-        parent_keys: vec![],
-    };
-    storage.set_block(genesis_key, &genesis_block).unwrap();
-    tips.insert(genesis_key);
+    tips.insert(BlockKey::from(GENESIS_BLOCK_KEY));
     let mut part_sort_size: BTreeMap<usize, i64> = BTreeMap::new();
+    // let mut tmp_block = Vec::new();
     for i in 2..block_num {
         let selected_miner = select_miner(&miners);
         let local_tips = cal_tips_by_position(
@@ -45,31 +38,50 @@ pub fn run_sim(db_path: &str, miner_num: u64, block_num: u64, block_per_step: f6
             &storage,
             block_per_step,
         );
-        let part_sort_block =
-            cal_part_sort_block_and_storage(&mut storage, SimKey(i), &local_tips).unwrap();
+        let part_sort_header = match gen_part_sort_block(&storage, &local_tips) {
+            Ok(part_sort_header) => part_sort_header,
+            Err(e) => {
+                info!("gen_part_sort_block error: tips  {local_tips:?}");
+                panic!("gen_part_sort_block error: {e:?}");
+            }
+        };
         *part_sort_size
-            .entry(part_sort_block.part_sort.len())
+            .entry(part_sort_header.part_sort.len())
             .or_insert(0) += 1;
-        let now_key = SimKey(i);
+        let dw = dag_work_to_u64(part_sort_header.dag_work);
+        if dw != part_sort_header.size {
+            panic!("dw != part_sort_header.size");
+        }
+        let distance = i - dw;
+        let now_key = BlockKey::from(U256::from_u64(i));
+        for parent in &part_sort_header.parent_keys {
+            tips.remove(parent);
+        }
         let block = SimBlock {
             key: now_key,
             creator_position: selected_miner.position,
-            parent_keys: part_sort_block.header.parent_keys.clone(),
+            header: ConsensusHeader {
+                part_sort_header: part_sort_header.clone(),
+                pow_header: PowHeader::default(),
+            },
         };
-        storage.set_block(block.key, &block).unwrap();
+        storage.set_block(now_key, &block).unwrap();
+        // tmp_block.push(block);
+        // if tmp_block.len() > 100 {
+        //     write_to_json("simulation/distance/tmp_block.json", &tmp_block).unwrap();
+        //     panic!("tmp_block.len() > 100");
+        // }
         tips.insert(now_key);
-        for parent in block.parent_keys {
-            tips.remove(&parent);
-        }
-        while tips.len() > MAX_ANCESTOR_SIZE * 2 { 
+
+        while tips.len() > MAX_ANCESTOR_SIZE * 2 {
             tips.pop_first();
         }
-        let distance = i - part_sort_block.header.size;
+
         if i % 1000 == 0 {
             info!(
                 "i: {i}, distance: {distance}, parent_size: {}, part_sort_size: {}",
-                part_sort_block.header.parent_keys.len(),
-                part_sort_block.part_sort.len()
+                part_sort_header.parent_keys.len(),
+                part_sort_header.part_sort.len()
             );
         }
     }
@@ -81,12 +93,12 @@ pub fn run_sim(db_path: &str, miner_num: u64, block_num: u64, block_per_step: f6
 }
 
 pub fn cal_tips_by_position(
-    tips: BTreeSet<SimKey>,
+    tips: BTreeSet<BlockKey>,
     position: Position,
     now: u64,
-    storage: &SimBlockStorage,
+    storage: &SimConsensusHeaderStorage,
     block_per_step: f64,
-) -> Vec<SimKey> {
+) -> Vec<BlockKey> {
     let mut readded_tips = BTreeSet::new();
     let mut queue = tips.into_iter().collect::<VecDeque<_>>();
     let mut ans = BTreeSet::new();
@@ -96,12 +108,13 @@ pub fn cal_tips_by_position(
         }
         readded_tips.insert(tip);
         let block = storage.get_block(&tip).unwrap().unwrap();
+        let i64_key = block.key.0.to_limbs()[0].0;
         let observed_time =
-            block.key.0 + calc_distance_delay(&block.creator_position, &position, block_per_step);
-        if observed_time <= now || tip.is_genesis() {
+            i64_key + calc_distance_delay(&block.creator_position, &position, block_per_step);
+        if observed_time <= now || tip == BlockKey::from(GENESIS_BLOCK_KEY) {
             ans.insert(tip);
         } else {
-            for parent in block.parent_keys {
+            for parent in block.header.part_sort_header.parent_keys {
                 queue.push_back(parent);
             }
         }

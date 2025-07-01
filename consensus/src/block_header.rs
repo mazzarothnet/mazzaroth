@@ -1,29 +1,29 @@
-use anyhow::Context;
-use crypto_bigint::Zero;
+use crate::{POW_TARGET_INTERVAL, POW_TARGET_INTERVAL_MS, traits::PartSortHeader, types::BlockKey};
+use alloy_rlp::{RlpDecodable, RlpEncodable};
+use crypto_bigint::U256;
 use serde::{Deserialize, Serialize};
-use utils::error::Result;
 
-use crate::{
-    POW_TARGET_INTERVAL, POW_TARGET_INTERVAL_MS,
-    traits::{BlockKeyTrait, PartSortHeader},
-};
-
-pub type BlockKey = crypto_bigint::U256;
-
-#[derive(Clone, Serialize, Deserialize)]
-pub struct BlockHeader {
-    pub key: BlockKey,
-    pub version: u32,
-    pub nonce: u32,
-    pub part_sort_header: PartSortHeader<BlockKey>,
+#[derive(Clone, Serialize, Deserialize, RlpDecodable, RlpEncodable)]
+pub struct ConsensusHeader {
+    pub part_sort_header: PartSortHeader,
     pub pow_header: PowHeader,
 }
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize, RlpDecodable, RlpEncodable)]
 pub struct PowHeader {
     pub target: BlockKey,
     pub target_timestamp_ms: u64,
     pub now_timestamp_ms: u64,
+}
+
+impl Default for PowHeader {
+    fn default() -> Self {
+        Self {
+            target: BlockKey::from(U256::MAX),
+            target_timestamp_ms: 0,
+            now_timestamp_ms: 0,
+        }
+    }
 }
 
 pub fn gen_pow_header(
@@ -53,19 +53,8 @@ pub fn gen_pow_header(
 }
 
 fn get_pow_target(old_target: BlockKey, cast_time_ms: u64, target_interval_ms: u64) -> BlockKey {
-    old_target / BlockKey::from_u64(target_interval_ms) * BlockKey::from_u64(cast_time_ms)
-}
-
-impl BlockKeyTrait for BlockKey {
-    fn is_genesis(&self) -> bool {
-        bool::from(self.is_zero())
-    }
-    fn serde_to_string(&self) -> Result<String> {
-        Ok(serde_json::to_string(self).context("serialize block key to string error")?)
-    }
-    fn from_string(s: &str) -> Result<Self> {
-        Ok(serde_json::from_str(s).context("parse block key from string error")?)
-    }
+    old_target / BlockKey::from(U256::from_u64(target_interval_ms))
+        * BlockKey::from(U256::from_u64(cast_time_ms))
 }
 
 #[cfg(test)]
@@ -74,9 +63,9 @@ mod tests {
 
     #[test]
     fn test_get_pow_target() {
-        let target = get_pow_target(BlockKey::from_u64(100), 10 * 2, 10);
-        assert_eq!(target, BlockKey::from_u64(200));
-        let target = get_pow_target(BlockKey::from_u64(100), 5, 10);
-        assert_eq!(target, BlockKey::from_u64(50));
+        let target = get_pow_target(BlockKey::from(U256::from_u64(100)), 10 * 2, 10);
+        assert_eq!(target, BlockKey::from(U256::from_u64(200)));
+        let target = get_pow_target(BlockKey::from(U256::from_u64(100)), 5, 10);
+        assert_eq!(target, BlockKey::from(U256::from_u64(50)));
     }
 }
