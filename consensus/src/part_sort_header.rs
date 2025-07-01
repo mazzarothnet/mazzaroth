@@ -44,7 +44,7 @@ pub fn gen_part_sort_block<S: ConsensusHeaderStorage>(
         selected_head_dag_work += get_work_from_target(block_header.pow_header.target);
     }
     let part_sort_block = PartSortHeader {
-        head_key: Some(selected_head_key),
+        head_key: selected_head_key,
         dag_work: selected_head_dag_work,
         parent_keys,
         size: selected_size + top_sort.len() as u64,
@@ -80,7 +80,10 @@ struct LinkSet<K> {
     head_link_set: BTreeSet<K>,
 }
 
-fn get_link_set<S: ConsensusHeaderStorage>(storage: &S, head_key: BlockKey) -> Result<LinkSet<BlockKey>> {
+fn get_link_set<S: ConsensusHeaderStorage>(
+    storage: &S,
+    head_key: BlockKey,
+) -> Result<LinkSet<BlockKey>> {
     let mut link_set: BTreeSet<BlockKey> = BTreeSet::new();
     let mut head_link_set: BTreeSet<BlockKey> = BTreeSet::new();
     let mut now_key = head_key;
@@ -94,7 +97,7 @@ fn get_link_set<S: ConsensusHeaderStorage>(storage: &S, head_key: BlockKey) -> R
         link_set.extend(header.part_sort_header.part_sort.into_iter());
         link_set.insert(now_key);
         head_link_set.insert(now_key);
-        if let Some(head_key) = header.part_sort_header.head_key {
+        if BlockKey::from(GENESIS_BLOCK_KEY) != header.part_sort_header.head_key {
             now_key = head_key;
         } else {
             break;
@@ -171,12 +174,12 @@ fn check_head_well_connected_block<S: ConsensusHeaderStorage>(
     let mut now_key = key;
     while count < MAX_ANCESTOR_SIZE {
         let header = storage.get_consensus_header(&now_key)?;
-        if let Some(head_key) = header.part_sort_header.head_key {
-            if head_link_set.contains(&head_key) {
+        if BlockKey::from(GENESIS_BLOCK_KEY) != header.part_sort_header.head_key {
+            if head_link_set.contains(&header.part_sort_header.head_key) {
                 return Ok(true);
             }
             count += 1;
-            now_key = head_key;
+            now_key = header.part_sort_header.head_key;
         } else {
             break;
         }
@@ -257,7 +260,11 @@ fn cal_top_sort<S: ConsensusHeaderStorage>(
     }
     let mut temp_sort: VecDeque<BlockKey> = VecDeque::new();
     while let Some(key) = pop_top_sort(&mut top_sort) {
-        for parent_key in storage.get_consensus_header(&key)?.part_sort_header.parent_keys {
+        for parent_key in storage
+            .get_consensus_header(&key)?
+            .part_sort_header
+            .parent_keys
+        {
             if let Some(degree) = in_degree.get_mut(&parent_key) {
                 *degree -= 1;
                 if *degree == 0 {

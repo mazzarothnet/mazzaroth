@@ -1,9 +1,10 @@
 use consensus::{block_header::ConsensusHeader, types::BlockKey};
+use alloy_rlp::{RlpDecodable, RlpEncodable};
 use serde::{Deserialize, Serialize};
 
 use super::sim_miner::Position;
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize, RlpDecodable, RlpEncodable)]
 pub struct SimBlock {
     pub key: BlockKey,
     pub header: ConsensusHeader,

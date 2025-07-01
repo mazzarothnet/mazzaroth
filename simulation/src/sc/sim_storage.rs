@@ -1,10 +1,11 @@
 use crate::sc::sim_miner::Position;
 
 use super::sim_block::SimBlock;
+use alloy_rlp::{Decodable, Encodable};
 use anyhow::Context;
 use consensus::{
     block_header::{ConsensusHeader, PowHeader},
-    traits::{ConsensusHeaderStorage, PartSortHeader, GENESIS_BLOCK_KEY},
+    traits::{ConsensusHeaderStorage, GENESIS_BLOCK_KEY, PartSortHeader},
     types::{BlockKey, DagWork},
 };
 use crypto_bigint::U256;
@@ -25,9 +26,15 @@ impl SimConsensusHeaderStorage {
     }
 
     pub fn set_block(&mut self, key: BlockKey, block: &SimBlock) -> Result<()> {
-        let key_vec = bincode::serialize(&key).context("set_block error")?;
-        let value = bincode::serialize(&block).context("set_block error")?;
-        self.db.put(&key_vec, &value).context("set block failed")?;
+        // let key_vec = bincode::serialize(&key).context("set_block error")?;
+        // let value = bincode::serialize(&block).context("set_block error")?;
+        let mut key_buf = Vec::new();
+        key.encode(&mut key_buf);
+        let mut value_buf = Vec::new();
+        block.encode(&mut value_buf);
+        self.db
+            .put(&key_buf, &value_buf)
+            .context("set block failed")?;
         Ok(())
     }
 
@@ -38,7 +45,7 @@ impl SimConsensusHeaderStorage {
                 creator_position: Position::default(),
                 header: ConsensusHeader {
                     part_sort_header: PartSortHeader {
-                        head_key: None,
+                        head_key: BlockKey::from(GENESIS_BLOCK_KEY),
                         dag_work: DagWork::from(U256::ZERO),
                         size: 0,
                         parent_keys: vec![],
@@ -52,14 +59,18 @@ impl SimConsensusHeaderStorage {
                 },
             }));
         }
-        let key_vec = bincode::serialize(&key).context("get_block error")?;
+        // let key_vec = bincode::serialize(&key).context("get_block error")?;
+        let mut key_vec = Vec::new();
+        key.encode(&mut key_vec);
         let value = if let Some(value) = self.db.get(&key_vec).context("get block failed")? {
             value
         } else {
             return Ok(None);
         };
-        let block: SimBlock =
-            bincode::deserialize(&value).context("deserialize sim block failed")?;
+        // let block: SimBlock =
+        //     bincode::deserialize(&value).context("deserialize sim block failed")?;
+        let block =
+            SimBlock::decode(&mut value.as_slice()).context("deserialize sim block failed")?;
         Ok(Some(block))
     }
 }

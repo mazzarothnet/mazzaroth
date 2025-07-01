@@ -3,13 +3,13 @@ use serde::{Deserialize, Serialize};
 use alloy_rlp::{RlpDecodable, RlpEncodable};
 use crate::{POW_TARGET_INTERVAL, POW_TARGET_INTERVAL_MS, traits::PartSortHeader, types::BlockKey};
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize, RlpDecodable, RlpEncodable)]
 pub struct ConsensusHeader {
     pub part_sort_header: PartSortHeader,
     pub pow_header: PowHeader,
 }
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize, RlpDecodable, RlpEncodable)]
 pub struct PowHeader {
     pub target: BlockKey,
     pub target_timestamp_ms: u64,
@@ -56,18 +56,6 @@ fn get_pow_target(old_target: BlockKey, cast_time_ms: u64, target_interval_ms: u
     old_target / BlockKey::from(U256::from_u64(target_interval_ms))
         * BlockKey::from(U256::from_u64(cast_time_ms))
 }
-
-// impl BlockKeyTrait for BlockKey {
-//     fn is_genesis(&self) -> bool {
-//         bool::from(self.is_zero())
-//     }
-//     fn serde_to_string(&self) -> Result<String> {
-//         Ok(serde_json::to_string(self).context("serialize block key to string error")?)
-//     }
-//     fn from_string(s: &str) -> Result<Self> {
-//         Ok(serde_json::from_str(s).context("parse block key from string error")?)
-//     }
-// }
 
 #[cfg(test)]
 mod tests {

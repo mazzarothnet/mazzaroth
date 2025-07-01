@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 use utils::error::Result;
-
+use alloy_rlp::{RlpDecodable, RlpEncodable};
 use crate::{
     block_header::ConsensusHeader,
     types::{BlockKey, DagWork},
@@ -10,9 +10,9 @@ pub const GENESIS_BLOCK_KEY: crypto_bigint::U256 = crypto_bigint::U256::ZERO;
 
 // 如果旷工只连接少量的parent，那么它的dag_work就会很少，容易无效挖矿
 // 如果连接过多的parent，那么就无法通过验证，无效挖矿
-#[derive(Clone, Serialize, Deserialize, PartialEq, Eq, Debug)]
+#[derive(Clone, Serialize, Deserialize, PartialEq, Eq, Debug, RlpDecodable, RlpEncodable)]
 pub struct PartSortHeader {
-    pub head_key: Option<BlockKey>,
+    pub head_key: BlockKey,
     pub dag_work: DagWork,
     pub size: u64,
     pub parent_keys: Vec<BlockKey>,
@@ -42,10 +42,10 @@ mod tests {
         let kk2 = BlockKey::from(kk);
         let kk3: crypto_bigint::U256 = kk2.clone().into();
         let kk4: BlockKey = kk3.into();
-        println!("kk: {:?}", kk);
-        println!("kk2: {:?}", kk2);
-        println!("kk3: {:?}", kk3);
-        println!("kk4: {:?}", kk4);
+        // println!("kk: {:?}", kk);
+        // println!("kk2: {:?}", kk2);
+        // println!("kk3: {:?}", kk3);
+        // println!("kk4: {:?}", kk4);
         assert_eq!(kk, kk3);
         assert_eq!(kk2, kk4);
     }
