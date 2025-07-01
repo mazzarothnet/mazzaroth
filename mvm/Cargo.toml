@@ -11,3 +11,4 @@ serde_json = { workspace = true }
 log = { workspace = true }
 sha2 = { workspace = true }
 secp256k1 = { workspace = true }
+alloy-rlp = { workspace = true }
