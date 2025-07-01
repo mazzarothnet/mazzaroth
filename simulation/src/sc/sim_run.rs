@@ -37,7 +37,13 @@ pub fn run_sim(db_path: &str, miner_num: u64, block_num: u64, block_per_step: f6
             &storage,
             block_per_step,
         );
-        let part_sort_header = gen_part_sort_block(&storage, &local_tips).unwrap();
+        let part_sort_header = match gen_part_sort_block(&storage, &local_tips) {
+            Ok(part_sort_header) => part_sort_header,
+            Err(e) => {
+                info!("gen_part_sort_block error: tips  {local_tips:?}");
+                panic!("gen_part_sort_block error: {e:?}");
+            }
+        };
         *part_sort_size
             .entry(part_sort_header.part_sort.len())
             .or_insert(0) += 1;
