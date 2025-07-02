@@ -1,5 +1,3 @@
-use std::marker::PhantomData;
-
 use crate::core::storage::{DbStorage, DbStorageTransaction};
 use alloy_rlp::{RlpDecodable, RlpEncodable};
 use consensus::types::{AccountKey, StateHash};
@@ -12,10 +10,9 @@ const TIRE_STATE_KEY: u128 = 0u128;
 const TIRE_ROOT_KEY: u128 = 1u128;
 const ZERO_STATE_HASH: StateHash = StateHash([0; 32]);
 
-pub struct Tire<S: DbStorage, T: DbStorageTransaction> {
+pub struct Tire<S: DbStorage> {
     state: TireState,
     storage: S,
-    _phantom: PhantomData<T>,
 }
 
 #[derive(Debug, Serialize, Deserialize, RlpEncodable, RlpDecodable, Clone)]
@@ -24,9 +21,9 @@ struct TireState {
     state_hash: StateHash,
 }
 
-impl<S: DbStorage, T: DbStorageTransaction> Tire<S, T> {
+impl<S: DbStorage> Tire<S> {
     pub fn new(storage: S) -> Result<Self> {
-        let mut transaction: T = storage.begin_transaction()?;
+        let mut transaction: S::Transaction<'_> = storage.begin_transaction()?;
         let mut need_save = false;
         let state: TireState = transaction.get_data(TIRE_STATE_KEY)?.unwrap_or_else(|| {
             need_save = true;
@@ -41,11 +38,7 @@ impl<S: DbStorage, T: DbStorageTransaction> Tire<S, T> {
             transaction.set_data(TIRE_STATE_KEY, state.clone())?;
         }
         transaction.commit()?;
-        Ok(Self {
-            state,
-            storage,
-            _phantom: PhantomData,
-        })
+        Ok(Self { state, storage })
     }
 
     pub fn get_state_hash(&self) -> StateHash {
@@ -57,33 +50,40 @@ impl<S: DbStorage, T: DbStorageTransaction> Tire<S, T> {
         account_key: AccountKey,
         state_hash: StateHash,
     ) -> Result<StateHash> {
-        let mut transaction: T = self.storage.begin_transaction()?;
-        let ans =
-            self.set_state_hash_inner(&mut transaction, account_key, state_hash, 0, TIRE_ROOT_KEY)?;
+        let mut transaction: S::Transaction<'_> = self.storage.begin_transaction()?;
+        let mut counter = self.state.counter;
+        let ans = Self::set_state_hash_inner(
+            &mut counter,
+            &mut transaction,
+            account_key,
+            state_hash,
+            0,
+            TIRE_ROOT_KEY,
+        )?;
         self.state.state_hash = ans;
+        self.state.counter = counter;
         transaction.set_data(TIRE_ROOT_KEY, self.state.clone())?;
         transaction.commit()?;
         Ok(ans)
     }
 
     pub fn delete_state_hash(&mut self, account_key: AccountKey) -> Result<StateHash> {
-        let mut transaction: T = self.storage.begin_transaction()?;
-        let ans = self.delete_state_hash_inner(&mut transaction, account_key, 0, TIRE_ROOT_KEY)?;
+        let mut transaction: S::Transaction<'_> = self.storage.begin_transaction()?;
+        let ans = Self::delete_state_hash_inner(&mut transaction, account_key, 0, TIRE_ROOT_KEY)?;
         self.state.state_hash = ans;
         transaction.set_data(TIRE_ROOT_KEY, self.state.clone())?;
         transaction.commit()?;
         Ok(ans)
     }
 
-    fn get_new_node_index(&mut self) -> u128 {
-        let node_index = self.state.counter;
-        self.state.counter += 1;
+    fn get_new_node_index(counter: &mut u128) -> u128 {
+        let node_index = *counter;
+        *counter += 1;
         node_index
     }
 
     fn delete_state_hash_inner(
-        &mut self,
-        transaction: &mut T,
+        transaction: &mut S::Transaction<'_>,
         account_key: AccountKey,
         index: usize,
         node_index: u128,
@@ -98,7 +98,7 @@ impl<S: DbStorage, T: DbStorageTransaction> Tire<S, T> {
         for mut i in node.children {
             if i.value == account_key[index] {
                 let new_hash =
-                    self.delete_state_hash_inner(transaction, account_key, index + 1, i.id)?;
+                    Self::delete_state_hash_inner(transaction, account_key, index + 1, i.id)?;
                 if new_hash != ZERO_STATE_HASH {
                     i.state_hash = new_hash;
                     new_children.push(i);
@@ -126,8 +126,8 @@ impl<S: DbStorage, T: DbStorageTransaction> Tire<S, T> {
     }
 
     fn set_state_hash_inner(
-        &mut self,
-        transaction: &mut T,
+        counter: &mut u128,
+        transaction: &mut S::Transaction<'_>,
         account_key: AccountKey,
         state_hash: StateHash,
         index: usize,
@@ -144,7 +144,8 @@ impl<S: DbStorage, T: DbStorageTransaction> Tire<S, T> {
         for i in node.children.iter_mut() {
             if i.value == account_key[index] {
                 need_new_node = false;
-                i.state_hash = self.set_state_hash_inner(
+                i.state_hash = Self::set_state_hash_inner(
+                    counter,
                     transaction,
                     account_key,
                     state_hash,
@@ -155,8 +156,9 @@ impl<S: DbStorage, T: DbStorageTransaction> Tire<S, T> {
             }
         }
         if need_new_node {
-            let new_node_index = self.get_new_node_index();
-            let state_hash = self.set_state_hash_inner(
+            let new_node_index = Self::get_new_node_index(counter);
+            let state_hash = Self::set_state_hash_inner(
+                counter,
                 transaction,
                 account_key,
                 state_hash,

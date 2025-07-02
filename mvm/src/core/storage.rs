@@ -7,11 +7,14 @@ pub trait DbStorageTransaction {
     fn get_data<K: Encodable, V: Decodable>(&mut self, key: K) -> Result<Option<V>>;
     fn set_data<K: Encodable, V: Encodable>(&mut self, key: K, value: V) -> Result<()>;
     fn delete_data<K: Encodable>(&mut self, key: K) -> Result<()>;
-    fn commit(&mut self) -> Result<()>;
+    fn commit(self) -> Result<()>;
 }
 
 pub trait DbStorage {
-    fn begin_transaction<T: DbStorageTransaction>(&self) -> Result<T>;
+    type Transaction<'a>: DbStorageTransaction
+    where
+        Self: 'a;
+    fn begin_transaction(&self) -> Result<Self::Transaction<'_>>;
 }
 
 // pub struct VmStorage<S: DbStorage> {
