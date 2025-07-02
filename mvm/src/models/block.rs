@@ -1,6 +1,9 @@
 use crate::models::transfer::Transfer;
 use alloy_rlp::{RlpDecodable, RlpEncodable};
-use consensus::{block_header::ConsensusHeader, types::{AccountKey, BlockKey, StateHash}};
+use consensus::{
+    block_header::ConsensusHeader,
+    types::{AccountKey, BlockKey, StateHash},
+};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize, RlpEncodable, RlpDecodable)]
