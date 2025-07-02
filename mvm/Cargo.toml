@@ -5,6 +5,7 @@ edition = "2024"
 
 [dependencies]
 consensus = { path = "../consensus" }
+utils = { path = "../utils" }
 
 serde = { workspace = true }
 serde_json = { workspace = true }

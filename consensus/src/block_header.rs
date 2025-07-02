@@ -3,13 +3,13 @@ use alloy_rlp::{RlpDecodable, RlpEncodable};
 use crypto_bigint::U256;
 use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Serialize, Deserialize, RlpDecodable, RlpEncodable)]
+#[derive(Clone, Serialize, Deserialize, RlpDecodable, RlpEncodable, Debug)]
 pub struct ConsensusHeader {
     pub part_sort_header: PartSortHeader,
     pub pow_header: PowHeader,
 }
 
-#[derive(Clone, Serialize, Deserialize, RlpDecodable, RlpEncodable)]
+#[derive(Clone, Serialize, Deserialize, RlpDecodable, RlpEncodable, Debug)]
 pub struct PowHeader {
     pub target: BlockKey,
     pub target_timestamp_ms: u64,

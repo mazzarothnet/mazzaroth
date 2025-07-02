@@ -1,0 +1,12 @@
+[package]
+name = "database"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+mvm = { path = "../mvm" }
+utils = { path = "../utils" }
+
+rocksdb = { workspace = true }
+alloy-rlp = { workspace = true }
+anyhow = { workspace = true }
