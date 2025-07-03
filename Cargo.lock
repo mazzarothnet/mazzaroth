@@ -954,7 +954,9 @@ dependencies = [
  "anyhow",
  "consensus",
  "crypto-bigint",
+ "database",
  "log",
+ "mvm",
  "rand 0.9.1",
  "rocksdb",
  "serde",
@@ -1086,11 +1088,13 @@ checksum = "673aac59facbab8a9007c7f6108d11f63b603f7cabff99fabf650fea5c32b861"
 name = "utils"
 version = "0.1.0"
 dependencies = [
+ "alloy-rlp",
  "anyhow",
  "log",
  "log4rs",
  "serde",
  "serde_json",
+ "sha2",
  "thiserror 2.0.12",
 ]
 
