@@ -5,7 +5,9 @@ use std::ops::{Add, AddAssign, Div, Mul, Sub};
 
 macro_rules! define_byte_array {
     ($struct_name:ident, $len:expr) => {
-        #[derive(Debug, RlpEncodable, RlpDecodable, Clone, PartialEq, Eq, Copy, Ord, PartialOrd)]
+        #[derive(
+            Debug, RlpEncodable, RlpDecodable, Clone, PartialEq, Eq, Copy, Ord, PartialOrd,
+        )]
         pub struct $struct_name(pub [u8; $len]);
 
         impl $struct_name {
