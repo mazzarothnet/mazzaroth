@@ -20,7 +20,7 @@ Mazzaroth是一个赋权任何人构建可靠且高效去中心化共识的系�
 2. 实现zk友好的形式化虚拟机并上线测试网络
 3. 制定经济策略并上线正式网络
 4. 实现基于Mazzaroth的去中心化社交网络，MBlog，后续对Mazzaroth的所有提案讨论将会迁移到MBlog。
-5. 实现基于Mazzaroth的去中心化代码托管平台Mhub。Mazzaroth代码维护将会迁移至Mhub，至此Mazzaroth完全自举
+5. 实现基于Mazzaroth的去中心化代码托管平台Mhub。Mazzaroth代码维护将会迁移至Mhub，至此Mazzaroth完全自举，再也没有任何中心化机构可以对mazzaroth构成绝对威胁
 6. 实现Mazzaroth Rollup、跨链桥等众多功能的支持
 
 
@@ -33,3 +33,6 @@ cargo run --bin simulation_consensus --release
 #模拟mvm压力测试
 cargo run --bin simulation_mvm --release
 ```
+
+## 理论研究
+https://arxiv.org/abs/2506.01960
