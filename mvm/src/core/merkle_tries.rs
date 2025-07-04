@@ -49,7 +49,7 @@ impl<S: DbStorage> Tire<S> {
         &mut self,
         account_key: AccountKey,
         state_hash: StateHash,
-    ) -> Result<StateHash> {
+    ) -> Result<S::Transaction<'_>> {
         let mut transaction: S::Transaction<'_> = self.storage.begin_transaction()?;
         let mut counter = self.state.counter;
         let ans = Self::set_state_hash_inner(
@@ -63,17 +63,15 @@ impl<S: DbStorage> Tire<S> {
         self.state.state_hash = ans;
         self.state.counter = counter;
         transaction.set_data(TIRE_ROOT_KEY, self.state.clone())?;
-        transaction.commit()?;
-        Ok(ans)
+        Ok(transaction)
     }
 
-    pub fn delete_state_hash(&mut self, account_key: AccountKey) -> Result<StateHash> {
+    pub fn delete_state_hash(&mut self, account_key: AccountKey) -> Result<S::Transaction<'_>> {
         let mut transaction: S::Transaction<'_> = self.storage.begin_transaction()?;
         let ans = Self::delete_state_hash_inner(&mut transaction, account_key, 0, TIRE_ROOT_KEY)?;
         self.state.state_hash = ans;
         transaction.set_data(TIRE_ROOT_KEY, self.state.clone())?;
-        transaction.commit()?;
-        Ok(ans)
+        Ok(transaction)
     }
 
     fn get_new_node_index(counter: &mut u128) -> u128 {

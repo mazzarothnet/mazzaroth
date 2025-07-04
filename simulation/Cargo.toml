@@ -6,6 +6,9 @@ edition = "2024"
 [dependencies]
 consensus = { path = "../consensus" }
 utils = { path = "../utils" }
+mvm = { path = "../mvm" }
+database = { path = "../database" }
+
 rocksdb = { workspace = true }
 serde = { workspace = true }
 anyhow = { workspace = true }

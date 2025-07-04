@@ -5,7 +5,9 @@ use std::ops::{Add, AddAssign, Div, Mul, Sub};
 
 macro_rules! define_byte_array {
     ($struct_name:ident, $len:expr) => {
-        #[derive(Debug, RlpEncodable, RlpDecodable, Clone, PartialEq, Eq, Copy)]
+        #[derive(
+            Debug, RlpEncodable, RlpDecodable, Clone, PartialEq, Eq, Copy, Ord, PartialOrd,
+        )]
         pub struct $struct_name(pub [u8; $len]);
 
         impl $struct_name {
@@ -129,10 +131,12 @@ macro_rules! impl_u256_ops {
     };
 }
 
+pub const ACCOUNT_KEY_LEN: usize = 33;
+
 define_byte_array!(ActionHash, 32);
 define_byte_array!(StateHash, 32);
 define_byte_array!(Signature, 64);
-define_byte_array!(AccountKey, 33);
+define_byte_array!(AccountKey, ACCOUNT_KEY_LEN);
 
 impl_u256_ops!(BlockKey);
 impl_u256_ops!(DagWork);

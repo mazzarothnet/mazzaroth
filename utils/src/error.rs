@@ -38,6 +38,9 @@ pub enum Error {
 
     #[error("block not found: {key}")]
     BlockNotFound { key: String },
+
+    #[error("merkle tree error: {message}")]
+    MerkleTree { message: String },
 }
 
 pub type Result<T> = std::result::Result<T, Error>;

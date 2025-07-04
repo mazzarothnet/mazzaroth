@@ -10,3 +10,5 @@ log = { workspace = true }
 log4rs = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
+sha2 = { workspace = true }
+alloy-rlp = { workspace = true }
