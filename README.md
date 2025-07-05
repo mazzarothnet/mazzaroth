@@ -16,12 +16,17 @@ Storing data and rules on the MVM is encouraged. The essence of Mazzaroth is to 
 Compared to traditional blockchain VM designs, the state root of the MVM supports both forward and backward derivation of state roots. It is possible to derive the state roots of previous blocks based on the current block and the current VM. This means that when a miner wants to join the Mazzaroth network, they do not need to synchronize all blocks starting from the genesis node. Instead, they only need to synchronize the MVM at a specific point in time, as Mazzaroth allows for both forward and backward validation along the blocks. Mazzaroth guarantees to miners that the storage space occupied by the MVM will never exceed 2TB.
 
 ## Mazzaroth's Roadmap
-**Implement and Test Payment Functionality**: Achieve a target throughput of over 1,000 transactions per second (TPS) with confirmation times under 10 seconds.
-**Develop and Launch a ZK-Friendly Formal Virtual Machine**: Deploy this on the test network for evaluation.
-**Formulate Economic Policies and Launch the Main Network**: Establish the economic framework and go live with the main network.
-**Develop a Decentralized Social Network on Mazzaroth (MBlog)**: Migrate all future proposal discussions related to Mazzaroth to MBlog.
-**Create a Decentralized Code Hosting Platform (Mhub)**: Move the maintenance of Mazzaroth's codebase to Mhub, completing the self-bootstrapping process and ensuring that no centralized entity can pose an absolute threat to Mazzaroth.
-**Support for Mazzaroth Rollup and Cross-Chain Bridges**: Implement and integrate these advanced functionalities to enhance the platform's capabilities.
+1. **Implement and Test Payment Functionality**: Achieve a target throughput of over 1,000 transactions per second (TPS) with confirmation times under 10 seconds.
+
+2. **Develop and Launch a ZK-Friendly Formal Virtual Machine**: Deploy this on the test network for evaluation.
+
+3. **Formulate Economic Policies and Launch the Main Network**: Establish the economic framework and go live with the main network.
+
+4. **Develop a Decentralized Social Network on Mazzaroth (MBlog)**: Migrate all future proposal discussions related to Mazzaroth to MBlog.
+
+5. **Create a Decentralized Code Hosting Platform (Mhub)**: Move the maintenance of Mazzaroth's codebase to Mhub, completing the self-bootstrapping process and ensuring that no centralized entity can pose an absolute threat to Mazzaroth.
+
+6. **Support for Mazzaroth Rollup and Cross-Chain Bridges**: Implement and integrate these advanced functionalities to enhance the platform's capabilities.
 
 
 ## Running Mazzaroth Simulations
