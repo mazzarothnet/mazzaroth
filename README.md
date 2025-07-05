@@ -1,38 +1,40 @@
 <h1>Mazzaroth</h1>
 
-Mazzaroth是一个去中心化、具备高吞吐量和具备智能合约功能并且ZK（Zero-knowledge）友好的公共区块链平台，基于BlockDag。其核心组件是Mazzaroth Virtual Machine，MVM，它是一个图灵完备的虚拟机，能够执行智能合约代码，在设计上先天对Zero-knowledg友好并且践行函数式思想，脱离冯诺伊曼架构影响的形式化虚拟机。Mazzaroth使用名为Mth的加密货币作为其内部交易的“燃料”，用于支付交易费用和计算服务。
+Mazzaroth is a decentralized, high-throughput, smart-contract-enabled, and Zero-knowledge (ZK)-friendly public blockchain platform based on BlockDag. Its core component is the Mazzaroth Virtual Machine (MVM), which is a Turing-complete virtual machine capable of executing smart contract code. By design, MVM is inherently ZK-friendly and embraces functional programming principles, deviating from the influence of the von Neumann architecture. Mazzaroth utilizes a cryptocurrency called Mth as the “fuel” for its internal transactions, which is used to pay for transaction fees and computational services.
 
-在MVM上存储数据和规则是被鼓励的，Mazzaroth的本质就是达成去中心化的共识和规则，Mazzaroth的代币Mth本质也只是一种满足货币转移规则的共识数据而已。可以存储的数据包括但不限于你最想要曝光的数据、你喜欢的一部律法、一部普通的电影，没有除你以外的任何人可以从Mazzaroth上删除它。当然存储数据需要支付一次性的费用，以及质押足够的Mth用于换取存储空间。这通常会非常昂贵，因为共识本身就弥足珍贵的。通常来讲我们只存储重要数据的hash到VM上以达成共识。
+## The Values of Mazzaroth
+Mazzaroth is a system that empowers anyone to build a reliable and efficient decentralized consensus. To achieve this goal, we have broken it down into several principles:
+1. **Mazzaroth is Decentralized**: No one can control Mazzaroth. Decentralization takes precedence over any functional support or user experience.
+2. **Mazzaroth is Turing-Complete**: In theory, any consensus can be achieved on Mazzaroth.
+3. **Mazzaroth is Efficient**: Common functions operate efficiently, and Mazzaroth can typically confirm a transaction within 10 seconds.
+4. **Mazzaroth is Interoperable**: Mazzaroth actively integrates with, is compatible with, and supports any other blockchain systems, including but not limited to Ethereum, Uniswap, etc.
 
-在相较于传统的区块链vm设计，MVM的状态根支持向前和向后推导状态根，可以通过当前区块和当前vm，推导之前的区块的状态根。这意味着当矿工需要加入Mazzaroth时，他不需要从创始节点开始同步所有区块，只需要同步某个时间节点的MVM。因为Mazzaroth可以沿着区块向前和向后验证的。Mazzaroth向矿工保证，MVM占用的存储空间永远不会超过2TB。
+We always strive to ensure that any given design meets (or at least does not violate) these principles. However, these principles are not always orthogonal and can often be in tension with one another. In some cases, we may be forced to prioritize one principle over another when they conflict— in such situations, we tend to choose the principle with higher priority. The functionality of Mazzaroth is always designed amidst these multifaceted trade-offs and struggles (the best-case scenario, of course, is to find a “third way” to overcome these trade-offs), and this is the essence of Mazzaroth.
 
-## Mazzaroth的价值观
-Mazzaroth是一个赋权任何人构建可靠且高效去中心化共识的系统。为了达到这个目标，我们将这个目标拆解为几个原则
-1. Mazzaroth是去中心化的：没有人可以控制Mazzaroth。任何功能支持和用户体验都不能凌驾于去中心化之上
-2. Mazzaroth是图灵完全的：理论上你可以在Mazzaroth上达成任何共识
-3. Mazzaroth是高效的：惯用功能高效运行，Mazzaroth通常能在10s内确认一笔交易
-4. Mazzaroth是多种支持的：Mazzaroth会积极的接入、兼容、支持任何其他的区块链系统，包括但不限于eth，uniswap等
+Storing data and rules on the MVM is encouraged. The essence of Mazzaroth is to achieve decentralized consensus and rules. The native token of Mazzaroth, Mth, is essentially a type of consensus data that satisfies the rules of monetary transfer. The data that can be stored includes, but is not limited to, the data you most want to expose, a law you like, or an ordinary movie. No one other than yourself can delete it from Mazzaroth. However, storing data requires a one-time fee and staking a sufficient amount of Mth to exchange for storage space. This is usually very expensive, as consensus itself is extremely valuable. Generally speaking, we only store the hash of important data on the VM to achieve consensus.
 
-我们总是希望，给定任一设计都能满足（或者不违背）这里的原则。但通常这些原则并不正交，甚至相互掣肘(in tension)。于是些时候我们可能就会在选择其中一个原则时，被迫违背了另一个原则——这种情况下，倾向于选择优先级更高的原则。Mazzaroth的功能总是在这样多方权衡与斗争的情况下设计出来的（最好的情况当然是找到克服这些权衡的“第三条路”），这便是Mazzaroth的灵魂所在。
+Compared to traditional blockchain VM designs, the state root of the MVM supports both forward and backward derivation of state roots. It is possible to derive the state roots of previous blocks based on the current block and the current VM. This means that when a miner wants to join the Mazzaroth network, they do not need to synchronize all blocks starting from the genesis node. Instead, they only need to synchronize the MVM at a specific point in time, as Mazzaroth allows for both forward and backward validation along the blocks. Mazzaroth guarantees to miners that the storage space occupied by the MVM will never exceed 2TB.
 
-## Mazzaroth的计划
-1. 实现支付功能并进行测试，预期TPS>1000，确认时间小于10S
-2. 实现zk友好的形式化虚拟机并上线测试网络
-3. 制定经济策略并上线正式网络
-4. 实现基于Mazzaroth的去中心化社交网络，MBlog，后续对Mazzaroth的所有提案讨论将会迁移到MBlog。
-5. 实现基于Mazzaroth的去中心化代码托管平台Mhub。Mazzaroth代码维护将会迁移至Mhub，至此Mazzaroth完全自举，再也没有任何中心化机构可以对mazzaroth构成绝对威胁
-6. 实现Mazzaroth Rollup、跨链桥等众多功能的支持
+## Mazzaroth's Roadmap
+**Implement and Test Payment Functionality**: Achieve a target throughput of over 1,000 transactions per second (TPS) with confirmation times under 10 seconds.
+**Develop and Launch a ZK-Friendly Formal Virtual Machine**: Deploy this on the test network for evaluation.
+**Formulate Economic Policies and Launch the Main Network**: Establish the economic framework and go live with the main network.
+**Develop a Decentralized Social Network on Mazzaroth (MBlog)**: Migrate all future proposal discussions related to Mazzaroth to MBlog.
+**Create a Decentralized Code Hosting Platform (Mhub)**: Move the maintenance of Mazzaroth's codebase to Mhub, completing the self-bootstrapping process and ensuring that no centralized entity can pose an absolute threat to Mazzaroth.
+**Support for Mazzaroth Rollup and Cross-Chain Bridges**: Implement and integrate these advanced functionalities to enhance the platform's capabilities.
 
 
-## 运行Mazzaroth测试
+## Running Mazzaroth Simulations
+1. **Simulating Consensus Head Generation**
+To simulate the generation of the consensus head in Mazzaroth, you can use the following command:
 ```
-# 模拟共识头的生成
 cargo run --bin simulation_consensus --release 
 ```
+2. **Simulating MVM Stress Test**
+To simulate stress tests on the Mazzaroth Virtual Machine (MVM), you can use the following command:
 ```
-#模拟mvm压力测试
 cargo run --bin simulation_mvm --release
 ```
 
-## 理论研究
+## Theoretical Research and Further Reading
 https://arxiv.org/abs/2506.01960
