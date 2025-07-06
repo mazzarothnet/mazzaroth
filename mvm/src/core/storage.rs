@@ -58,8 +58,8 @@ impl<S: DbStorage> VmStorage<S> {
             })
             .collect::<Vec<_>>();
         let mt_transaction = self.mt_storage.update_tree(set_account, delete_account)?;
-        mt_transaction.commit()?;
         transaction.commit()?;
+        mt_transaction.commit()?;
         Ok(())
     }
 

@@ -6,7 +6,7 @@ use std::ops::{Add, AddAssign, Div, Mul, Sub};
 macro_rules! define_byte_array {
     ($struct_name:ident, $len:expr) => {
         #[derive(
-            Debug, RlpEncodable, RlpDecodable, Clone, PartialEq, Eq, Copy, Ord, PartialOrd,
+            Debug, RlpEncodable, RlpDecodable, Clone, PartialEq, Eq, Copy, Ord, PartialOrd, Hash,
         )]
         pub struct $struct_name(pub [u8; $len]);
 
@@ -54,7 +54,9 @@ macro_rules! define_byte_array {
 
 macro_rules! impl_u256_ops {
     ($type_name:ident) => {
-        #[derive(Debug, Clone, PartialEq, Eq, Copy, Serialize, Deserialize, Ord, PartialOrd)]
+        #[derive(
+            Debug, Clone, PartialEq, Eq, Copy, Serialize, Deserialize, Ord, PartialOrd, Hash,
+        )]
         pub struct $type_name(pub crypto_bigint::U256);
 
         impl Add for $type_name {

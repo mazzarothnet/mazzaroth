@@ -1,13 +1,41 @@
+use consensus::types::{AccountKey, StateHash};
+use database::rocksdb_storage::RocksDbStorage;
+use mvm::core::{merkle_tree::MerkleTree, storage::VmStorage};
+use rand::{Rng, rngs::StdRng};
 use std::path::Path;
 
-use database::rocksdb_storage::RocksDbStorage;
-use mvm::core::storage::VmStorage;
-
-pub fn gen_new_vm(path: &str) -> VmStorage<RocksDbStorage> {
-    // create dir if not exists
-    if !Path::new(path).exists() {
-        std::fs::create_dir_all(path).unwrap();
+pub fn gen_rand_account(rng: &mut StdRng, num: u64) -> Vec<(AccountKey, StateHash)> {
+    let mut accounts = Vec::new();
+    for _ in 0..num {
+        let mut account_key = [0; 33];
+        for i in &mut account_key {
+            *i = rng.random_range(0..255);
+        }
+        let mut state_hash = [0; 32];
+        for i in &mut state_hash {
+            *i = rng.random_range(0..255);
+        }
+        accounts.push((AccountKey(account_key), StateHash(state_hash)));
     }
+
+    accounts
+}
+
+pub fn gen_merkle_tree(path: &str) -> MerkleTree<RocksDbStorage> {
+    if Path::new(path).exists() {
+        std::fs::remove_dir_all(path).unwrap();
+    }
+
+    let mt_storage = RocksDbStorage::new(&format!("{path}/mt")).unwrap();
+    MerkleTree::new(mt_storage).unwrap()
+}
+
+pub fn gen_new_vm_storage(path: &str) -> VmStorage<RocksDbStorage> {
+    // remove dir if exists
+    if Path::new(path).exists() {
+        std::fs::remove_dir_all(path).unwrap();
+    }
+    std::fs::create_dir_all(path).unwrap();
 
     let account_storage = RocksDbStorage::new(&format!("{path}/account")).unwrap();
     let mt_storage = RocksDbStorage::new(&format!("{path}/mt")).unwrap();

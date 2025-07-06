@@ -80,7 +80,7 @@ impl<S: DbStorage> MerkleTree<S> {
         }
         if set_account.len() + delete_account.len() != 1 {
             return Err(Error::MerkleTree {
-                message: "set_account.len() + delete_account.len() != 1".to_string(),
+                message: "panic set_account.len() + delete_account.len() != 1".to_string(),
             });
         }
 
@@ -104,7 +104,7 @@ impl<S: DbStorage> MerkleTree<S> {
         let mut need_push = true;
         for child in next_node.children.iter_mut() {
             if now_node.key == child.key {
-                child.state_hash = next_node.hash;
+                child.state_hash = now_node.hash;
                 need_push = false;
                 break;
             }
