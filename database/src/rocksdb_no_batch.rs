@@ -2,15 +2,16 @@ use std::collections::{HashMap, HashSet};
 
 use alloy_rlp::{Decodable, Encodable};
 use anyhow::Context;
+// use log::info;
 use mvm::core::storage::{DbStorage, DbStorageTransaction};
-use rocksdb::{SingleThreaded, Transaction, TransactionDB};
+use rocksdb::{DB, WriteBatch};
 use utils::error::Result;
 
-pub struct RocksDbStorage(pub TransactionDB<SingleThreaded>);
+pub struct RocksDbStorage(pub DB);
 
 impl RocksDbStorage {
     pub fn new(path: &str) -> Result<Self> {
-        let db = TransactionDB::open_default(path).with_context(|| "Failed to open database")?;
+        let db = DB::open_default(path).with_context(|| "Failed to open database")?;
         Ok(Self(db))
     }
 }
@@ -18,42 +19,33 @@ impl RocksDbStorage {
 impl DbStorage for RocksDbStorage {
     type Transaction<'a> = RocksDbTransaction<'a>;
     fn begin_transaction(&self) -> Result<Self::Transaction<'_>> {
-        let tx = self.0.transaction();
-        Ok(RocksDbTransaction::new(tx))
+        Ok(RocksDbTransaction::new(&self.0))
     }
 }
 
 pub struct RocksDbTransaction<'db> {
-    transaction: Transaction<'db, TransactionDB<SingleThreaded>>,
+    db_ref: &'db DB,
     cache: HashMap<Vec<u8>, Vec<u8>>,
     deleted: HashSet<Vec<u8>>,
 }
 
 impl<'db> RocksDbTransaction<'db> {
-    pub fn new(trans: Transaction<'db, TransactionDB<SingleThreaded>>) -> Self {
+    pub fn new(db_ref: &'db DB) -> Self {
         Self {
-            transaction: trans,
+            db_ref,
             cache: HashMap::new(),
             deleted: HashSet::new(),
         }
     }
 }
 
-impl<'db> DbStorageTransaction for RocksDbTransaction<'db> {
+impl<'db> RocksDbTransaction<'db> {
     fn get_data<K: Encodable, V: Decodable>(&mut self, key: K) -> Result<Option<V>> {
         let mut key_bytes = Vec::new();
         key.encode(&mut key_bytes);
-        if self.deleted.contains(&key_bytes) {
-            return Ok(None);
-        }
-        if let Some(value) = self.cache.get(&key_bytes) {
-            let v: V = Decodable::decode(&mut value.as_slice())
-                .with_context(|| "Failed to decode data")?;
-            return Ok(Some(v));
-        }
 
         let value = self
-            .transaction
+            .db_ref
             .get(key_bytes.clone())
             .with_context(|| "Failed to get data")?;
         if let Some(value) = value {
@@ -64,6 +56,19 @@ impl<'db> DbStorageTransaction for RocksDbTransaction<'db> {
         } else {
             Ok(None)
         }
+    }
+}
+
+impl<'db> DbStorageTransaction for RocksDbTransaction<'db> {
+    fn batch_read<K: Encodable, V: Decodable>(&mut self, keys: Vec<K>) -> Result<Vec<V>> {
+        let mut result = Vec::new();
+        for key in keys {
+            let value = self.get_data(key)?;
+            if let Some(value) = value {
+                result.push(value);
+            }
+        }
+        Ok(result)
     }
     fn set_data<K: Encodable, V: Encodable>(&mut self, key: K, value: V) -> Result<()> {
         let mut key_bytes = Vec::new();
@@ -82,19 +87,17 @@ impl<'db> DbStorageTransaction for RocksDbTransaction<'db> {
     }
 
     fn commit(self) -> Result<()> {
+        let mut batch = WriteBatch::default();
         for (key, value) in self.cache {
-            self.transaction
-                .put(key, value)
-                .with_context(|| "Failed to put data")?;
+            batch.put(key, value);
         }
         for key in self.deleted {
-            self.transaction
-                .delete(key)
-                .with_context(|| "Failed to delete data")?;
+            batch.delete(key);
         }
-        self.transaction
-            .commit()
-            .with_context(|| "Failed to commit transaction")?;
+        //info!("batch_write len: {:?}", batch.len());
+        self.db_ref
+            .write(batch)
+            .with_context(|| "Failed to write batch")?;
         Ok(())
     }
 }

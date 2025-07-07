@@ -1,9 +1,11 @@
 use crate::core::storage::{DbStorage, DbStorageTransaction};
 use alloy_rlp::{RlpDecodable, RlpEncodable};
 use consensus::types::{ACCOUNT_KEY_LEN, AccountKey, StateHash};
+use log::{debug, info};
+// use log::info;
 use serde::{Deserialize, Serialize};
 use sha2::Digest;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use utils::error::{Error, Result};
 const ZERO_STATE_HASH: StateHash = StateHash([0; 32]);
 
@@ -19,14 +21,60 @@ impl<S: DbStorage> MerkleTree<S> {
     pub fn get_state_root(&self) -> Result<StateHash> {
         let mut transaction: S::Transaction<'_> = self.storage.begin_transaction()?;
         let node = transaction
-            .get_data::<TreeKey, TreeNode>(TreeKey {
+            .batch_read::<TreeKey, TreeNode>(vec![TreeKey {
                 mask_num: 33,
                 key: AccountKey([0; 33]),
-            })?
+            }])?
+            .first()
             .map(|node| node.hash)
-            .unwrap_or(ZERO_STATE_HASH);
+            .unwrap_or_else(|| {
+                info!("get_state_root: TreeKey not found, creating new one");
+                ZERO_STATE_HASH
+            });
         transaction.commit()?;
         Ok(node)
+    }
+
+    fn read_nodes(
+        transaction: &mut S::Transaction<'_>,
+        set_account: &Vec<TreeNode>,
+        delete_account: &Vec<TreeKey>,
+    ) -> Result<BTreeMap<usize, BTreeMap<TreeKey, TreeNode>>> {
+        let mut real_keys = BTreeSet::new();
+        for node in set_account.iter() {
+            let mut now_key = node.key;
+            for i in 0..ACCOUNT_KEY_LEN {
+                now_key.key.0[i] = 0;
+                now_key.mask_num = i + 1;
+                real_keys.insert(now_key);
+            }
+        }
+        for key in delete_account.iter() {
+            let mut now_key = *key;
+            for i in 0..ACCOUNT_KEY_LEN {
+                now_key.key.0[i] = 0;
+                now_key.mask_num = i + 1;
+                real_keys.insert(now_key);
+            }
+        }
+        //info!("batch_read len: {:?}", real_keys.len());
+        let nodes: Vec<TreeNode> =
+            transaction.batch_read(real_keys.into_iter().collect::<Vec<_>>())?;
+        let mut ans = BTreeMap::new();
+        #[cfg(debug_assertions)]
+        debug!("read_nodes {:?}", nodes.len());
+        for node in nodes.into_iter() {
+            #[cfg(debug_assertions)]
+            {
+                let key = utils::get_u8_vec_sum(&node.key.key.0);
+                let value = utils::get_u8_vec_sum(&node.hash.0);
+                debug!("key: {:?}, value: {:?}", key, value);
+            }
+            let entry = ans.entry(node.key.mask_num).or_insert(BTreeMap::new());
+            entry.insert(node.key, node);
+        }
+        debug!("read_nodes end\n");
+        Ok(ans)
     }
 
     pub fn update_tree(
@@ -46,18 +94,26 @@ impl<S: DbStorage> MerkleTree<S> {
             .into_iter()
             .map(|key| TreeKey { mask_num: 0, key })
             .collect::<Vec<_>>();
-        for _i in 0..ACCOUNT_KEY_LEN {
-            let mut account_map: BTreeMap<TreeKey, TreeNode> = BTreeMap::new();
+        let mut total_account_map =
+            Self::read_nodes(&mut transaction, &set_account, &delete_account)?;
+        for i in 0..ACCOUNT_KEY_LEN {
+            let mut account_map = total_account_map.remove(&(i + 1)).unwrap_or_default();
             let mut new_set_account = vec![];
             let mut new_delete_account = vec![];
             for node in set_account.iter() {
+                #[cfg(debug_assertions)]
+                {
+                    let key = utils::get_u8_vec_sum(&node.key.key.0);
+                    let value = utils::get_u8_vec_sum(&node.hash.0);
+                    debug!("key: {:?}, value: {:?}", key, value);
+                }
                 transaction.set_data(node.key, node)?;
-                let new_node = Self::get_next_node(&node.key, &mut account_map, &mut transaction)?;
+                let new_node = Self::get_next_node(&node.key, &mut account_map);
                 Self::update_next_node(node, new_node);
             }
             for key in delete_account.iter() {
                 transaction.delete_data(key)?;
-                let new_node = Self::get_next_node(key, &mut account_map, &mut transaction)?;
+                let new_node = Self::get_next_node(key, &mut account_map);
                 Self::delete_node(key, new_node);
             }
 
@@ -121,22 +177,16 @@ impl<S: DbStorage> MerkleTree<S> {
     fn get_next_node<'a>(
         key: &TreeKey,
         new_set_account: &'a mut BTreeMap<TreeKey, TreeNode>,
-        transaction: &mut S::Transaction<'_>,
-    ) -> Result<&'a mut TreeNode> {
+    ) -> &'a mut TreeNode {
         let mut new_account_key = key.key;
         new_account_key.0[key.mask_num] = 0;
         let new_key = TreeKey {
             mask_num: key.mask_num + 1,
             key: new_account_key,
         };
-        if let std::collections::btree_map::Entry::Vacant(e) = new_set_account.entry(new_key) {
-            let new_node: TreeNode = transaction
-                .get_data(new_key)?
-                .unwrap_or(TreeNode::new(new_key, ZERO_STATE_HASH));
-            e.insert(new_node);
-        }
-        let ans = new_set_account.get_mut(&new_key).unwrap();
-        Ok(ans)
+        new_set_account
+            .entry(new_key)
+            .or_insert(TreeNode::new(new_key, ZERO_STATE_HASH))
     }
 }
 

@@ -10,3 +10,4 @@ utils = { path = "../utils" }
 rocksdb = { workspace = true }
 alloy-rlp = { workspace = true }
 anyhow = { workspace = true }
+log = { workspace = true }
