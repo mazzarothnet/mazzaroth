@@ -135,8 +135,7 @@ macro_rules! impl_u256_ops {
 
 pub const ACCOUNT_KEY_LEN: usize = 33;
 
-define_byte_array!(ActionHash, 32);
-define_byte_array!(StateHash, 32);
+define_byte_array!(Hash, 32);
 define_byte_array!(Signature, 64);
 define_byte_array!(AccountKey, ACCOUNT_KEY_LEN);
 

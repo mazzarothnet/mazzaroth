@@ -1,13 +1,13 @@
 use crate::core::storage::{DbStorage, DbStorageTransaction};
 use alloy_rlp::{RlpDecodable, RlpEncodable};
-use consensus::types::{ACCOUNT_KEY_LEN, AccountKey, StateHash};
+use consensus::types::{ACCOUNT_KEY_LEN, AccountKey, Hash};
 use log::{debug, info};
 // use log::info;
 use serde::{Deserialize, Serialize};
 use sha2::Digest;
 use std::collections::{BTreeMap, BTreeSet};
 use utils::error::{Error, Result};
-const ZERO_STATE_HASH: StateHash = StateHash([0; 32]);
+const ZERO_STATE_HASH: Hash = Hash([0; 32]);
 
 pub struct MerkleTree<S: DbStorage> {
     storage: S,
@@ -18,7 +18,7 @@ impl<S: DbStorage> MerkleTree<S> {
         Ok(Self { storage })
     }
 
-    pub fn get_state_root(&self) -> Result<StateHash> {
+    pub fn get_state_root(&self) -> Result<Hash> {
         let mut transaction: S::Transaction<'_> = self.storage.begin_transaction()?;
         let node = transaction
             .batch_read::<TreeKey, TreeNode>(vec![TreeKey {
@@ -35,51 +35,9 @@ impl<S: DbStorage> MerkleTree<S> {
         Ok(node)
     }
 
-    fn read_nodes(
-        transaction: &mut S::Transaction<'_>,
-        set_account: &Vec<TreeNode>,
-        delete_account: &Vec<TreeKey>,
-    ) -> Result<BTreeMap<usize, BTreeMap<TreeKey, TreeNode>>> {
-        let mut real_keys = BTreeSet::new();
-        for node in set_account.iter() {
-            let mut now_key = node.key;
-            for i in 0..ACCOUNT_KEY_LEN {
-                now_key.key.0[i] = 0;
-                now_key.mask_num = i + 1;
-                real_keys.insert(now_key);
-            }
-        }
-        for key in delete_account.iter() {
-            let mut now_key = *key;
-            for i in 0..ACCOUNT_KEY_LEN {
-                now_key.key.0[i] = 0;
-                now_key.mask_num = i + 1;
-                real_keys.insert(now_key);
-            }
-        }
-        //info!("batch_read len: {:?}", real_keys.len());
-        let nodes: Vec<TreeNode> =
-            transaction.batch_read(real_keys.into_iter().collect::<Vec<_>>())?;
-        let mut ans = BTreeMap::new();
-        #[cfg(debug_assertions)]
-        debug!("read_nodes {:?}", nodes.len());
-        for node in nodes.into_iter() {
-            #[cfg(debug_assertions)]
-            {
-                let key = utils::get_u8_vec_sum(&node.key.key.0);
-                let value = utils::get_u8_vec_sum(&node.hash.0);
-                debug!("key: {:?}, value: {:?}", key, value);
-            }
-            let entry = ans.entry(node.key.mask_num).or_insert(BTreeMap::new());
-            entry.insert(node.key, node);
-        }
-        debug!("read_nodes end\n");
-        Ok(ans)
-    }
-
     pub fn update_tree(
         &mut self,
-        set_account: Vec<(AccountKey, StateHash)>,
+        set_account: Vec<(AccountKey, Hash)>,
         delete_account: Vec<AccountKey>,
     ) -> Result<S::Transaction<'_>> {
         let mut transaction: S::Transaction<'_> = self.storage.begin_transaction()?;
@@ -143,6 +101,48 @@ impl<S: DbStorage> MerkleTree<S> {
         Ok(transaction)
     }
 
+    fn read_nodes(
+        transaction: &mut S::Transaction<'_>,
+        set_account: &[TreeNode],
+        delete_account: &[TreeKey],
+    ) -> Result<BTreeMap<usize, BTreeMap<TreeKey, TreeNode>>> {
+        let mut real_keys = BTreeSet::new();
+        for node in set_account.iter() {
+            let mut now_key = node.key;
+            for i in 0..ACCOUNT_KEY_LEN {
+                now_key.key.0[i] = 0;
+                now_key.mask_num = i + 1;
+                real_keys.insert(now_key);
+            }
+        }
+        for key in delete_account.iter() {
+            let mut now_key = *key;
+            for i in 0..ACCOUNT_KEY_LEN {
+                now_key.key.0[i] = 0;
+                now_key.mask_num = i + 1;
+                real_keys.insert(now_key);
+            }
+        }
+        //info!("batch_read len: {:?}", real_keys.len());
+        let nodes: Vec<TreeNode> =
+            transaction.batch_read(real_keys.into_iter().collect::<Vec<_>>())?;
+        let mut ans = BTreeMap::new();
+        #[cfg(debug_assertions)]
+        debug!("read_nodes {:?}", nodes.len());
+        for node in nodes.into_iter() {
+            #[cfg(debug_assertions)]
+            {
+                let key = utils::get_u8_vec_sum(&node.key.key.0);
+                let value = utils::get_u8_vec_sum(&node.hash.0);
+                debug!("key: {:?}, value: {:?}", key, value);
+            }
+            let entry = ans.entry(node.key.mask_num).or_insert(BTreeMap::new());
+            entry.insert(node.key, node);
+        }
+        debug!("read_nodes end\n");
+        Ok(ans)
+    }
+
     fn delete_node(key: &TreeKey, next_node: &mut TreeNode) {
         next_node.children.retain(|child| child.key != *key);
     }
@@ -153,7 +153,7 @@ impl<S: DbStorage> MerkleTree<S> {
         for child in node.children.iter() {
             hasher.update(child.state_hash.0);
         }
-        node.hash = StateHash(hasher.finalize().into());
+        node.hash = Hash(hasher.finalize().into());
     }
 
     fn update_next_node(now_node: &TreeNode, next_node: &mut TreeNode) {
@@ -211,12 +211,12 @@ struct TreeKey {
 #[derive(Debug, Serialize, Deserialize, RlpEncodable, RlpDecodable, Clone)]
 struct TreeNode {
     key: TreeKey,
-    hash: StateHash,
+    hash: Hash,
     children: Vec<TreeNodeChildren>,
 }
 
 impl TreeNode {
-    fn new(key: TreeKey, hash: StateHash) -> Self {
+    fn new(key: TreeKey, hash: Hash) -> Self {
         Self {
             key,
             hash,
@@ -240,5 +240,5 @@ impl TreeNode {
 )]
 struct TreeNodeChildren {
     key: TreeKey,
-    state_hash: StateHash,
+    state_hash: Hash,
 }

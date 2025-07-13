@@ -1,10 +1,10 @@
-use consensus::types::{AccountKey, StateHash};
+use consensus::types::{AccountKey, Hash};
 use database::rocksdb_no_batch::RocksDbStorage;
 use mvm::core::merkle_tree::MerkleTree;
 use rand::{Rng, rngs::StdRng};
 use std::path::Path;
 
-pub fn gen_rand_account(rng: &mut StdRng, num: u64) -> Vec<(AccountKey, StateHash)> {
+pub fn gen_rand_account(rng: &mut StdRng, num: u64) -> Vec<(AccountKey, Hash)> {
     let mut accounts = Vec::new();
     for _ in 0..num {
         let mut account_key = [0; 33];
@@ -15,7 +15,7 @@ pub fn gen_rand_account(rng: &mut StdRng, num: u64) -> Vec<(AccountKey, StateHas
         for i in &mut state_hash {
             *i = rng.random_range(0..255);
         }
-        accounts.push((AccountKey(account_key), StateHash(state_hash)));
+        accounts.push((AccountKey(account_key), Hash(state_hash)));
     }
 
     accounts

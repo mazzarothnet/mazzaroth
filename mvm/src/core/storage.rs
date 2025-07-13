@@ -1,6 +1,6 @@
 // use crate::models::account::Account;
 use alloy_rlp::{Decodable, Encodable};
-// use consensus::types::{AccountKey, StateHash};
+// use consensus::types::{AccountKey, Hash};
 // use utils::{error::Result, sha256::sha256_hash_rlp};
 use utils::error::Result;
 
@@ -55,7 +55,7 @@ pub trait DbStorage {
 //             .into_iter()
 //             .map(|(key, account)| {
 //                 let account_hash = sha256_hash_rlp(&account);
-//                 (key, StateHash(account_hash))
+//                 (key, Hash(account_hash))
 //             })
 //             .collect::<Vec<_>>();
 //         let mt_transaction = self.mt_storage.update_tree(set_account, delete_account)?;
@@ -64,7 +64,7 @@ pub trait DbStorage {
 //         Ok(())
 //     }
 
-//     pub fn get_state_root(&self) -> Result<StateHash> {
+//     pub fn get_state_root(&self) -> Result<Hash> {
 //         self.mt_storage.get_state_root()
 //     }
 // }
