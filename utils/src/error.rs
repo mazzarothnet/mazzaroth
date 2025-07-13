@@ -41,6 +41,18 @@ pub enum Error {
 
     #[error("merkle tree error: {message}")]
     MerkleTree { message: String },
+
+    #[error("account not found: {message}")]
+    AccountNotFound { message: String },
+
+    #[error("account balance not enough: {message}")]
+    AccountBalanceNotEnough { message: String },
+
+    #[error("account action hash not match: {message}")]
+    AccountHashNotMatch { message: String },
+
+    #[error("impossible error: {message}")]
+    Impossible { message: String },
 }
 
 pub type Result<T> = std::result::Result<T, Error>;

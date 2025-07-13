@@ -1,5 +1,5 @@
 use alloy_rlp::{RlpDecodable, RlpEncodable};
-use consensus::types::{AccountKey, ActionHash, Signature};
+use consensus::types::{AccountKey, Hash, Signature};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize, RlpEncodable, RlpDecodable)]
@@ -13,7 +13,7 @@ pub struct TransferInner {
     pub from: AccountKey,
     pub to: AccountKey,
     pub amount: u128,
-    pub from_last_action_hash: ActionHash,
+    pub from_last_action_hash: Hash,
     pub gas_price: u128,
 }
 
@@ -29,7 +29,7 @@ pub struct MergeInner {
     pub from: AccountKey,
     pub to: AccountKey,
     pub amount: u128,
-    pub from_last_action_hash: ActionHash,
-    pub to_last_action_hash: ActionHash,
+    pub from_last_action_hash: Hash,
+    pub to_last_action_hash: Hash,
     pub gas_price: u128,
 }

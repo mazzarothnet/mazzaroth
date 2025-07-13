@@ -1,9 +1,10 @@
 use alloy_rlp::{RlpDecodable, RlpEncodable};
-use consensus::types::ActionHash;
+use consensus::types::{AccountKey, Hash};
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Serialize, Deserialize, RlpEncodable, RlpDecodable)]
+#[derive(Debug, Serialize, Deserialize, RlpEncodable, RlpDecodable, Clone)]
 pub struct Account {
+    pub key: AccountKey,
     pub balance: u128,
-    pub action_hash: ActionHash,
+    pub action_hash: Hash,
 }

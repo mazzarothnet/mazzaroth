@@ -1,8 +1,8 @@
-use crate::models::transfer::Transfer;
+use crate::models::transfer::{Merge, Transfer};
 use alloy_rlp::{RlpDecodable, RlpEncodable};
 use consensus::{
     block_header::ConsensusHeader,
-    types::{AccountKey, BlockKey, StateHash},
+    types::{AccountKey, BlockKey, Hash},
 };
 use serde::{Deserialize, Serialize};
 
@@ -18,6 +18,16 @@ pub struct BlockInner {
     pub version: u32,
     pub header: ConsensusHeader,
     pub transfers: Vec<Transfer>,
-    pub state_hash: StateHash,
+    pub merges: Vec<Merge>,
     pub miner: AccountKey,
+    pub minner_last_action_hash: Hash,
+}
+
+impl BlockInner {
+    pub fn is_less_than_max_block_size(&self) -> bool {
+        let transfer_gas = self.transfers.len() as u128 * consensus::TRANSFER_GAS;
+        let merge_gas = self.merges.len() as u128 * consensus::MERGE_GAS;
+        let total_gas = transfer_gas + merge_gas;
+        total_gas < consensus::BLOCK_GAS_LIMIT
+    }
 }

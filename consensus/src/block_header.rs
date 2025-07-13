@@ -1,4 +1,4 @@
-use crate::{POW_TARGET_INTERVAL, POW_TARGET_INTERVAL_MS, traits::PartSortHeader, types::BlockKey};
+use crate::{POW_TARGET_SIZE, POW_TARGET_INTERVAL_MS, traits::PartSortHeader, types::BlockKey};
 use alloy_rlp::{RlpDecodable, RlpEncodable};
 use crypto_bigint::U256;
 use serde::{Deserialize, Serialize};
@@ -32,7 +32,7 @@ pub fn gen_pow_header(
     now_size: u64,
 ) -> PowHeader {
     let now_timestamp_ms = utils::time::get_current_time_ms();
-    if now_size / POW_TARGET_INTERVAL == head_size / POW_TARGET_INTERVAL {
+    if now_size / POW_TARGET_SIZE == head_size / POW_TARGET_SIZE {
         return PowHeader {
             target: head_block_pow_header.target,
             target_timestamp_ms: head_block_pow_header.target_timestamp_ms,

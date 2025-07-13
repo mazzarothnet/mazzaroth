@@ -1,6 +1,6 @@
 use crate::core::storage::{DbStorage, DbStorageTransaction};
 use alloy_rlp::{RlpDecodable, RlpEncodable};
-use consensus::types::{AccountKey, StateHash};
+use consensus::types::{AccountKey, Hash};
 use log::info;
 use serde::{Deserialize, Serialize};
 use sha2::Digest;
@@ -8,7 +8,7 @@ use utils::error::Result;
 
 const TIRE_STATE_KEY: u128 = 0u128;
 const TIRE_ROOT_KEY: u128 = 1u128;
-const ZERO_STATE_HASH: StateHash = StateHash([0; 32]);
+const ZERO_STATE_HASH: Hash = Hash([0; 32]);
 
 pub struct Tire<S: DbStorage> {
     state: TireState,
@@ -18,7 +18,7 @@ pub struct Tire<S: DbStorage> {
 #[derive(Debug, Serialize, Deserialize, RlpEncodable, RlpDecodable, Clone)]
 struct TireState {
     counter: u128,
-    state_hash: StateHash,
+    state_hash: Hash,
 }
 
 impl<S: DbStorage> Tire<S> {
@@ -41,14 +41,14 @@ impl<S: DbStorage> Tire<S> {
         Ok(Self { state, storage })
     }
 
-    pub fn get_state_hash(&self) -> StateHash {
+    pub fn get_state_hash(&self) -> Hash {
         self.state.state_hash
     }
 
     pub fn set_state_hash(
         &mut self,
         account_key: AccountKey,
-        state_hash: StateHash,
+        state_hash: Hash,
     ) -> Result<S::Transaction<'_>> {
         let mut transaction: S::Transaction<'_> = self.storage.begin_transaction()?;
         let mut counter = self.state.counter;
@@ -85,7 +85,7 @@ impl<S: DbStorage> Tire<S> {
         account_key: AccountKey,
         index: usize,
         node_index: u128,
-    ) -> Result<StateHash> {
+    ) -> Result<Hash> {
         if index == account_key.len() {
             return Ok(ZERO_STATE_HASH);
         }
@@ -113,7 +113,7 @@ impl<S: DbStorage> Tire<S> {
         for i in new_children.iter() {
             hasher.update(i.state_hash.0);
         }
-        let state_hash = StateHash(hasher.finalize().into());
+        let state_hash = Hash(hasher.finalize().into());
         transaction.set_data(
             node_index,
             TireNode {
@@ -127,10 +127,10 @@ impl<S: DbStorage> Tire<S> {
         counter: &mut u128,
         transaction: &mut S::Transaction<'_>,
         account_key: AccountKey,
-        state_hash: StateHash,
+        state_hash: Hash,
         index: usize,
         node_index: u128,
-    ) -> Result<StateHash> {
+    ) -> Result<Hash> {
         if index == account_key.len() {
             return Ok(state_hash);
         }
@@ -174,7 +174,7 @@ impl<S: DbStorage> Tire<S> {
         for i in node.children.iter() {
             hasher.update(i.state_hash.0);
         }
-        let state_hash = StateHash(hasher.finalize().into());
+        let state_hash = Hash(hasher.finalize().into());
         transaction.set_data(node_index, node)?;
         Ok(state_hash)
     }
@@ -188,6 +188,6 @@ struct TireNode {
 #[derive(Debug, Serialize, Deserialize, RlpEncodable, RlpDecodable, Clone)]
 struct TireNodeChildren {
     value: u8,
-    state_hash: StateHash,
+    state_hash: Hash,
     id: u128,
 }
