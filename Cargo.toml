@@ -19,3 +19,7 @@ crypto-bigint = {version = "0.6", features = ["serde","alloc"]}
 secp256k1 = { version = "0.31", features = ["recovery","rand","hashes", "global-context"] }
 sha2 = {version = "0.10"}
 alloy-rlp = { version = "0.3", features = ["derive"] }
+
+[workspace.features]
+default = []
+disable_storage_limit = []
