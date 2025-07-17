@@ -28,7 +28,7 @@ pub struct Merge {
 pub struct MergeInner {
     pub from: AccountKey,
     pub to: AccountKey,
-    pub amount: u128,
+    pub balance: u128,
     pub from_last_action_hash: Hash,
     pub to_last_action_hash: Hash,
     pub gas_price: u128,

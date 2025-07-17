@@ -10,7 +10,7 @@ use consensus::{
     TRANSFER_GAS, get_now_block_reward,
     types::{AccountKey, Hash},
 };
-use log::info;
+use log::{debug, info};
 use utils::{
     error::{Error, Result},
     secp::verify_message,
@@ -47,6 +47,14 @@ impl<S: DbStorage> Mvm<S> {
         minner: &AccountKey,
         now_state_map: &BTreeMap<AccountKey, Account>,
     ) -> Result<Hash> {
+        if transfer.inner.from == transfer.inner.to {
+            return Err(Error::MergeFromAndToIsTheSame {
+                message: format!(
+                    "transfer from and to is the same: {:?}",
+                    transfer.inner.from
+                ),
+            });
+        }
         let transfer_hash = sha256_hash_rlp(&transfer.inner);
         verify_message(
             &transfer_hash,
@@ -68,7 +76,10 @@ impl<S: DbStorage> Mvm<S> {
                     })?;
             if from_account.balance < min_need {
                 return Err(Error::AccountBalanceNotEnough {
-                    message: format!("from account balance not enough: {:?}", transfer.inner.from),
+                    message: format!(
+                        "from account balance not enough: {:?} balance: {:?} min_need: {:?}",
+                        transfer.inner.from, from_account.balance, min_need
+                    ),
                 });
             }
             if from_account.action_hash != transfer.inner.from_last_action_hash {
@@ -83,7 +94,7 @@ impl<S: DbStorage> Mvm<S> {
         #[cfg(not(feature = "disable_storage_limit"))]
         if !now_state_map.contains_key(&transfer.inner.to) && cast < STO_ACCOUNT_MIN_BALANCE {
             return Err(Error::AccountBalanceNotEnough {
-                message: format!("from account balance not enough: {:?}", transfer.inner.from),
+                message: format!("to account balance not enough: {:?}", transfer.inner.from),
             });
         }
         if !now_state_map.contains_key(minner) {
@@ -99,6 +110,11 @@ impl<S: DbStorage> Mvm<S> {
         minner: &AccountKey,
         now_state_map: &BTreeMap<AccountKey, Account>,
     ) -> Result<Hash> {
+        if merge.inner.from == merge.inner.to {
+            return Err(Error::MergeFromAndToIsTheSame {
+                message: format!("merge from and to is the same: {:?}", merge.inner.from),
+            });
+        }
         let merge_hash = sha256_hash_rlp(&merge.inner);
         verify_message(&merge_hash, &merge.from_signature.0, &merge.inner.from.0)?;
         verify_message(&merge_hash, &merge.to_signature.0, &merge.inner.to.0)?;
@@ -109,14 +125,22 @@ impl<S: DbStorage> Mvm<S> {
                 .ok_or_else(|| Error::AccountNotFound {
                     message: format!("from account not found: {:?}", merge.inner.from),
                 })?;
-        if merge.inner.amount != from_account.balance {
+        if merge.inner.balance != from_account.balance {
             return Err(Error::AccountBalanceNotEnough {
-                message: format!("from account balance not enough: {:?}", merge.inner.from),
+                message: format!(
+                    "from account balance not enough: {:?} merge amount: {:?} balance: {:?}",
+                    merge.inner.from, merge.inner.balance, from_account.balance
+                ),
             });
         }
-        if merge.inner.amount < merge.inner.gas_price * TRANSFER_GAS {
+        if merge.inner.balance < merge.inner.gas_price * TRANSFER_GAS {
             return Err(Error::AccountBalanceNotEnough {
-                message: format!("from account balance not enough: {:?}", merge.inner.from),
+                message: format!(
+                    "from account balance not enough: {:?} merge amount {} gas price {}",
+                    merge.inner.from,
+                    merge.inner.balance,
+                    merge.inner.gas_price * TRANSFER_GAS
+                ),
             });
         }
         if from_account.action_hash != merge.inner.from_last_action_hash {
@@ -153,11 +177,16 @@ impl<S: DbStorage> Mvm<S> {
 
         Self::do_all_transfer_and_merge(block, &mut now_state_map, &mut delete_set)?;
 
+        debug!("do_block now_state_map: {:?}", now_state_map);
+        debug!("do_block delete_set: {:?}", delete_set);
         let set_account_hash =
             Self::save_now_state_map(&mut account_transaction, &now_state_map, &delete_set)?;
-        account_transaction.commit()?;
-        self.merkle_tree
+        debug!("do_block set_account_hash: {:?}", set_account_hash);
+        let transaction = self
+            .merkle_tree
             .update_tree(set_account_hash, delete_set.into_iter().collect())?;
+        account_transaction.commit()?;
+        transaction.commit()?;
 
         Ok(())
     }
@@ -171,11 +200,17 @@ impl<S: DbStorage> Mvm<S> {
 
         let set_account_hash =
             Self::save_now_state_map(&mut account_transaction, &now_state_map, &delete_set)?;
-        account_transaction.commit()?;
-        self.merkle_tree
+        let transaction = self
+            .merkle_tree
             .update_tree(set_account_hash, delete_set.into_iter().collect())?;
+        account_transaction.commit()?;
+        transaction.commit()?;
 
         Ok(())
+    }
+
+    pub fn get_state_root(&self) -> Result<Hash> {
+        self.merkle_tree.get_state_root()
     }
 
     fn rollback_all_transfer_and_merge(
@@ -302,15 +337,26 @@ impl<S: DbStorage> Mvm<S> {
         delete_set: &mut BTreeSet<AccountKey>,
     ) -> Result<()> {
         if let Err(e) = Self::do_minner_reward(now_state_map, block) {
-            info!("do minner reward error: {:?}", e);
+            info!(
+                "do minner reward error: {:?} minner: {:?}",
+                e, block.inner.miner,
+            );
+        } else {
+            debug!(
+                "do minner reward success: {:?} reward: {:?}",
+                block.inner.miner,
+                get_now_block_reward(block.inner.header.part_sort_header.size)
+            );
         }
         for transfer in &block.inner.transfers {
             if let Err(e) = Self::do_transfer(transfer, &block.inner.miner, now_state_map) {
                 if let Error::Impossible { message } = e {
                     return Err(Error::Impossible { message });
                 } else {
-                    info!("do transfer error: {:?}", e);
+                    info!("do transfer error: {:?} transfer: {:?}", e, transfer);
                 }
+            } else {
+                debug!("do transfer success: {:?}", transfer);
             }
         }
         for merge in &block.inner.merges {
@@ -318,8 +364,10 @@ impl<S: DbStorage> Mvm<S> {
                 if let Error::Impossible { message } = e {
                     return Err(Error::Impossible { message });
                 } else {
-                    info!("do merge error: {:?}", e);
+                    info!("do merge error: {:?} merge: {:?}", e, merge);
                 }
+            } else {
+                debug!("do merge success: {:?}", merge);
             }
         }
 
@@ -339,9 +387,9 @@ impl<S: DbStorage> Mvm<S> {
             now_state_map
                 .get_mut(&merge.inner.to)
                 .ok_or_else(|| Error::Impossible {
-                    message: format!("to account not found: {:?}", merge.inner.to),
+                    message: format!("do_merge to account not found: {:?}", merge.inner.to),
                 })?;
-        to_account.balance += merge.inner.amount - merge.inner.gas_price * TRANSFER_GAS;
+        to_account.balance += merge.inner.balance - merge.inner.gas_price * TRANSFER_GAS;
         to_account.action_hash = merge_hash;
 
         let minner_account = now_state_map
@@ -427,7 +475,10 @@ impl<S: DbStorage> Mvm<S> {
             now_state_map
                 .get_mut(&transfer.inner.to)
                 .ok_or_else(|| Error::Impossible {
-                    message: format!("to account not found: {:?}", transfer.inner.to),
+                    message: format!(
+                        "do_transfer_rollback to account not found: {:?}",
+                        transfer.inner.to
+                    ),
                 })?;
         to_account.balance -= transfer.inner.amount;
         if to_account.balance == 0 {
@@ -453,7 +504,7 @@ impl<S: DbStorage> Mvm<S> {
             merge.inner.from,
             Account {
                 key: merge.inner.from,
-                balance: merge.inner.amount,
+                balance: merge.inner.balance,
                 action_hash: merge.inner.from_last_action_hash,
             },
         );
@@ -461,9 +512,12 @@ impl<S: DbStorage> Mvm<S> {
             now_state_map
                 .get_mut(&merge.inner.to)
                 .ok_or_else(|| Error::Impossible {
-                    message: format!("to account not found: {:?}", merge.inner.to),
+                    message: format!(
+                        "do_merge_rollback to account not found: {:?}",
+                        merge.inner.to
+                    ),
                 })?;
-        to_account.balance -= merge.inner.amount - merge.inner.gas_price * TRANSFER_GAS;
+        to_account.balance -= merge.inner.balance - merge.inner.gas_price * TRANSFER_GAS;
         to_account.action_hash = merge.inner.to_last_action_hash;
         let minner_account = now_state_map
             .get_mut(minner)
@@ -514,7 +568,10 @@ impl<S: DbStorage> Mvm<S> {
             now_state_map
                 .get(&merge.inner.to)
                 .ok_or_else(|| Error::AccountNotFound {
-                    message: format!("to account not found: {:?}", merge.inner.to),
+                    message: format!(
+                        "verify_merge_rollback to account not found: {:?}",
+                        merge.inner.to
+                    ),
                 })?;
         if to_account.action_hash != Hash(merge_hash) {
             return Err(Error::AccountHashNotMatch {

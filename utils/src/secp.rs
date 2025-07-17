@@ -1,5 +1,11 @@
 use anyhow::Context;
+use rand::rngs::StdRng;
 use secp256k1::{Message, PublicKey, SecretKey, ecdsa::Signature};
+
+pub fn gen_keypair(rng: &mut StdRng) -> ([u8; 32], [u8; 33]) {
+    let (secret_key, public_key) = secp256k1::SECP256K1.generate_keypair(rng);
+    (secret_key.secret_bytes(), public_key.serialize())
+}
 
 pub fn sign_message(message: &[u8; 32], private_key: &[u8; 32]) -> anyhow::Result<[u8; 64]> {
     let private_key =

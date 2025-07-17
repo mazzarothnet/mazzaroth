@@ -10,7 +10,7 @@ pub const GENESIS_BLOCK_KEY: crypto_bigint::U256 = crypto_bigint::U256::ZERO;
 
 // 如果旷工只连接少量的parent，那么它的dag_work就会很少，容易无效挖矿
 // 如果连接过多的parent，那么就无法通过验证，无效挖矿
-#[derive(Clone, Serialize, Deserialize, PartialEq, Eq, Debug, RlpDecodable, RlpEncodable)]
+#[derive(Clone, Serialize, Deserialize, PartialEq, Eq, Debug, RlpDecodable, RlpEncodable, Default)]
 pub struct PartSortHeader {
     pub head_key: BlockKey,
     pub dag_work: DagWork,
@@ -32,7 +32,7 @@ mod tests {
     fn test_block_key() {
         let key = crypto_bigint::U256::from(1u64);
         let key_u64 = key.to_limbs()[0].0;
-        // println!("key_u64: {}", key_u64);
+        eprintln!("key_u64: {}", key_u64);
         assert_eq!(key_u64, 1);
     }
 
@@ -42,10 +42,10 @@ mod tests {
         let kk2 = BlockKey::from(kk);
         let kk3: crypto_bigint::U256 = kk2.into();
         let kk4: BlockKey = kk3.into();
-        // println!("kk: {:?}", kk);
-        // println!("kk2: {:?}", kk2);
-        // println!("kk3: {:?}", kk3);
-        // println!("kk4: {:?}", kk4);
+        eprintln!("kk: {:?}", kk);
+        eprintln!("kk2: {:?}", kk2);
+        eprintln!("kk3: {:?}", kk3);
+        eprintln!("kk4: {:?}", kk4);
         assert_eq!(kk, kk3);
         assert_eq!(kk2, kk4);
     }

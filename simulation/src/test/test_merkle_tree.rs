@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod tests {
-    use crate::smvm::sim_state_root::{gen_merkle_tree, gen_rand_account};
+    use crate::smvm::rand_account::{gen_merkle_tree, gen_rand_account};
     use mvm::core::storage::DbStorageTransaction;
     use rand::{SeedableRng, rngs::StdRng, seq::SliceRandom};
 

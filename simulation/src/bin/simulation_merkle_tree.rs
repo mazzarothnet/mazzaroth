@@ -1,7 +1,7 @@
 use log::info;
 use mvm::core::storage::DbStorageTransaction;
 use rand::{SeedableRng, rngs::StdRng, seq::SliceRandom};
-use simulation::smvm::sim_state_root::{gen_merkle_tree, gen_rand_account};
+use simulation::smvm::rand_account::{gen_merkle_tree, gen_rand_account};
 use std::time::Instant;
 use utils::{get_u8_vec_sum, log::init_log};
 

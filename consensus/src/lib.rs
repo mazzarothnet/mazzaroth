@@ -44,11 +44,5 @@ mod tests {
         assert_eq!(reward4, BEGIN_BLOCK_REWARD / 8);
         let reward5 = get_now_block_reward(HALF_BLOCK_REWARD_SIZE * 4);
         assert_eq!(reward5, BEGIN_BLOCK_REWARD / 16);
-
-        println!("reward1: {}", reward1);
-        println!("reward2: {}", reward2);
-        println!("reward3: {}", reward3);
-        println!("reward4: {}", reward4);
-        println!("reward5: {}", reward5);
     }
 }

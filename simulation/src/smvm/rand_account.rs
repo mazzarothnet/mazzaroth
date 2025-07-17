@@ -30,15 +30,3 @@ pub fn gen_merkle_tree(path: &str) -> MerkleTree<RocksDbStorage> {
     MerkleTree::new(mt_storage).unwrap()
 }
 
-// pub fn gen_new_vm_storage(path: &str) -> VmStorage<RocksDbStorage> {
-//     // remove dir if exists
-//     if Path::new(path).exists() {
-//         std::fs::remove_dir_all(path).unwrap();
-//     }
-//     std::fs::create_dir_all(path).unwrap();
-
-//     let account_storage = RocksDbStorage::new(&format!("{path}/account")).unwrap();
-//     let mt_storage = RocksDbStorage::new(&format!("{path}/mt")).unwrap();
-
-//     VmStorage::new(account_storage, mt_storage).unwrap()
-// }
