@@ -110,7 +110,7 @@ impl<S: DbStorage> Mvm<S> {
         minner: &AccountKey,
         now_state_map: &BTreeMap<AccountKey, Account>,
     ) -> Result<Hash> {
-        if merge.inner.from == merge.inner.to {
+        if merge.inner.from == merge.inner.to || merge.inner.from == *minner {
             return Err(Error::MergeFromAndToIsTheSame {
                 message: format!("merge from and to is the same: {:?}", merge.inner.from),
             });

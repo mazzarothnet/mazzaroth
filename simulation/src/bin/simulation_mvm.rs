@@ -7,9 +7,10 @@ use utils::{file::write_to_json, log::init_log};
 fn main() {
     init_log();
     let mut mvm = new_test_mvm("test_mvm");
-    let mut rng = StdRng::seed_from_u64(1112331);
-    let block_num = 3;
-    let account_num = 5;
+    //let mut rng = StdRng::seed_from_u64(1112331);
+    let mut rng = StdRng::seed_from_u64(11891);
+    let block_num = 33;
+    let account_num = 50;
     let blocks = gen_rand_blocks(&mut rng, block_num, account_num);
     info!("gen rand blocks done");
     let mut forward_map = BTreeMap::new();

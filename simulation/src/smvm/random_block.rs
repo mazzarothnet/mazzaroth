@@ -116,6 +116,7 @@ pub fn gen_rand_blocks(rng: &mut StdRng, block_num: u64, account_num: u64) -> Ve
                 &mut account_map,
                 account_num,
                 miner_index,
+                miner_key,
             ));
         }
 
@@ -157,6 +158,7 @@ fn gen_rand_transfer(
     };
     if transfer.inner.amount + transfer.inner.gas_price <= from_package.account.balance
         && transfer.inner.from_last_action_hash == from_package.account.action_hash
+        && transfer.inner.from != transfer.inner.to
     {
         let from_package = account_map.get_mut(&from_index).unwrap();
         from_package.account.balance -=
@@ -194,13 +196,14 @@ fn gen_rand_merge(
     account_map: &mut BTreeMap<u64, AccountPackage>,
     account_num: u64,
     miner_index: u64,
+    miner_key: AccountKey,
 ) -> Merge {
     let from_index = get_rand_from_index(rng, account_map);
     let to_index = rng.random_range(0..account_num);
     let from_package = account_map.get(&from_index).unwrap();
     let to_package = account_map.get(&to_index).unwrap();
     let merge_amount_real_amount = rng.random_range(0..10);
-    let merge_amount = if merge_amount_real_amount == 0 {
+    let merge_amount = if merge_amount_real_amount == 9 {
         debug!("gen_rand_merge rand");
         rng.random_range(0..from_package.account.balance)
     } else {
@@ -243,6 +246,8 @@ fn gen_rand_merge(
         && merge.inner.balance >= merge.inner.gas_price * TRANSFER_GAS
         && merge.inner.to_last_action_hash == to_package.account.action_hash
         && merge.inner.from_last_action_hash == from_package.account.action_hash
+        && merge.inner.from != merge.inner.to
+        && merge.inner.from != miner_key
     {
         let from_package = account_map.get_mut(&from_index).unwrap();
         from_package.account.balance = 0;
