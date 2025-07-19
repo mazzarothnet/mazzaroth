@@ -1,5 +1,5 @@
 [workspace]
-members = ["consensus", "database", "mazzarothd", "mvm", "simulation", "utils"]
+members = ["consensus", "database", "mazzarothd", "mining", "mvm", "simulation", "utils"]
 resolver = "2"
 
 [profile.release]
@@ -19,3 +19,11 @@ crypto-bigint = {version = "0.6", features = ["serde","alloc"]}
 secp256k1 = { version = "0.31", features = ["recovery","rand","hashes", "global-context"] }
 sha2 = {version = "0.10"}
 alloy-rlp = { version = "0.3", features = ["derive"] }
+bytemuck = "1.22"
+env_logger = "0.11"
+pollster = "0.4"
+wgpu = "26"
+
+[workspace.features]
+default = []
+disable_storage_limit = []

@@ -16,7 +16,7 @@ pub const BEGIN_BLOCK_REWARD: u128 = 2 * WEI_PER_MTH;
 pub const HALF_BLOCK_REWARD_SIZE: u64 = BLOCK_PER_SECOND * 60 * 60 * 24 * 365 * 3;
 
 pub const STO_BYTES_PER_ACCOUNT: u128 = 33u128 + 32u128 + 16u128 + 32u128 * 32u128;
-pub const STO_WEI_PER_BYTE: u128 = 420_000_000_000_000;
+pub const STO_WEI_PER_BYTE: u128 = 200_000_000_000_000;
 pub const STO_ACCOUNT_MIN_BALANCE: u128 = STO_BYTES_PER_ACCOUNT * STO_WEI_PER_BYTE;
 
 pub const BLOCK_GAS_LIMIT: u128 = 30_000_000;
@@ -44,11 +44,5 @@ mod tests {
         assert_eq!(reward4, BEGIN_BLOCK_REWARD / 8);
         let reward5 = get_now_block_reward(HALF_BLOCK_REWARD_SIZE * 4);
         assert_eq!(reward5, BEGIN_BLOCK_REWARD / 16);
-
-        println!("reward1: {}", reward1);
-        println!("reward2: {}", reward2);
-        println!("reward3: {}", reward3);
-        println!("reward4: {}", reward4);
-        println!("reward5: {}", reward5);
     }
 }

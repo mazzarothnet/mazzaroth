@@ -53,6 +53,9 @@ pub enum Error {
 
     #[error("impossible error: {message}")]
     Impossible { message: String },
+
+    #[error("merge from and to is the same: {message}")]
+    MergeFromAndToIsTheSame { message: String },
 }
 
 pub type Result<T> = std::result::Result<T, Error>;

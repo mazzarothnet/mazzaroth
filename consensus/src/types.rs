@@ -130,6 +130,12 @@ macro_rules! impl_u256_ops {
                 write!(f, "{}", self.0)
             }
         }
+
+        impl Default for $type_name {
+            fn default() -> Self {
+                $type_name(crypto_bigint::U256::ZERO)
+            }
+        }
     };
 }
 

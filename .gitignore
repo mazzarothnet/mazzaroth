@@ -10,3 +10,4 @@ perf.svg
 check_tmp_block.db
 debug
 tmp_storage
+test_mvm

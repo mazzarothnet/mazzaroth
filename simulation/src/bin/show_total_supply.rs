@@ -1,6 +1,6 @@
 use consensus::{
     BEGIN_BLOCK_REWARD, BLOCK_GAS_LIMIT, HALF_BLOCK_REWARD_SIZE, STO_ACCOUNT_MIN_BALANCE,
-    STO_BYTES_PER_ACCOUNT, STO_WEI_PER_BYTE, TRANSFER_GAS, get_now_block_reward,
+    STO_BYTES_PER_ACCOUNT, STO_WEI_PER_BYTE, TRANSFER_GAS, get_now_block_reward
 };
 
 fn main() {
@@ -35,6 +35,8 @@ fn main() {
         }
         now_size += HALF_BLOCK_REWARD_SIZE;
     }
+
+    println!("STO_ACCOUNT_MIN_BALANCE {}", STO_ACCOUNT_MIN_BALANCE);
 }
 /*
 #[derive(Debug, Serialize, Deserialize, RlpEncodable, RlpDecodable)]
