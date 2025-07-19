@@ -6,6 +6,7 @@ mod tests {
 
     #[test]
     fn test_merkle_tree() {
+        eprintln!("test_merkle_tree");
         let mut mt = gen_merkle_tree("tmp_storage");
         let mut account_vec = Vec::new();
         let mut rand = StdRng::seed_from_u64(23);
@@ -26,6 +27,8 @@ mod tests {
             ts.commit().unwrap();
         }
         let state_root2 = mt.get_state_root().unwrap();
+        eprintln!("state_root1: {:?}", state_root1);
+        eprintln!("state_root2: {:?}", state_root2);
         assert_eq!(state_root1, state_root2);
     }
 }

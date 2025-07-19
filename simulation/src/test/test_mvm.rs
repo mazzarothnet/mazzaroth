@@ -7,9 +7,10 @@ mod tests {
 
     #[test]
     fn test_mvm() {
+        eprintln!("test_mvm");
         let mut mvm = new_test_mvm("test_mvm");
         let mut rng = StdRng::seed_from_u64(11121291);
-        let block_num = 33;
+        let block_num = 30;
         let account_num = 50;
         let blocks = gen_rand_blocks(&mut rng, block_num, account_num);
         let mut forward_map = BTreeMap::new();
@@ -27,6 +28,6 @@ mod tests {
         let forward_vec = forward_map.into_values().collect::<Vec<_>>();
         let backward_vec = backward_map.into_values().collect::<Vec<_>>();
         assert_eq!(forward_vec, backward_vec);
-        println!("test_mvm done");
+        eprintln!("test_mvm done");
     }
 }

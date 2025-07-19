@@ -1,0 +1,13 @@
+[package]
+name = "mining"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+bytemuck = {workspace = true}
+env_logger = {workspace = true}
+pollster = {workspace = true}
+wgpu = {workspace = true}
+sha2  = {workspace = true}
+
+utils = {path = "../utils"}
