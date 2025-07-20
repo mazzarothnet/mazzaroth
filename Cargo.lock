@@ -1486,6 +1486,7 @@ dependencies = [
  "crypto-bigint",
  "database",
  "log",
+ "mining",
  "mvm",
  "rand 0.9.1",
  "rocksdb",
