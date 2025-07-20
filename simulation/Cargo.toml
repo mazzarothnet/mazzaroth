@@ -8,6 +8,7 @@ consensus = { path = "../consensus" }
 utils = { path = "../utils" }
 mvm = { path = "../mvm" }
 database = { path = "../database" }
+mining = { path = "../mining" }
 
 rocksdb = { workspace = true }
 serde = { workspace = true }
