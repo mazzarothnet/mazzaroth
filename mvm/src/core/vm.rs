@@ -185,8 +185,8 @@ impl<S: DbStorage> Mvm<S> {
         let transaction = self
             .merkle_tree
             .update_tree(set_account_hash, delete_set.into_iter().collect())?;
-        account_transaction.commit()?;
         transaction.commit()?;
+        account_transaction.commit()?;
 
         Ok(())
     }
@@ -203,8 +203,8 @@ impl<S: DbStorage> Mvm<S> {
         let transaction = self
             .merkle_tree
             .update_tree(set_account_hash, delete_set.into_iter().collect())?;
-        account_transaction.commit()?;
         transaction.commit()?;
+        account_transaction.commit()?;
 
         Ok(())
     }

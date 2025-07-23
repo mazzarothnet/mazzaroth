@@ -127,7 +127,6 @@ impl<S: DbStorage> MerkleTree<S> {
         let nodes: Vec<TreeNode> =
             transaction.batch_read(real_keys.into_iter().collect::<Vec<_>>())?;
         let mut ans = BTreeMap::new();
-        #[cfg(debug_assertions)]
         debug!("read_nodes {:?}", nodes.len());
         for node in nodes.into_iter() {
             #[cfg(debug_assertions)]
