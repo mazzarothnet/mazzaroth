@@ -92,7 +92,7 @@ impl<S: DbStorage> MerkleTree<S> {
         for key in delete_account.iter() {
             transaction.delete_data(key)?;
         }
-        if set_account.len() + delete_account.len() != 1 {
+        if set_account.len() + delete_account.len() > 1 {
             return Err(Error::MerkleTree {
                 message: "panic set_account.len() + delete_account.len() != 1".to_string(),
             });

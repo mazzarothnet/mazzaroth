@@ -360,46 +360,56 @@ impl<S: DbStorage> Mvm<S> {
         Ok(set_account_hash)
     }
 
-    fn do_minner_reward(
-        now_state_map: &mut BTreeMap<AccountKey, Account>,
+    fn verify_minner_reward(
+        now_state_map: &BTreeMap<AccountKey, Account>,
         block: &Block,
     ) -> Result<()> {
-        let now_reward = get_now_block_reward(block.inner.header.part_sort_header.size);
         #[cfg(not(feature = "disable_storage_limit"))]
-        if !now_state_map.contains_key(&block.inner.miner) && now_reward >= STO_ACCOUNT_MIN_BALANCE
         {
-            now_state_map.insert(
-                block.inner.miner,
-                Account {
-                    key: block.inner.miner,
-                    balance: 0,
-                    action_hash: Hash([0; 32]),
-                },
-            );
+            let now_reward = get_now_block_reward(block.inner.header.part_sort_header.size);
+            if !now_state_map.contains_key(&block.inner.miner)
+                && now_reward < STO_ACCOUNT_MIN_BALANCE
+            {
+                return Err(Error::AccountBalanceNotEnough {
+                    message: format!("minner account balance not enough: {:?}", block.inner.miner),
+                });
+            }
         }
-        #[cfg(feature = "disable_storage_limit")]
-        {
-            now_state_map.entry(block.inner.miner).or_insert(Account {
-                key: block.inner.miner,
-                balance: 0,
-                action_hash: Hash([0; 32]),
-            });
-        }
-        let minner_account =
-            now_state_map
-                .get_mut(&block.inner.miner)
-                .ok_or_else(|| Error::AccountNotFound {
-                    message: format!("minner account not found: {:?}", block.inner.miner),
-                })?;
-        if minner_account.action_hash != block.inner.miner_last_action_hash {
+        let minner_account_action_hash = now_state_map
+            .get(&block.inner.miner)
+            .map(|v| v.action_hash)
+            .unwrap_or(Hash([0; 32]));
+        if minner_account_action_hash != block.inner.miner_last_action_hash {
             return Err(Error::AccountHashNotMatch {
                 message: format!(
                     "minner account action hash not match: {:?} {:?} {:?}",
                     block.inner.miner,
-                    minner_account.action_hash,
+                    minner_account_action_hash,
                     block.inner.miner_last_action_hash
                 ),
             });
+        }
+        Ok(())
+    }
+
+    fn do_minner_reward(
+        now_state_map: &mut BTreeMap<AccountKey, Account>,
+        block: &Block,
+    ) -> Result<()> {
+        Self::verify_minner_reward(now_state_map, block)?;
+        let now_reward = get_now_block_reward(block.inner.header.part_sort_header.size);
+
+        let minner_account = now_state_map.entry(block.inner.miner).or_insert(Account {
+            key: block.inner.miner,
+            balance: 0,
+            action_hash: Hash([0; 32]),
+        });
+
+        if minner_account.balance == 0 {
+            debug!(
+                "mining create account {:?} {:?}",
+                minner_account.key, block.key
+            )
         }
 
         minner_account.balance += now_reward;
@@ -554,6 +564,12 @@ impl<S: DbStorage> Mvm<S> {
             balance: 0,
             action_hash: Hash([0; 32]),
         });
+        if to_account.balance == 0 {
+            debug!(
+                "transfer create account {:?} {:?}",
+                to_account.key, transfer_hash
+            )
+        }
         to_account.balance += transfer.inner.amount;
 
         debug!(
