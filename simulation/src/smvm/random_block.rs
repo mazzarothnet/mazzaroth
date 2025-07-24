@@ -1,5 +1,7 @@
 use std::{collections::BTreeMap, path::Path};
 
+#[cfg(not(feature = "disable_storage_limit"))]
+use consensus::STO_ACCOUNT_MIN_BALANCE;
 use consensus::{
     TRANSFER_GAS,
     block_header::ConsensusHeader,
@@ -176,13 +178,25 @@ fn gen_rand_transfer(
         inner: transfer_inner,
         from_signature: Signature(signature),
     };
-    if transfer.inner.amount + transfer.inner.gas_price <= from_package.account.balance
+    #[cfg(not(feature = "disable_storage_limit"))]
+    let min_need =
+        transfer.inner.amount + transfer.inner.gas_price * TRANSFER_GAS + STO_ACCOUNT_MIN_BALANCE;
+    #[cfg(feature = "disable_storage_limit")]
+    let min_need = transfer.inner.amount + transfer.inner.gas_price * TRANSFER_GAS;
+
+    #[cfg(not(feature = "disable_storage_limit"))]
+    let to_need = STO_ACCOUNT_MIN_BALANCE;
+    #[cfg(feature = "disable_storage_limit")]
+    let to_need = 0;
+
+    if min_need <= from_package.account.balance
         && transfer.inner.from_last_action_hash == from_package.account.action_hash
         && transfer.inner.from != transfer.inner.to
         && account_map.contains_key(&from_index)
         && account_map.contains_key(&miner_index)
         && account_map.contains_key(&to_index)
         && accepted_sign
+        && (transfer.inner.amount + to_package.account.balance >= to_need)
     {
         let from_package = account_map.get_mut(&from_index).unwrap();
         from_package.account.balance -=

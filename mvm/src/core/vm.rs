@@ -92,7 +92,9 @@ impl<S: DbStorage> Mvm<S> {
             }
         }
         #[cfg(not(feature = "disable_storage_limit"))]
-        if !now_state_map.contains_key(&transfer.inner.to) && cast < STO_ACCOUNT_MIN_BALANCE {
+        if !now_state_map.contains_key(&transfer.inner.to)
+            && transfer.inner.amount < STO_ACCOUNT_MIN_BALANCE
+        {
             return Err(Error::AccountBalanceNotEnough {
                 message: format!("to account balance not enough: {:?}", transfer.inner.from),
             });
