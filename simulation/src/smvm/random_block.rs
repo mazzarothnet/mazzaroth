@@ -40,6 +40,7 @@ pub fn load_mvm(path: &str) -> Mvm<RocksDbStorage> {
     Mvm::new(account_db, merkle_tree)
 }
 
+#[derive(Debug, Clone)]
 struct AccountPackage {
     account: Account,
     secret_key: [u8; 32],
@@ -84,12 +85,18 @@ pub fn gen_rand_blocks(rng: &mut StdRng, block_num: u64, account_num: u64) -> Ve
     let mut blocks = Vec::new();
     for i in 0..block_num {
         let block_key = BlockKey(U256::from_u64(i));
-        let miner_index = rng.random_range(0..account_num);
+        let miner_index = get_rand_exist_index(rng, &account_map);
         let (miner_key, miner_last_action_hash) = {
             let miner_package = account_map.get_mut(&miner_index).unwrap();
             let last_action_hash = miner_package.account.action_hash;
             miner_package.account.balance += get_now_block_reward(0);
             miner_package.account.action_hash = Hash(block_key.0.to_be_bytes());
+            debug!(
+                "random miner update account: {:?} {:?} {:?}",
+                miner_package.account.key,
+                miner_package.account.action_hash,
+                miner_package.account.balance
+            );
             (miner_package.account.key, last_action_hash)
         };
         let mut block = Block {
@@ -135,10 +142,21 @@ fn gen_rand_transfer(
     account_num: u64,
     miner_index: u64,
 ) -> Transfer {
+    let mut accepted_sign = true;
     let from_index = get_rand_from_index(rng, account_map);
     let to_index = rng.random_range(0..account_num);
+    let to_package = account_map
+        .entry(to_index)
+        .or_insert(AccountPackage {
+            account: Account {
+                key: AccountKey([0; 33]),
+                balance: 0,
+                action_hash: Hash([0; 32]),
+            },
+            secret_key: [0; 32],
+        })
+        .clone();
     let from_package = account_map.get(&from_index).unwrap();
-    let to_package = account_map.get(&to_index).unwrap();
     let transfer_amount = rng.random_range(0..from_package.account.balance / 2);
     let transfer_real_hash = rng.random_range(0..10);
     let transfer_hash = if transfer_real_hash == 0 {
@@ -155,7 +173,11 @@ fn gen_rand_transfer(
         gas_price,
     };
     let transfer_inner_hash = sha256_hash_rlp(&transfer_inner);
-    let signature = sign_message(&transfer_inner_hash, &from_package.secret_key).unwrap();
+    let signature =
+        sign_message(&transfer_inner_hash, &from_package.secret_key).unwrap_or_else(|_| {
+            accepted_sign = false;
+            [0; 64]
+        });
     let transfer = Transfer {
         inner: transfer_inner,
         from_signature: Signature(signature),
@@ -163,15 +185,35 @@ fn gen_rand_transfer(
     if transfer.inner.amount + transfer.inner.gas_price <= from_package.account.balance
         && transfer.inner.from_last_action_hash == from_package.account.action_hash
         && transfer.inner.from != transfer.inner.to
+        && account_map.contains_key(&from_index)
+        && account_map.contains_key(&miner_index)
+        && accepted_sign
     {
         let from_package = account_map.get_mut(&from_index).unwrap();
         from_package.account.balance -=
             transfer.inner.amount + transfer.inner.gas_price * TRANSFER_GAS;
         from_package.account.action_hash = Hash(transfer_inner_hash);
+        debug!(
+            "random transfer from update account: {:?} {:?} {:?}",
+            from_package.account.key,
+            from_package.account.action_hash,
+            from_package.account.balance
+        );
         let to_package = account_map.get_mut(&to_index).unwrap();
         to_package.account.balance += transfer.inner.amount;
+        debug!(
+            "random transfer to update account: {:?} {:?} {:?}",
+            to_package.account.key, to_package.account.action_hash, to_package.account.balance
+        );
         let miner_package = account_map.get_mut(&miner_index).unwrap();
         miner_package.account.balance += transfer.inner.gas_price * TRANSFER_GAS;
+
+        debug!(
+            "random transfer minner update account: {:?} {:?} {:?}",
+            miner_package.account.key,
+            miner_package.account.action_hash,
+            miner_package.account.balance
+        );
     }
 
     transfer
@@ -195,6 +237,22 @@ fn get_rand_from_index(rng: &mut StdRng, account_map: &BTreeMap<u64, AccountPack
     has_set[index]
 }
 
+fn get_rand_exist_index(rng: &mut StdRng, account_map: &BTreeMap<u64, AccountPackage>) -> u64 {
+    let mut has_set = Vec::new();
+    for (i, _v) in account_map {
+        has_set.push(*i);
+    }
+    if has_set.is_empty() {
+        debug!(
+            "get_rand_from_index has_set is empty use {:?}",
+            account_map.get(&0).unwrap().account.key
+        );
+        return 0;
+    }
+    let index = rng.random_range(0..has_set.len());
+    has_set[index]
+}
+
 fn gen_rand_merge(
     rng: &mut StdRng,
     account_map: &mut BTreeMap<u64, AccountPackage>,
@@ -202,10 +260,18 @@ fn gen_rand_merge(
     miner_index: u64,
     miner_key: AccountKey,
 ) -> Merge {
+    let mut accepted_sign = true;
     let from_index = get_rand_from_index(rng, account_map);
     let to_index = rng.random_range(0..account_num);
     let from_package = account_map.get(&from_index).unwrap();
-    let to_package = account_map.get(&to_index).unwrap();
+    let to_package = account_map.get(&to_index).unwrap_or(&AccountPackage {
+        account: Account {
+            key: AccountKey([0; 33]),
+            balance: 0,
+            action_hash: Hash([0; 32]),
+        },
+        secret_key: [0; 32],
+    });
     let merge_amount_real_amount = rng.random_range(0..10);
     let merge_amount = if merge_amount_real_amount == 9 {
         debug!("gen_rand_merge rand");
@@ -239,8 +305,16 @@ fn gen_rand_merge(
         gas_price,
     };
     let merge_inner_hash = sha256_hash_rlp(&merge_inner);
-    let from_signature = sign_message(&merge_inner_hash, &from_package.secret_key).unwrap();
-    let to_signature = sign_message(&merge_inner_hash, &to_package.secret_key).unwrap();
+    let from_signature =
+        sign_message(&merge_inner_hash, &from_package.secret_key).unwrap_or_else(|_| {
+            accepted_sign = false;
+            [0; 64]
+        });
+    let to_signature =
+        sign_message(&merge_inner_hash, &to_package.secret_key).unwrap_or_else(|_| {
+            accepted_sign = false;
+            [0; 64]
+        });
     let merge = Merge {
         inner: merge_inner,
         from_signature: Signature(from_signature),
@@ -252,15 +326,27 @@ fn gen_rand_merge(
         && merge.inner.from_last_action_hash == from_package.account.action_hash
         && merge.inner.from != merge.inner.to
         && merge.inner.from != miner_key
+        && account_map.contains_key(&to_index)
+        && account_map.contains_key(&from_index)
+        && account_map.contains_key(&miner_index)
+        && accepted_sign
     {
-        let from_package = account_map.get_mut(&from_index).unwrap();
-        from_package.account.balance = 0;
-        from_package.account.action_hash = Hash(merge_inner_hash);
+        account_map.remove(&from_index);
         let to_package = account_map.get_mut(&to_index).unwrap();
         to_package.account.balance += merge.inner.balance - merge.inner.gas_price * TRANSFER_GAS;
         to_package.account.action_hash = Hash(merge_inner_hash);
+        debug!(
+            "random merge to update account: {:?} {:?} {:?}",
+            to_package.account.key, to_package.account.action_hash, to_package.account.balance
+        );
         let miner_package = account_map.get_mut(&miner_index).unwrap();
         miner_package.account.balance += merge.inner.gas_price * TRANSFER_GAS;
+        debug!(
+            "random merge minner update account: {:?} {:?} {:?}",
+            miner_package.account.key,
+            miner_package.account.action_hash,
+            miner_package.account.balance
+        );
     }
 
     merge
