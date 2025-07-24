@@ -312,8 +312,17 @@ impl<S: DbStorage> Mvm<S> {
                 .ok_or_else(|| Error::AccountNotFound {
                     message: format!("minner account not found: {:?}", block.inner.miner),
                 })?;
+        if minner_account.action_hash != block.inner.miner_last_action_hash {
+            return Err(Error::AccountHashNotMatch {
+                message: format!(
+                    "minner account action hash not match: {:?}",
+                    block.inner.miner
+                ),
+            });
+        }
 
         minner_account.balance += now_reward;
+        minner_account.action_hash = Hash(block.key.0.to_be_bytes());
         Ok(())
     }
 
@@ -448,7 +457,16 @@ impl<S: DbStorage> Mvm<S> {
                 .ok_or_else(|| Error::AccountNotFound {
                     message: format!("minner account not found: {:?}", minner),
                 })?;
+        if minner_account.action_hash != Hash(block.key.0.to_be_bytes()) {
+            return Err(Error::AccountHashNotMatch {
+                message: format!(
+                    "minner account action hash not match: {:?}",
+                    block.inner.miner
+                ),
+            });
+        }
         minner_account.balance -= get_now_block_reward(block.inner.header.part_sort_header.size);
+        minner_account.action_hash = block.inner.miner_last_action_hash;
         if minner_account.balance == 0 {
             now_state_map.remove(minner);
             delete_set.insert(*minner);

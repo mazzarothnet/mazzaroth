@@ -57,6 +57,7 @@ pub fn gen_empty_block(account_num: u64) -> Vec<Block> {
                 transfers: vec![],
                 merges: vec![],
                 miner: AccountKey([i as u8; 33]),
+                miner_last_action_hash: Hash([0; 32]),
             },
         });
     }
@@ -84,10 +85,12 @@ pub fn gen_rand_blocks(rng: &mut StdRng, block_num: u64, account_num: u64) -> Ve
     for i in 0..block_num {
         let block_key = BlockKey(U256::from_u64(i));
         let miner_index = rng.random_range(0..account_num);
-        let miner_key = {
+        let (miner_key, miner_last_action_hash) = {
             let miner_package = account_map.get_mut(&miner_index).unwrap();
+            let last_action_hash = miner_package.account.action_hash;
             miner_package.account.balance += get_now_block_reward(0);
-            miner_package.account.key
+            miner_package.account.action_hash = Hash(block_key.0.to_be_bytes());
+            (miner_package.account.key, last_action_hash)
         };
         let mut block = Block {
             key: block_key,
@@ -98,6 +101,7 @@ pub fn gen_rand_blocks(rng: &mut StdRng, block_num: u64, account_num: u64) -> Ve
                 transfers: vec![],
                 merges: vec![],
                 miner: miner_key,
+                miner_last_action_hash,
             },
         };
 
