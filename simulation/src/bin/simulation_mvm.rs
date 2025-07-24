@@ -9,7 +9,7 @@ fn main() {
     let mut mvm = new_test_mvm("test_mvm");
     //let mut rng = StdRng::seed_from_u64(1112331);
     let mut rng = StdRng::seed_from_u64(11891);
-    let block_num = 33;
+    let block_num = 30;
     let account_num = 50;
     let blocks = gen_rand_blocks(&mut rng, block_num, account_num);
     info!("gen rand blocks done");

@@ -65,22 +65,23 @@ pub fn gen_empty_block(account_num: u64) -> Vec<Block> {
     blocks
 }
 
+fn gen_new_account(rng: &mut StdRng) -> AccountPackage {
+    let (secret_key, public_key) = gen_keypair(rng);
+    let account_key = AccountKey(public_key);
+    AccountPackage {
+        account: Account {
+            key: account_key,
+            balance: 0,
+            action_hash: Hash([0; 32]),
+        },
+        secret_key,
+    }
+}
+
 pub fn gen_rand_blocks(rng: &mut StdRng, block_num: u64, account_num: u64) -> Vec<Block> {
     let mut account_map = BTreeMap::new();
     for i in 0..account_num {
-        let (secret_key, public_key) = gen_keypair(rng);
-        let account_key = AccountKey(public_key);
-        account_map.insert(
-            i,
-            AccountPackage {
-                account: Account {
-                    key: account_key,
-                    balance: 0,
-                    action_hash: Hash([0; 32]),
-                },
-                secret_key,
-            },
-        );
+        account_map.insert(i, gen_new_account(rng));
     }
     let mut blocks = Vec::new();
     for i in 0..block_num {
@@ -147,14 +148,7 @@ fn gen_rand_transfer(
     let to_index = rng.random_range(0..account_num);
     let to_package = account_map
         .entry(to_index)
-        .or_insert(AccountPackage {
-            account: Account {
-                key: AccountKey([0; 33]),
-                balance: 0,
-                action_hash: Hash([0; 32]),
-            },
-            secret_key: [0; 32],
-        })
+        .or_insert(gen_new_account(rng))
         .clone();
     let from_package = account_map.get(&from_index).unwrap();
     let transfer_amount = rng.random_range(0..from_package.account.balance / 2);
@@ -187,6 +181,7 @@ fn gen_rand_transfer(
         && transfer.inner.from != transfer.inner.to
         && account_map.contains_key(&from_index)
         && account_map.contains_key(&miner_index)
+        && account_map.contains_key(&to_index)
         && accepted_sign
     {
         let from_package = account_map.get_mut(&from_index).unwrap();
