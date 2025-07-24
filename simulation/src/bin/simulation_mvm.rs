@@ -16,9 +16,16 @@ fn main() {
     let mut forward_map = BTreeMap::new();
     for block in &blocks {
         info!("do block {}", block.key);
+        let old_state_map = mvm.get_state_root().unwrap();
         mvm.do_block(block).unwrap();
         let now_state_map = mvm.get_state_root().unwrap();
         info!("do block {} done", block.key);
+        mvm.do_block_rollback(block).unwrap();
+        let last_state_map = mvm.get_state_root().unwrap();
+        if last_state_map != old_state_map {
+            panic!("state map not match {:?}", block.key);
+        }
+        mvm.do_block(block).unwrap();
         forward_map.insert(block.key, now_state_map);
     }
     let mut backward_map = BTreeMap::new();

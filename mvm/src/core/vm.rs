@@ -223,8 +223,16 @@ impl<S: DbStorage> Mvm<S> {
                 if let Error::Impossible { message } = e {
                     return Err(Error::Impossible { message });
                 } else {
-                    info!("do merge rollback error: {:?}", e);
+                    info!(
+                        "error rollback merge merge_hash: {:?} merge: {:?} e: {:?}",
+                        merge.inner.from_last_action_hash, merge, e
+                    );
                 }
+            } else {
+                debug!(
+                    "success rollback merge merge_hash: {:?} merge: {:?}",
+                    merge.inner.from_last_action_hash, merge
+                );
             }
         }
         for transfer in block.inner.transfers.iter().rev() {
@@ -234,8 +242,16 @@ impl<S: DbStorage> Mvm<S> {
                 if let Error::Impossible { message } = e {
                     return Err(Error::Impossible { message });
                 } else {
-                    info!("do transfer rollback error: {:?}", e);
+                    info!(
+                        "error rollback transfer transfer_hash: {:?} transfer: {:?} e: {:?}",
+                        transfer.inner.from_last_action_hash, transfer, e
+                    );
                 }
+            } else {
+                debug!(
+                    "success rollback transfer transfer_hash: {:?} transfer: {:?}",
+                    transfer.inner.from_last_action_hash, transfer
+                );
             }
         }
         if let Err(e) =
@@ -244,8 +260,13 @@ impl<S: DbStorage> Mvm<S> {
             if let Error::Impossible { message } = e {
                 return Err(Error::Impossible { message });
             } else {
-                info!("do minner reward rollback error: {:?}", e);
+                info!(
+                    "error rollback minner reward block: {:?} e: {:?}",
+                    block.key, e
+                );
             }
+        } else {
+            debug!("success rollback minner reward block: {:?}", block.key);
         }
         Ok(())
     }
@@ -352,14 +373,15 @@ impl<S: DbStorage> Mvm<S> {
     ) -> Result<()> {
         if let Err(e) = Self::do_minner_reward(now_state_map, block) {
             info!(
-                "do minner reward error: {:?} minner: {:?}",
-                e, block.inner.miner,
+                "error do minner reward key: {:?}, minner:{:?} e: {:?}",
+                block.key, block.inner.miner, e,
             );
         } else {
             debug!(
-                "do minner reward success: {:?} reward: {:?}",
+                "success do minner reward key: {:?} miner: {:?} reward: {:?}",
+                block.key,
                 block.inner.miner,
-                get_now_block_reward(block.inner.header.part_sort_header.size)
+                get_now_block_reward(block.inner.header.part_sort_header.size),
             );
         }
         for transfer in &block.inner.transfers {
@@ -371,12 +393,15 @@ impl<S: DbStorage> Mvm<S> {
                     return Err(Error::Impossible { message });
                 } else {
                     info!(
-                        "do transfer error: {:?} transfer: {:?} transfer_hash: {:?}",
-                        e, transfer, transfer_hash
+                        "error do transfer transfer_hash: {:?} transfer: {:?} e: {:?}",
+                        transfer_hash, transfer, e,
                     );
                 }
             } else {
-                debug!("do transfer success: {:?}", transfer);
+                debug!(
+                    "success do transfer transfer_hash: {:?} transfer: {:?}",
+                    transfer_hash, transfer
+                );
             }
         }
         for merge in &block.inner.merges {
@@ -392,12 +417,15 @@ impl<S: DbStorage> Mvm<S> {
                     return Err(Error::Impossible { message });
                 } else {
                     info!(
-                        "do merge error: {:?} merge: {:?} merge_hash: {:?}",
-                        e, merge, merge_hash
+                        "error do merge merge_hash: {:?} merge: {:?} e: {:?}",
+                        merge_hash, merge, e,
                     );
                 }
             } else {
-                debug!("do merge success: {:?}", merge);
+                debug!(
+                    "success do merge merge_hash: {:?} merge: {:?}",
+                    merge_hash, merge
+                );
             }
         }
 
