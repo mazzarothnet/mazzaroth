@@ -177,7 +177,32 @@ impl<S: DbStorage> Mvm<S> {
         let mut now_state_map = Self::get_now_state_map(&mut account_transaction, block)?;
         let mut delete_set = BTreeSet::new();
 
+        #[cfg(debug_assertions)]
+        {
+            use utils::file::write_to_json;
+
+            write_to_json(
+                &format!(
+                    "test_mvm/forward_before_{}.json",
+                    get_key_from_block_key(&block.key.0.to_be_bytes())
+                ),
+                &get_map(&now_state_map),
+            )?;
+        }
+
         Self::do_all_transfer_and_merge(block, &mut now_state_map, &mut delete_set)?;
+
+        #[cfg(debug_assertions)]
+        {
+            use utils::file::write_to_json;
+            write_to_json(
+                &format!(
+                    "test_mvm/forward_after_{}.json",
+                    get_key_from_block_key(&block.key.0.to_be_bytes())
+                ),
+                &get_map(&now_state_map),
+            )?;
+        }
 
         let set_account_hash =
             Self::save_now_state_map(&mut account_transaction, &now_state_map, &delete_set)?;
@@ -195,7 +220,33 @@ impl<S: DbStorage> Mvm<S> {
         let mut now_state_map = Self::get_now_state_map(&mut account_transaction, block)?;
         let mut delete_set = BTreeSet::new();
 
+        #[cfg(debug_assertions)]
+        {
+            use utils::file::write_to_json;
+
+            write_to_json(
+                &format!(
+                    "test_mvm/rollback_before_{}.json",
+                    get_key_from_block_key(&block.key.0.to_be_bytes())
+                ),
+                &get_map(&now_state_map),
+            )?;
+        }
+
         Self::rollback_all_transfer_and_merge(block, &mut now_state_map, &mut delete_set)?;
+
+        #[cfg(debug_assertions)]
+        {
+            use utils::file::write_to_json;
+
+            write_to_json(
+                &format!(
+                    "test_mvm/rollback_after_{}.json",
+                    get_key_from_block_key(&block.key.0.to_be_bytes())
+                ),
+                &get_map(&now_state_map),
+            )?;
+        }
 
         let set_account_hash =
             Self::save_now_state_map(&mut account_transaction, &now_state_map, &delete_set)?;
@@ -219,38 +270,46 @@ impl<S: DbStorage> Mvm<S> {
     ) -> Result<()> {
         // 逆序
         for merge in block.inner.merges.iter().rev() {
-            if let Err(e) = Self::do_merge_rollback(merge, &block.inner.miner, now_state_map) {
-                if let Error::Impossible { message } = e {
-                    return Err(Error::Impossible { message });
-                } else {
-                    info!(
-                        "error rollback merge merge_hash: {:?} merge: {:?} e: {:?}",
-                        merge.inner.from_last_action_hash, merge, e
-                    );
-                }
-            } else {
-                debug!(
-                    "success rollback merge merge_hash: {:?} merge: {:?}",
-                    merge.inner.from_last_action_hash, merge
-                );
-            }
-        }
-        for transfer in block.inner.transfers.iter().rev() {
+            let merge_hash = Hash(sha256_hash_rlp(&merge.inner));
             if let Err(e) =
-                Self::do_transfer_rollback(transfer, &block.inner.miner, now_state_map, delete_set)
+                Self::do_merge_rollback(merge, &block.inner.miner, now_state_map, merge_hash)
             {
                 if let Error::Impossible { message } = e {
                     return Err(Error::Impossible { message });
                 } else {
                     info!(
+                        "error rollback merge merge_hash: {:?} merge: {:?} e: {:?}",
+                        merge_hash, merge, e
+                    );
+                }
+            } else {
+                debug!(
+                    "success rollback merge merge_hash: {:?} merge: {:?}",
+                    merge_hash, merge
+                );
+            }
+        }
+        for transfer in block.inner.transfers.iter().rev() {
+            let transfer_hash = Hash(sha256_hash_rlp(&transfer.inner));
+            if let Err(e) = Self::do_transfer_rollback(
+                transfer,
+                &block.inner.miner,
+                now_state_map,
+                delete_set,
+                transfer_hash,
+            ) {
+                if let Error::Impossible { message } = e {
+                    return Err(Error::Impossible { message });
+                } else {
+                    info!(
                         "error rollback transfer transfer_hash: {:?} transfer: {:?} e: {:?}",
-                        transfer.inner.from_last_action_hash, transfer, e
+                        transfer_hash, transfer, e
                     );
                 }
             } else {
                 debug!(
                     "success rollback transfer transfer_hash: {:?} transfer: {:?}",
-                    transfer.inner.from_last_action_hash, transfer
+                    transfer_hash, transfer
                 );
             }
         }
@@ -261,12 +320,12 @@ impl<S: DbStorage> Mvm<S> {
                 return Err(Error::Impossible { message });
             } else {
                 info!(
-                    "error rollback minner reward block: {:?} e: {:?}",
+                    "error rollback minner reward key: {:?} e: {:?}",
                     block.key, e
                 );
             }
         } else {
-            debug!("success rollback minner reward block: {:?}", block.key);
+            debug!("success rollback minner reward key: {:?}", block.key);
         }
         Ok(())
     }
@@ -551,8 +610,9 @@ impl<S: DbStorage> Mvm<S> {
         minner: &AccountKey,
         now_state_map: &mut BTreeMap<AccountKey, Account>,
         delete_set: &mut BTreeSet<AccountKey>,
+        transfer_hash: Hash,
     ) -> Result<()> {
-        Self::verify_transfer_rollback(transfer, now_state_map)?;
+        Self::verify_transfer_rollback(transfer, now_state_map, transfer_hash)?;
         let from_account =
             now_state_map
                 .get_mut(&transfer.inner.from)
@@ -588,8 +648,9 @@ impl<S: DbStorage> Mvm<S> {
         merge: &Merge,
         minner: &AccountKey,
         now_state_map: &mut BTreeMap<AccountKey, Account>,
+        merge_hash: Hash,
     ) -> Result<()> {
-        Self::verify_merge_rollback(merge, now_state_map)?;
+        Self::verify_merge_rollback(merge, now_state_map, merge_hash)?;
         now_state_map.insert(
             merge.inner.from,
             Account {
@@ -622,10 +683,10 @@ impl<S: DbStorage> Mvm<S> {
     fn verify_transfer_rollback(
         transfer: &Transfer,
         now_state_map: &BTreeMap<AccountKey, Account>,
+        transfer_hash: Hash,
     ) -> Result<()> {
-        let transfer_hash = sha256_hash_rlp(&transfer.inner);
         verify_message(
-            &transfer_hash,
+            &transfer_hash.0,
             &transfer.from_signature.0,
             &transfer.inner.from.0,
         )?;
@@ -635,7 +696,7 @@ impl<S: DbStorage> Mvm<S> {
                 .ok_or_else(|| Error::AccountNotFound {
                     message: format!("from account not found: {:?}", transfer.inner.from),
                 })?;
-        if from_account.action_hash != Hash(transfer_hash) {
+        if from_account.action_hash != transfer_hash {
             return Err(Error::AccountHashNotMatch {
                 message: format!(
                     "from account action hash not match: {:?}",
@@ -649,10 +710,10 @@ impl<S: DbStorage> Mvm<S> {
     fn verify_merge_rollback(
         merge: &Merge,
         now_state_map: &BTreeMap<AccountKey, Account>,
+        merge_hash: Hash,
     ) -> Result<()> {
-        let merge_hash = sha256_hash_rlp(&merge.inner);
-        verify_message(&merge_hash, &merge.from_signature.0, &merge.inner.from.0)?;
-        verify_message(&merge_hash, &merge.to_signature.0, &merge.inner.to.0)?;
+        verify_message(&merge_hash.0, &merge.from_signature.0, &merge.inner.from.0)?;
+        verify_message(&merge_hash.0, &merge.to_signature.0, &merge.inner.to.0)?;
 
         let to_account =
             now_state_map
@@ -663,7 +724,7 @@ impl<S: DbStorage> Mvm<S> {
                         merge.inner.to
                     ),
                 })?;
-        if to_account.action_hash != Hash(merge_hash) {
+        if to_account.action_hash != merge_hash {
             return Err(Error::AccountHashNotMatch {
                 message: format!("to account action hash not match: {:?}", merge.inner.to),
             });
@@ -671,4 +732,20 @@ impl<S: DbStorage> Mvm<S> {
 
         Ok(())
     }
+}
+
+pub fn get_key_from_block_key(block_key: &[u8]) -> i32 {
+    let mut key: i32 = 0;
+    for i in block_key {
+        key += *i as i32;
+    }
+    key
+}
+
+pub fn get_map(map: &BTreeMap<AccountKey, Account>) -> BTreeMap<String, Account> {
+    let mut new_map = BTreeMap::new();
+    for (key, value) in map {
+        new_map.insert(get_key_from_block_key(&key.0).to_string(), value.clone());
+    }
+    new_map
 }
