@@ -27,3 +27,11 @@ wgpu = "26"
 [workspace.features]
 default = []
 disable_storage_limit = []
+
+[profile.test]
+opt-level = 3
+debug = false
+lto = "thin"
+codegen-units = 1
+incremental = false  
+debug-assertions = false

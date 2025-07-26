@@ -4,6 +4,7 @@ mod tests {
 
     use crate::smvm::random_block::{gen_rand_blocks, new_test_mvm};
     use rand::{SeedableRng, rngs::StdRng};
+    use utils::sha256::sha256_hash_rlp;
 
     #[test]
     fn test_mvm() {
@@ -27,7 +28,18 @@ mod tests {
         }
         let forward_vec = forward_map.into_values().collect::<Vec<_>>();
         let backward_vec = backward_map.into_values().collect::<Vec<_>>();
-        assert_eq!(forward_vec, backward_vec);
+        let forward_hash = sha256_hash_rlp(&forward_vec);
+        eprintln!("forward_hash: {:?}", forward_hash);
+        let backward_hash = sha256_hash_rlp(&backward_vec);
+        assert_eq!(
+            forward_hash,
+            [
+                222, 22, 176, 46, 125, 190, 106, 202, 129, 151, 150, 175, 158, 172, 33, 11, 91,
+                147, 244, 149, 246, 98, 128, 156, 27, 104, 113, 207, 122, 214, 9, 237
+            ]
+        );
+        eprintln!("backward_hash: {:?}", backward_hash);
+        assert_eq!(forward_hash, backward_hash);
         eprintln!("test_mvm done");
     }
 }

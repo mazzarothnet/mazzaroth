@@ -94,7 +94,7 @@ impl<S: DbStorage> MerkleTree<S> {
         }
         if set_account.len() + delete_account.len() > 1 {
             return Err(Error::MerkleTree {
-                message: "panic set_account.len() + delete_account.len() != 1".to_string(),
+                message: "panic set_account.len() + delete_account.len() > 1".to_string(),
             });
         }
 

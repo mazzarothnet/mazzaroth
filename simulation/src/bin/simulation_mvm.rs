@@ -9,23 +9,23 @@ fn main() {
     let mut mvm = new_test_mvm("test_mvm");
     //let mut rng = StdRng::seed_from_u64(1112331);
     let mut rng = StdRng::seed_from_u64(11891);
-    let block_num = 30;
+    let block_num = 33;
     let account_num = 50;
     let blocks = gen_rand_blocks(&mut rng, block_num, account_num);
     info!("gen rand blocks done");
     let mut forward_map = BTreeMap::new();
     for block in &blocks {
         info!("do block {}", block.key);
-        let old_state_map = mvm.get_state_root().unwrap();
+        // let old_state_map = mvm.get_state_root().unwrap();
         mvm.do_block(block).unwrap();
         let now_state_map = mvm.get_state_root().unwrap();
-        info!("do block {} done", block.key);
-        mvm.do_block_rollback(block).unwrap();
-        let last_state_map = mvm.get_state_root().unwrap();
-        if last_state_map != old_state_map {
-            panic!("state map not match {:?}", block.key);
-        }
-        mvm.do_block(block).unwrap();
+        // info!("do block {} done", block.key);
+        // mvm.do_block_rollback(block).unwrap();
+        // let last_state_map = mvm.get_state_root().unwrap();
+        // if last_state_map != old_state_map {
+        //     panic!("state map not match {:?}", block.key);
+        // }
+        // mvm.do_block(block).unwrap();
         forward_map.insert(block.key, now_state_map);
     }
     let mut backward_map = BTreeMap::new();

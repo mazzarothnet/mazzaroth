@@ -150,7 +150,7 @@ fn gen_rand_transfer(
     let to_index = rng.random_range(0..account_num);
     let to_package = account_map
         .entry(to_index)
-        .or_insert(gen_new_account(rng))
+        .or_insert_with(|| gen_new_account(rng))
         .clone();
     let from_package = account_map.get(&from_index).unwrap();
     let transfer_amount = rng.random_range(0..from_package.account.balance / 2);
@@ -199,14 +199,17 @@ fn gen_rand_transfer(
         && (transfer.inner.amount + to_package.account.balance >= to_need)
     {
         let from_package = account_map.get_mut(&from_index).unwrap();
+        let old_balance = from_package.account.balance;
         from_package.account.balance -=
             transfer.inner.amount + transfer.inner.gas_price * TRANSFER_GAS;
         from_package.account.action_hash = Hash(transfer_inner_hash);
         debug!(
-            "random transfer from update account: {:?} {:?} {:?}",
+            "random transfer from update account: {:?} {:?} {:?} balance: {:?} need: {}",
             from_package.account.key,
             from_package.account.action_hash,
-            from_package.account.balance
+            from_package.account.balance,
+            old_balance,
+            min_need
         );
         let to_package = account_map.get_mut(&to_index).unwrap();
         to_package.account.balance += transfer.inner.amount;
@@ -265,22 +268,16 @@ fn get_rand_exist_index(rng: &mut StdRng, account_map: &BTreeMap<u64, AccountPac
 fn gen_rand_merge(
     rng: &mut StdRng,
     account_map: &mut BTreeMap<u64, AccountPackage>,
-    account_num: u64,
+    _account_num: u64,
     miner_index: u64,
     miner_key: AccountKey,
 ) -> Merge {
     let mut accepted_sign = true;
     let from_index = get_rand_from_index(rng, account_map);
-    let to_index = rng.random_range(0..account_num);
+    let to_index = get_rand_exist_index(rng, account_map);
     let from_package = account_map.get(&from_index).unwrap();
-    let to_package = account_map.get(&to_index).unwrap_or(&AccountPackage {
-        account: Account {
-            key: AccountKey([0; 33]),
-            balance: 0,
-            action_hash: Hash([0; 32]),
-        },
-        secret_key: [0; 32],
-    });
+    let to_package = account_map.get(&to_index).unwrap();
+    let to_package_balance = to_package.account.balance;
     let merge_amount_real_amount = rng.random_range(0..10);
     let merge_amount = if merge_amount_real_amount == 9 {
         debug!("gen_rand_merge rand");
@@ -339,8 +336,11 @@ fn gen_rand_merge(
         && account_map.contains_key(&from_index)
         && account_map.contains_key(&miner_index)
         && accepted_sign
+        && to_package_balance != 0
     {
-        account_map.remove(&from_index);
+        let from_package = account_map.get_mut(&from_index).unwrap();
+        from_package.account.balance = 0;
+        from_package.account.action_hash = Hash([0; 32]);
         let to_package = account_map.get_mut(&to_index).unwrap();
         to_package.account.balance += merge.inner.balance - merge.inner.gas_price * TRANSFER_GAS;
         to_package.account.action_hash = Hash(merge_inner_hash);
@@ -353,7 +353,7 @@ fn gen_rand_merge(
         debug!(
             "random merge minner update account: {:?} {:?} {:?}",
             miner_package.account.key,
-            miner_package.account.action_hash,
+            Hash(merge_inner_hash),
             miner_package.account.balance
         );
     }
