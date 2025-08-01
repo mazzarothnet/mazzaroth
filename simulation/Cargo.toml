@@ -9,7 +9,7 @@ utils = { path = "../utils" }
 mvm = { path = "../mvm" }
 database = { path = "../database" }
 mining = { path = "../mining" }
-quinn = { workspace = true }
+
 rocksdb = { workspace = true }
 serde = { workspace = true }
 anyhow = { workspace = true }

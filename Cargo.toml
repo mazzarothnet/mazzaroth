@@ -23,9 +23,10 @@ bytemuck = "1.22"
 env_logger = "0.11"
 pollster = "0.4"
 wgpu = "26"
-quinn = "0.11"
-tokio = { version = "1.40", features = ["full"] }
 axum = "0.8"
+tokio = { version = "1", features = ["full"] }
+jemallocator = "0.5"
+reed-solomon-erasure = "6"
 
 [workspace.features]
 default = []

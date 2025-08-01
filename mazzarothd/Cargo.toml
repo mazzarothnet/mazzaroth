@@ -5,7 +5,12 @@ edition = "2024"
 
 [dependencies]
 utils = { path = "../utils" }
-
 tokio = {workspace = true}
 anyhow = {workspace = true}
 axum = {workspace = true}
+reed-solomon-erasure = {workspace = true}
+alloy-rlp = { workspace = true }
+log = { workspace = true }
+
+[features]
+disable_storage_limit = []
