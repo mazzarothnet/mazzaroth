@@ -2,10 +2,10 @@ use log::debug;
 
 use crate::gossip::{
     channel_block::ChannelBlock,
-    ipv6_udp::buf::{Ipv6UdpBuf, gen_reed_solomon_block},
+    ipv6_udp::buf::{Ipv6UdpBuf, gen_reed_solomon_block, gen_udp_block},
 };
 use std::{
-    collections::{HashMap, HashSet},
+    collections::HashMap,
     net::{SocketAddr, UdpSocket},
 };
 
@@ -58,39 +58,91 @@ impl Ipv6UdpRecv {
 
 pub struct Ipv6UdpSend {
     pub socket: UdpSocket,
-    pub send_set: HashSet<SocketAddr>,
+    pub send_set: HashMap<SocketAddr, HashMap<u16, u16>>,
 }
 
 impl Ipv6UdpSend {
     pub fn new(socket: UdpSocket) -> Self {
         Self {
             socket,
-            send_set: HashSet::new(),
+            send_set: HashMap::new(),
         }
     }
 
     pub fn add_node(&mut self, addr: SocketAddr) {
-        self.send_set.insert(addr);
+        self.send_set.insert(addr, HashMap::new());
     }
 
     pub fn remove_node(&mut self, addr: SocketAddr) {
         self.send_set.remove(&addr);
     }
 
-    pub fn send(
+    pub fn broadcast(
         &mut self,
         channel_block: ChannelBlock,
         sender: Option<SocketAddr>,
     ) -> anyhow::Result<()> {
-        let data = gen_reed_solomon_block(channel_block)?;
-        for dst in self.send_set.iter() {
+        let (data, total_len, channel_block_len) = gen_reed_solomon_block(&channel_block)?;
+        for (dst, topic_to_key) in self.send_set.iter_mut() {
             if Some(*dst) == sender {
                 continue;
             }
-            for d in data.iter() {
-                self.socket.send_to(&d, dst)?;
-            }
+            Self::send_to_inner(
+                &mut self.socket,
+                &channel_block,
+                &data,
+                *dst,
+                total_len,
+                channel_block_len,
+                topic_to_key,
+            )?;
         }
+        Ok(())
+    }
+
+    fn send_to_inner(
+        socket: &mut UdpSocket,
+        channel_block: &ChannelBlock,
+        data: &Vec<Vec<u8>>,
+        dst: SocketAddr,
+        total_len: u32,
+        channel_block_len: u16,
+        topic_to_key: &mut HashMap<u16, u16>,
+    ) -> anyhow::Result<()> {
+        let key = topic_to_key.entry(channel_block.topic_id).or_insert(0);
+        if *key == u16::MAX {
+            *key = 0;
+        }
+        *key += 1;
+        for (index, data) in data.iter().enumerate() {
+            let d = gen_udp_block(
+                &data,
+                channel_block.topic_id,
+                *key,
+                index as u16,
+                total_len,
+                channel_block_len,
+            )?;
+            socket.send_to(&d, dst)?;
+        }
+        Ok(())
+    }
+
+    pub fn send_to(&mut self, cb: ChannelBlock, dst: SocketAddr) -> anyhow::Result<()> {
+        let (data, total_len, channel_block_len) = gen_reed_solomon_block(&cb)?;
+        let topic_to_key = self
+            .send_set
+            .get_mut(&dst)
+            .ok_or_else(|| anyhow::anyhow!("node not found"))?;
+        Self::send_to_inner(
+            &mut self.socket,
+            &cb,
+            &data,
+            dst,
+            total_len,
+            channel_block_len,
+            topic_to_key,
+        )?;
         Ok(())
     }
 }

@@ -3,3 +3,4 @@ pub mod channel_block;
 /// 1. send many udp packet at once
 /// 2. optimize the reed solomon algorithm
 pub mod ipv6_udp;
+pub mod proto;

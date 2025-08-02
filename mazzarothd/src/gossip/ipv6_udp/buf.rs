@@ -38,7 +38,9 @@ impl Ipv6UdpBuf {
     }
 }
 
-pub fn gen_reed_solomon_block(channel_block: ChannelBlock) -> anyhow::Result<Vec<Vec<u8>>> {
+pub fn gen_reed_solomon_block(
+    channel_block: &ChannelBlock,
+) -> anyhow::Result<(Vec<Vec<u8>>, u32, u16)> {
     let mut raw_data = Vec::new();
     channel_block.encode(&mut raw_data);
     let total_len = raw_data.len();
@@ -66,22 +68,44 @@ pub fn gen_reed_solomon_block(channel_block: ChannelBlock) -> anyhow::Result<Vec
         erasure_code.encode(&mut master_copy)?;
     }
 
-    let mut blocks = Vec::new();
-    for (index, block) in master_copy.into_iter().enumerate() {
-        let b = Ipv6UdpBlock {
-            topic_id: channel_block.topic_id,
-            key: channel_block.key,
-            index: index as u16,
-            total_len: total_len as u32,
-            channel_block_len: master_copy_len as u16,
-            data: block,
-        };
-        let mut buf = Vec::new();
-        b.encode(&mut buf);
-        blocks.push(buf);
-    }
+    // let mut blocks = Vec::new();
+    // for (index, block) in master_copy.into_iter().enumerate() {
+    //     let b = Ipv6UdpBlock {
+    //         topic_id: channel_block.topic_id,
+    //         key: channel_block.key,
+    //         index: index as u16,
+    //         total_len: total_len as u32,
+    //         channel_block_len: master_copy_len as u16,
+    //         data: block,
+    //     };
+    //     let mut buf = Vec::new();
+    //     b.encode(&mut buf);
+    //     blocks.push(buf);
+    // }
 
-    Ok(blocks)
+    Ok((master_copy, total_len as u32, master_copy_len as u16))
+}
+
+pub fn gen_udp_block(
+    data: &[u8],
+    topic_id: u16,
+    key: u16,
+    index: u16,
+    total_len: u32,
+    channel_block_len: u16,
+) -> anyhow::Result<Vec<u8>> {
+    let b = Ipv6UdpBlock {
+        topic_id,
+        key,
+        index,
+        total_len,
+        channel_block_len,
+        data: data.to_vec(),
+    };
+
+    let mut buf = Vec::new();
+    b.encode(&mut buf);
+    Ok(buf)
 }
 
 #[derive(Debug, RlpEncodable, RlpDecodable)]

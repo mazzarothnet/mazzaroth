@@ -29,15 +29,12 @@ fn main() {
 
     let mut udp_send = Ipv6UdpSend::new(socket_send.try_clone().unwrap());
     udp_send.add_node(RECV_ADDR_RECV.parse().unwrap());
-    let mut count = 0;
     loop {
-        count += 1;
         let now = Instant::now();
         udp_send
-            .send(
+            .broadcast(
                 mazzarothd::gossip::channel_block::ChannelBlock {
                     topic_id: 0,
-                    key: count,
                     data: buf.clone(),
                 },
                 None,
