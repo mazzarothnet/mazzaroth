@@ -16,6 +16,8 @@ Storing data and rules on the MVM is encouraged. The essence of Mazzaroth is to 
 Compared to traditional blockchain VM designs, the state root of the MVM supports both forward and backward derivation of state roots. It is possible to derive the state roots of previous blocks based on the current block and the current VM. This means that when a miner wants to join the Mazzaroth network, they do not need to synchronize all blocks starting from the genesis node. Instead, they only need to synchronize the MVM at a specific point in time, as Mazzaroth allows for both forward and backward validation along the blocks. Mazzaroth guarantees to miners that the storage space occupied by the MVM will never exceed 2TB.
 
 ## Mazzaroth's Roadmap
+white paper: https://mazzaroth.gitbook.io/mazzaroth-white-paper
+
 1. **Implement and Test Payment Functionality**: Achieve a target throughput of over 1,000 transactions per second (TPS) with confirmation times under 10 seconds.
 
 2. **Develop and Launch a ZK-Friendly Formal Virtual Machine**: Deploy this on the test network for evaluation.
@@ -43,3 +45,6 @@ cargo run --bin simulation_mvm --release
 
 ## Theoretical Research and Further Reading
 https://arxiv.org/abs/2506.01960
+
+## Discord
+https://discord.gg/J2svr2gQ

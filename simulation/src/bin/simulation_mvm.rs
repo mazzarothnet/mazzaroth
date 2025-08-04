@@ -1,7 +1,8 @@
 use log::info;
+use mvm::models::block::Block;
 use rand::{SeedableRng, rngs::StdRng};
 use simulation::smvm::random_block::{gen_rand_blocks, new_test_mvm};
-use std::collections::BTreeMap;
+use std::{collections::BTreeMap, fs::File, io::Write};
 use utils::{file::write_to_json, log::init_log};
 
 fn main() {
@@ -12,13 +13,21 @@ fn main() {
     let block_num = 33;
     let account_num = 50;
     let blocks = gen_rand_blocks(&mut rng, block_num, account_num);
+    save_blocks(&blocks);
     info!("gen rand blocks done");
     let mut forward_map = BTreeMap::new();
     for block in &blocks {
         info!("do block {}", block.key);
+        // let old_state_map = mvm.get_state_root().unwrap();
         mvm.do_block(block).unwrap();
         let now_state_map = mvm.get_state_root().unwrap();
-        info!("do block {} done", block.key);
+        // info!("do block {} done", block.key);
+        // mvm.do_block_rollback(block).unwrap();
+        // let last_state_map = mvm.get_state_root().unwrap();
+        // if last_state_map != old_state_map {
+        //     panic!("state map not match {:?}", block.key);
+        // }
+        // mvm.do_block(block).unwrap();
         forward_map.insert(block.key, now_state_map);
     }
     let mut backward_map = BTreeMap::new();
@@ -32,4 +41,13 @@ fn main() {
 
     write_to_json("test_mvm/forward_map.json", &forward_map).unwrap();
     write_to_json("test_mvm/backward_map.json", &backward_map).unwrap();
+}
+
+pub fn save_blocks(blocks: &Vec<Block>) {
+    for block in blocks {
+        let mut buf = Vec::new();
+        alloy_rlp::Encodable::encode(block, &mut buf);
+        let mut file = File::create(format!("test_block/block_{}.rlp", block.key)).unwrap();
+        file.write_all(&buf).unwrap();
+    }
 }

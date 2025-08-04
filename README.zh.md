@@ -17,6 +17,8 @@ Mazzaroth是一个赋权任何人构建可靠且高效去中心化共识的系�
 在相较于传统的区块链vm设计，MVM的状态根支持向前和向后推导状态根，可以通过当前区块和当前vm，推导之前的区块的状态根。这意味着当矿工需要加入Mazzaroth时，他不需要从创始节点开始同步所有区块，只需要同步某个时间节点的MVM。因为Mazzaroth可以沿着区块向前和向后验证的。Mazzaroth向矿工保证，MVM占用的存储空间永远不会超过2TB。
 
 ## Mazzaroth的计划
+white paper: https://mazzaroth.gitbook.io/mazzaroth-white-paper
+
 1. **实现支付功能并进行测试**，预期TPS>1000，确认时间小于10S
 2. **实现zk友好的形式化虚拟机**并上线测试网络
 3. **制定经济策略**并上线正式网络
@@ -37,3 +39,6 @@ cargo run --bin simulation_mvm --release
 
 ## 理论研究
 https://arxiv.org/abs/2506.01960
+
+## Discord
+https://discord.gg/J2svr2gQ

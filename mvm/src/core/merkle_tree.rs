@@ -92,9 +92,9 @@ impl<S: DbStorage> MerkleTree<S> {
         for key in delete_account.iter() {
             transaction.delete_data(key)?;
         }
-        if set_account.len() + delete_account.len() != 1 {
+        if set_account.len() + delete_account.len() > 1 {
             return Err(Error::MerkleTree {
-                message: "panic set_account.len() + delete_account.len() != 1".to_string(),
+                message: "panic set_account.len() + delete_account.len() > 1".to_string(),
             });
         }
 
@@ -127,7 +127,6 @@ impl<S: DbStorage> MerkleTree<S> {
         let nodes: Vec<TreeNode> =
             transaction.batch_read(real_keys.into_iter().collect::<Vec<_>>())?;
         let mut ans = BTreeMap::new();
-        #[cfg(debug_assertions)]
         debug!("read_nodes {:?}", nodes.len());
         for node in nodes.into_iter() {
             #[cfg(debug_assertions)]
