@@ -7,6 +7,8 @@ edition = "2024"
 utils = { path = "../utils" }
 consensus = { path = "../consensus" }
 mvm = { path = "../mvm" }
+database = { path = "../database" }
+mining = { path = "../mining" }
 
 serde = { workspace = true }
 tokio = {workspace = true}
@@ -15,6 +17,7 @@ axum = {workspace = true}
 reed-solomon-erasure = {workspace = true}
 alloy-rlp = { workspace = true }
 log = { workspace = true }
+crossbeam = { workspace = true }
 
 [features]
 disable_storage_limit = []

@@ -1,6 +1,6 @@
 // src/bin/client.rs
 
-use mazzarothd::gossip::ipv6_udp::{Ipv6UdpRecv, Ipv6UdpSend};
+use mazzarothd::gossip::ipv6_udp::{Ipv6UdpRecv, Ipv6UdpSend, RecvAction, SendAction};
 use std::{
     fs::File,
     io::Read,
@@ -24,26 +24,31 @@ fn main() {
     let hash = sha256_hash(&buf);
 
     println!("send hash: {:?}", hash);
-    let mut udp_recv = Ipv6UdpRecv::new(socket_recv);
-    udp_recv.add_node(RECV_ADDR_RECV.parse().unwrap(), 1);
+    let mut udp_recv = Ipv6UdpRecv::new();
+    udp_recv.action(RecvAction::AddNode(RECV_ADDR_RECV.parse().unwrap(), 1));
 
     let mut udp_send = Ipv6UdpSend::new(socket_send.try_clone().unwrap());
-    udp_send.add_node(RECV_ADDR_RECV.parse().unwrap());
+    udp_send
+        .action(SendAction::AddNode(RECV_ADDR_RECV.parse().unwrap()))
+        .unwrap();
     loop {
         let now = Instant::now();
         udp_send
-            .broadcast(
+            .action(SendAction::Broadcast(
                 mazzarothd::gossip::channel_block::ChannelBlock {
                     topic_id: 0,
                     data: buf.clone(),
                 },
                 None,
-            )
+            ))
             .unwrap();
         println!("send success");
         loop {
             println!("recv start");
-            let ans = udp_recv.recv();
+            let mut buf = [0; 65535];
+            let (len, src) = socket_recv.recv_from(&mut buf).unwrap();
+            let data = &buf[..len];
+            let ans = udp_recv.recv(src, data);
             if let Some(ans) = ans {
                 let cast_time = now.elapsed();
                 let str = String::from_utf8(ans.data).unwrap();

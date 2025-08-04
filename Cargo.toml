@@ -27,6 +27,7 @@ axum = "0.8"
 tokio = { version = "1", features = ["full"] }
 jemallocator = "0.5"
 reed-solomon-erasure = "6"
+crossbeam = "0.8"
 
 [workspace.features]
 default = []

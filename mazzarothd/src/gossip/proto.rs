@@ -8,12 +8,15 @@ pub const REQ_BLOCK_TOPIC: u16 = 1;
 pub const RESP_BLOCK_TOPIC: u16 = 2;
 pub const TRY_CONNECT_TOPIC: u16 = 3;
 pub const ALIVE_TOPIC: u16 = 4;
+pub const MESSAGE_TOPIC: u16 = 5;
+pub const PING_TOPIC: u16 = 6;
+pub const PONG_TOPIC: u16 = 7;
 
 #[derive(Debug, Serialize, Deserialize, RlpEncodable, RlpDecodable)]
 pub struct NotifyBlock {
     pub key: BlockKey,
     pub nonce: u128,
-    pub inner_hash: Hash
+    pub inner_hash: Hash,
 }
 
 pub type ReqBlock = BlockKey;

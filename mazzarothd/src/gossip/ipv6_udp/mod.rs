@@ -12,41 +12,34 @@ use std::{
 pub mod buf;
 
 pub struct Ipv6UdpRecv {
-    pub socket: UdpSocket,
     pub node_map: HashMap<SocketAddr, Ipv6UdpBuf>,
-    pub recv_buf: Vec<u8>,
+}
+
+pub enum RecvAction {
+    AddNode(SocketAddr, u16),
+    RemoveNode(SocketAddr),
 }
 
 impl Ipv6UdpRecv {
-    pub fn new(socket: UdpSocket) -> Self {
+    pub fn new() -> Self {
         Self {
-            socket,
             node_map: HashMap::new(),
-            recv_buf: Vec::with_capacity(65535),
         }
     }
 
-    pub fn add_node(&mut self, addr: SocketAddr, listen_topic_len: u16) {
-        self.node_map
-            .insert(addr, Ipv6UdpBuf::new(listen_topic_len));
-    }
-
-    pub fn remove_node(&mut self, addr: SocketAddr) {
-        self.node_map.remove(&addr);
+    pub fn action(&mut self, action: RecvAction) {
+        match action {
+            RecvAction::AddNode(addr, listen_topic_len) => {
+                self.add_node(addr, listen_topic_len);
+            }
+            RecvAction::RemoveNode(addr) => {
+                self.remove_node(addr);
+            }
+        }
     }
 
     /// it will block until receive a message
-    pub fn recv(&mut self) -> Option<ChannelBlock> {
-        let mut buf = [0; 65535];
-        let (len, src) = self
-            .socket
-            .recv_from(&mut buf)
-            .map_err(|e| {
-                debug!("Ipv6UdpSwarm::recv error: {}", e);
-                e
-            })
-            .ok()?;
-        let data = &buf[..len];
+    pub fn recv(&mut self, src: SocketAddr, data: &[u8]) -> Option<ChannelBlock> {
         if self.node_map.contains_key(&src) {
             self.node_map.get_mut(&src)?.try_add_data(data)
         } else {
@@ -54,11 +47,27 @@ impl Ipv6UdpRecv {
             None
         }
     }
+
+    fn add_node(&mut self, addr: SocketAddr, listen_topic_len: u16) {
+        self.node_map
+            .insert(addr, Ipv6UdpBuf::new(listen_topic_len));
+    }
+
+    fn remove_node(&mut self, addr: SocketAddr) {
+        self.node_map.remove(&addr);
+    }
 }
 
 pub struct Ipv6UdpSend {
     pub socket: UdpSocket,
     pub send_set: HashMap<SocketAddr, HashMap<u16, u16>>,
+}
+
+pub enum SendAction {
+    AddNode(SocketAddr),
+    RemoveNode(SocketAddr),
+    Send(ChannelBlock, SocketAddr),
+    Broadcast(ChannelBlock, Option<SocketAddr>),
 }
 
 impl Ipv6UdpSend {
@@ -69,15 +78,34 @@ impl Ipv6UdpSend {
         }
     }
 
-    pub fn add_node(&mut self, addr: SocketAddr) {
+    pub fn action(&mut self, action: SendAction) -> anyhow::Result<()> {
+        match action {
+            SendAction::AddNode(addr) => {
+                self.add_node(addr);
+            }
+            SendAction::RemoveNode(addr) => {
+                self.remove_node(addr);
+            }
+            SendAction::Send(cb, dst) => {
+                self.send_to(cb, dst)?;
+            }
+            SendAction::Broadcast(cb, sender) => {
+                self.broadcast(cb, sender)?;
+            }
+        }
+
+        Ok(())
+    }
+
+    fn add_node(&mut self, addr: SocketAddr) {
         self.send_set.insert(addr, HashMap::new());
     }
 
-    pub fn remove_node(&mut self, addr: SocketAddr) {
+    fn remove_node(&mut self, addr: SocketAddr) {
         self.send_set.remove(&addr);
     }
 
-    pub fn broadcast(
+    fn broadcast(
         &mut self,
         channel_block: ChannelBlock,
         sender: Option<SocketAddr>,
@@ -128,7 +156,7 @@ impl Ipv6UdpSend {
         Ok(())
     }
 
-    pub fn send_to(&mut self, cb: ChannelBlock, dst: SocketAddr) -> anyhow::Result<()> {
+    fn send_to(&mut self, cb: ChannelBlock, dst: SocketAddr) -> anyhow::Result<()> {
         let (data, total_len, channel_block_len) = gen_reed_solomon_block(&cb)?;
         let topic_to_key = self
             .send_set
