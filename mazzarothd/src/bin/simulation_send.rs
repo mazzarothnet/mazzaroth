@@ -13,7 +13,7 @@ const RECV_ADDR_RECV: &str = "[::1]:8081";
 
 fn main() {
     //init_log();
-    let socket_send = UdpSocket::bind(SEND_ADDR).unwrap();
+    let mut socket_send = UdpSocket::bind(SEND_ADDR).unwrap();
     let socket_recv = socket_send.try_clone().unwrap();
     let mut file = File::open(
         "test_block/block_0000000000000000000000000000000000000000000000000000000000000000.rlp",
@@ -27,20 +27,26 @@ fn main() {
     let mut udp_recv = Ipv6UdpRecv::new();
     udp_recv.action(RecvAction::AddNode(RECV_ADDR_RECV.parse().unwrap(), 1));
 
-    let mut udp_send = Ipv6UdpSend::new(socket_send.try_clone().unwrap());
+    let mut udp_send = Ipv6UdpSend::new();
     udp_send
-        .action(SendAction::AddNode(RECV_ADDR_RECV.parse().unwrap()))
+        .action(
+            SendAction::AddNode(RECV_ADDR_RECV.parse().unwrap()),
+            &mut socket_send,
+        )
         .unwrap();
     loop {
         let now = Instant::now();
         udp_send
-            .action(SendAction::Broadcast(
-                mazzarothd::gossip::channel_block::ChannelBlock {
-                    topic_id: 0,
-                    data: buf.clone(),
-                },
-                None,
-            ))
+            .action(
+                SendAction::Broadcast(
+                    mazzarothd::gossip::channel_block::ChannelBlock {
+                        topic_id: 0,
+                        data: buf.clone(),
+                    },
+                    None,
+                ),
+                &mut socket_send,
+            )
             .unwrap();
         println!("send success");
         loop {

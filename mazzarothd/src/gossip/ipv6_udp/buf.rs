@@ -9,7 +9,7 @@ const PARITY_SHARDS: usize = 10;
 
 #[derive(Debug, Clone, Hash)]
 pub struct Ipv6UdpBuf {
-    listen_topic_len: u16,
+    pub listen_topic_len: u16,
     topic_buf: Vec<ReedSolomonBuf>,
 }
 

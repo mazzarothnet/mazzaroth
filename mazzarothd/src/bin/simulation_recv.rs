@@ -11,12 +11,15 @@ const SEND_ADDR_RECV: &str = "[::1]:8080";
 fn main() {
     init_log();
     let socket = UdpSocket::bind(RECV_ADDR).unwrap();
-    let socket_send = socket.try_clone().unwrap();
+    let mut socket_send = socket.try_clone().unwrap();
     let mut udp_recv = Ipv6UdpRecv::new();
     udp_recv.action(RecvAction::AddNode(SEND_ADDR_RECV.parse().unwrap(), 1));
-    let mut udp_send = Ipv6UdpSend::new(socket_send);
+    let mut udp_send = Ipv6UdpSend::new();
     udp_send
-        .action(SendAction::AddNode(SEND_ADDR_RECV.parse().unwrap()))
+        .action(
+            SendAction::AddNode(SEND_ADDR_RECV.parse().unwrap()),
+            &mut socket_send,
+        )
         .unwrap();
     let mut count = 0;
     loop {
@@ -32,7 +35,7 @@ fn main() {
                 data: "hello".as_bytes().to_vec(),
             };
             udp_send
-                .action(SendAction::Broadcast(send_data, None))
+                .action(SendAction::Broadcast(send_data, None), &mut socket_send)
                 .unwrap();
             let hash = sha256_hash(&ans.data);
             println!("recv hash: {:?}", hash);

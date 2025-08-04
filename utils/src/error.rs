@@ -1,3 +1,8 @@
+use axum::{
+    body::Body,
+    http::{Response, StatusCode},
+    response::IntoResponse,
+};
 use thiserror::Error;
 
 /// error type
@@ -59,3 +64,28 @@ pub enum Error {
 }
 
 pub type Result<T> = std::result::Result<T, Error>;
+
+impl IntoResponse for Error {
+    fn into_response(self) -> axum::response::Response {
+        let message = self.to_string();
+        let body = Body::from(message);
+        Response::builder()
+            .status(StatusCode::INTERNAL_SERVER_ERROR)
+            .body(body)
+            .unwrap()
+    }
+}
+
+pub struct Res<T: serde::Serialize> {
+    pub data: T,
+}
+
+impl<T: serde::Serialize> IntoResponse for Res<T> {
+    fn into_response(self) -> axum::response::Response {
+        let body = Body::from(serde_json::to_string(&self.data).unwrap());
+        Response::builder()
+            .status(StatusCode::OK)
+            .body(body)
+            .unwrap()
+    }
+}

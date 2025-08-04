@@ -48,18 +48,17 @@ impl Ipv6UdpRecv {
         }
     }
 
-    fn add_node(&mut self, addr: SocketAddr, listen_topic_len: u16) {
+    pub fn add_node(&mut self, addr: SocketAddr, listen_topic_len: u16) {
         self.node_map
             .insert(addr, Ipv6UdpBuf::new(listen_topic_len));
     }
 
-    fn remove_node(&mut self, addr: SocketAddr) {
+    pub fn remove_node(&mut self, addr: SocketAddr) {
         self.node_map.remove(&addr);
     }
 }
 
 pub struct Ipv6UdpSend {
-    pub socket: UdpSocket,
     pub send_set: HashMap<SocketAddr, HashMap<u16, u16>>,
 }
 
@@ -71,14 +70,13 @@ pub enum SendAction {
 }
 
 impl Ipv6UdpSend {
-    pub fn new(socket: UdpSocket) -> Self {
+    pub fn new() -> Self {
         Self {
-            socket,
             send_set: HashMap::new(),
         }
     }
 
-    pub fn action(&mut self, action: SendAction) -> anyhow::Result<()> {
+    pub fn action(&mut self, action: SendAction, socket: &mut UdpSocket) -> anyhow::Result<()> {
         match action {
             SendAction::AddNode(addr) => {
                 self.add_node(addr);
@@ -87,21 +85,21 @@ impl Ipv6UdpSend {
                 self.remove_node(addr);
             }
             SendAction::Send(cb, dst) => {
-                self.send_to(cb, dst)?;
+                self.send_to(cb, dst, socket)?;
             }
             SendAction::Broadcast(cb, sender) => {
-                self.broadcast(cb, sender)?;
+                self.broadcast(cb, sender, socket)?;
             }
         }
 
         Ok(())
     }
 
-    fn add_node(&mut self, addr: SocketAddr) {
+    pub fn add_node(&mut self, addr: SocketAddr) {
         self.send_set.insert(addr, HashMap::new());
     }
 
-    fn remove_node(&mut self, addr: SocketAddr) {
+    pub fn remove_node(&mut self, addr: SocketAddr) {
         self.send_set.remove(&addr);
     }
 
@@ -109,6 +107,7 @@ impl Ipv6UdpSend {
         &mut self,
         channel_block: ChannelBlock,
         sender: Option<SocketAddr>,
+        socket: &mut UdpSocket,
     ) -> anyhow::Result<()> {
         let (data, total_len, channel_block_len) = gen_reed_solomon_block(&channel_block)?;
         for (dst, topic_to_key) in self.send_set.iter_mut() {
@@ -116,7 +115,7 @@ impl Ipv6UdpSend {
                 continue;
             }
             Self::send_to_inner(
-                &mut self.socket,
+                socket,
                 &channel_block,
                 &data,
                 *dst,
@@ -156,14 +155,19 @@ impl Ipv6UdpSend {
         Ok(())
     }
 
-    fn send_to(&mut self, cb: ChannelBlock, dst: SocketAddr) -> anyhow::Result<()> {
+    fn send_to(
+        &mut self,
+        cb: ChannelBlock,
+        dst: SocketAddr,
+        socket: &mut UdpSocket,
+    ) -> anyhow::Result<()> {
         let (data, total_len, channel_block_len) = gen_reed_solomon_block(&cb)?;
         let topic_to_key = self
             .send_set
             .get_mut(&dst)
             .ok_or_else(|| anyhow::anyhow!("node not found"))?;
         Self::send_to_inner(
-            &mut self.socket,
+            socket,
             &cb,
             &data,
             dst,

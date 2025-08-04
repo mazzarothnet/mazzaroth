@@ -18,6 +18,7 @@ reed-solomon-erasure = {workspace = true}
 alloy-rlp = { workspace = true }
 log = { workspace = true }
 crossbeam = { workspace = true }
+lazy_static = { workspace = true }
 
 [features]
 disable_storage_limit = []

@@ -1334,6 +1334,7 @@ dependencies = [
  "consensus",
  "crossbeam",
  "database",
+ "lazy_static",
  "log",
  "mining",
  "mvm",
@@ -2282,6 +2283,7 @@ version = "0.1.0"
 dependencies = [
  "alloy-rlp",
  "anyhow",
+ "axum",
  "jemallocator",
  "log",
  "log4rs",
