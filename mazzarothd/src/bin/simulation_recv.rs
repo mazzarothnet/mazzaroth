@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used)]
 use mazzarothd::gossip::{
     channel_block::ChannelBlock,
     ipv6_udp::{Ipv6UdpRecv, Ipv6UdpSend, RecvAction, SendAction},

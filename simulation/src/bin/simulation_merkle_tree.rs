@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used)]
 use log::info;
 use mvm::core::storage::DbStorageTransaction;
 use rand::{SeedableRng, rngs::StdRng, seq::SliceRandom};

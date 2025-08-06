@@ -22,7 +22,7 @@ pub fn vec_to_nonce(nonce_vec: [u32; 4]) -> u128 {
     let mut nonce = 0u128;
     for i in 0..4 {
         nonce = nonce << 32;
-        nonce = nonce | nonce_vec[i] as u128;
+        nonce = nonce | u128::from(nonce_vec[i]);
     }
     nonce
 }

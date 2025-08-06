@@ -210,13 +210,13 @@ fn need_update_key(old_key: u16, new_key: u16) -> bool {
     if old_key == new_key {
         return false;
     }
-    let old_key_i32 = old_key as i32;
-    let mut new_key_i32 = new_key as i32;
+    let old_key_i32 = i32::from(old_key);
+    let mut new_key_i32 = i32::from(new_key);
     if new_key_i32 < old_key_i32 {
-        new_key_i32 += u16::MAX as i32;
+        new_key_i32 += i32::from(u16::MAX);
     }
     let gap = new_key_i32 - old_key_i32;
-    gap < (u16::MAX as i32) / 2
+    gap < (i32::from(u16::MAX)) / 2
 }
 
 fn get_parity_len(len: usize) -> usize {

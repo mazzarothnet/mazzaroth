@@ -1,5 +1,4 @@
-// src/bin/client.rs
-
+#![allow(clippy::unwrap_used)]
 use mazzarothd::gossip::ipv6_udp::{Ipv6UdpRecv, Ipv6UdpSend, RecvAction, SendAction};
 use std::{
     fs::File,

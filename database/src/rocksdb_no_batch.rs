@@ -21,6 +21,33 @@ impl DbStorage for RocksDbStorage {
     fn begin_transaction(&self) -> Result<Self::Transaction<'_>> {
         Ok(RocksDbTransaction::new(&self.0))
     }
+
+    fn get_data<K: Encodable, V: Decodable>(&self, key: &K) -> Result<Option<V>> {
+        let mut key_bytes = Vec::new();
+        key.encode(&mut key_bytes);
+        let value = self
+            .0
+            .get(key_bytes.clone())
+            .with_context(|| "Failed to get data")?;
+        if let Some(value) = value {
+            let v: V = Decodable::decode(&mut value.as_slice())
+                .with_context(|| "Failed to decode data")?;
+            Ok(Some(v))
+        } else {
+            Ok(None)
+        }
+    }
+
+    fn set_data<K: Encodable, V: Encodable>(&self, key: &K, value: &V) -> Result<()> {
+        let mut key_bytes = Vec::new();
+        key.encode(&mut key_bytes);
+        let mut value_bytes = Vec::new();
+        value.encode(&mut value_bytes);
+        self.0
+            .put(key_bytes, value_bytes)
+            .with_context(|| "Failed to set data")?;
+        Ok(())
+    }
 }
 
 pub struct RocksDbTransaction<'db> {

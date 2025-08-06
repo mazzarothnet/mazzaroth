@@ -72,7 +72,7 @@ impl IntoResponse for Error {
         Response::builder()
             .status(StatusCode::INTERNAL_SERVER_ERROR)
             .body(body)
-            .unwrap()
+            .unwrap_or_default()
     }
 }
 
@@ -82,10 +82,10 @@ pub struct Res<T: serde::Serialize> {
 
 impl<T: serde::Serialize> IntoResponse for Res<T> {
     fn into_response(self) -> axum::response::Response {
-        let body = Body::from(serde_json::to_string(&self.data).unwrap());
+        let body = Body::from(serde_json::to_string(&self.data).unwrap_or_default());
         Response::builder()
             .status(StatusCode::OK)
             .body(body)
-            .unwrap()
+            .unwrap_or_default()
     }
 }

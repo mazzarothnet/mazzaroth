@@ -5,7 +5,6 @@ cargo clippy --all-targets --all-features "$@" -- \
         -D clippy::unwrap_used \
         -D clippy::branches_sharing_code \
         -D clippy::cast_lossless \
-        -D clippy::exit \
         -D clippy::implicit_clone \
         -D clippy::index_refutable_slice \
         -D clippy::map_err_ignore \

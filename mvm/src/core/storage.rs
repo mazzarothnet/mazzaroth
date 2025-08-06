@@ -18,6 +18,10 @@ pub trait DbStorage {
     where
         Self: 'a;
     fn begin_transaction(&self) -> Result<Self::Transaction<'_>>;
+
+    fn get_data<K: Encodable, V: Decodable>(&self, key: &K) -> Result<Option<V>>;
+
+    fn set_data<K: Encodable, V: Encodable>(&self, key: &K, value: &V) -> Result<()>;
 }
 
 // pub struct VmStorage<S: DbStorage> {

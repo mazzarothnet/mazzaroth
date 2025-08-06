@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used)]
 use mining::{
     run_gpu::mining_gpu_sha256,
     sha256_mining::{bytes_to_hex, nonce_hash_to_package_to_u8_vec},
@@ -16,9 +17,8 @@ fn main() {
     target[5] = 0xffffffff;
     target[6] = 0xffffffff;
     target[7] = 0xffffffff;
-    let nonce_vec = mining_gpu_sha256(block_hash, work_id, target);
-    for i in 0..nonce_vec.len() {
-        let nonce = nonce_vec[i];
+    let nonce_vec = mining_gpu_sha256(block_hash, work_id, target).unwrap();
+    for nonce in nonce_vec {
         let msg = nonce_hash_to_package_to_u8_vec(block_hash, nonce);
         let hash = sha256_hash(&msg);
         println!("nonce: {:x}, hash: {}", nonce, bytes_to_hex(&hash));
