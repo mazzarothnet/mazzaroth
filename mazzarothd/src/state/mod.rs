@@ -7,8 +7,9 @@ use crate::state::{app_data::get_block_db_path, block::BlockStorage};
 pub mod app_data;
 pub mod block;
 
-#[allow(clippy::unwrap_used)]
+
 lazy_static::lazy_static! {
+    #[allow(clippy::unwrap_used)]
     pub static ref BLOCK_STORAGE: Mutex<BlockStorage> = Mutex::new(BlockStorage::new(&get_block_db_path().unwrap()).unwrap());
 }
 

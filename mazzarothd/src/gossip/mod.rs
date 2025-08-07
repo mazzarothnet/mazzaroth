@@ -1,6 +1,6 @@
 use anyhow::Context;
 use consensus::types::BlockKey;
-use crossbeam::channel::Receiver;
+use crossbeam::channel::{Receiver, Sender, TryRecvError};
 use log::warn;
 use mvm::models::block::Block;
 
@@ -46,7 +46,7 @@ pub fn spawn_gossip_logic() -> anyhow::Result<(Receiver<Block>, Sender<GossipAct
     let send_udp_send = spawn_std_thread_send_loop(udp_socket)
         .with_context(|| "Failed to spawn UDP send thread")?;
     let (tx_recv, rx_recv) = crossbeam::channel::bounded(1024);
-    let (tx_send, rx_send) = crossbeam::channel::bounded(1024);
+    let (tx_send, rx_send): (Sender<GossipAction>, Receiver<GossipAction>) = crossbeam::channel::bounded(1024);
 
     std::thread::spawn(move || {
         loop {
@@ -57,7 +57,7 @@ pub fn spawn_gossip_logic() -> anyhow::Result<(Receiver<Block>, Sender<GossipAct
                     has_action = true;
                     match process_gossip_block(gossip_block) {
                         Ok(Some(send_action)) => {
-                            tx_send.send(send_action).unwrap();
+                            //tx_send.send(send_action).unwrap();
                         }
                         Ok(None) => {}
                         Err(e) => {
