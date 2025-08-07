@@ -10,7 +10,9 @@ pub const GENESIS_BLOCK_KEY: crypto_bigint::U256 = crypto_bigint::U256::ZERO;
 
 // 如果旷工只连接少量的parent，那么它的dag_work就会很少，容易无效挖矿
 // 如果连接过多的parent，那么就无法通过验证，无效挖矿
-#[derive(Clone, Serialize, Deserialize, PartialEq, Eq, Debug, RlpDecodable, RlpEncodable, Default)]
+#[derive(
+    Clone, Serialize, Deserialize, PartialEq, Eq, Debug, RlpDecodable, RlpEncodable, Default,
+)]
 pub struct PartSortHeader {
     pub head_key: BlockKey,
     pub dag_work: DagWork,

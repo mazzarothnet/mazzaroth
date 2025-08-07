@@ -19,6 +19,7 @@ alloy-rlp = { workspace = true }
 log = { workspace = true }
 crossbeam = { workspace = true }
 lazy_static = { workspace = true }
+lru = { workspace = true }
 
 [features]
 disable_storage_limit = []

@@ -1,8 +1,8 @@
 #[allow(clippy::unwrap_used)]
 #[cfg(test)]
 mod tests {
-    use utils::sha256::sha256_hash;
     use crate::run_gpu::{get_test_sha256_cpu, get_test_sha256_gpu};
+    use utils::sha256::sha256_hash;
 
     #[test]
     fn test_sha256_gpu() {

@@ -5,4 +5,3 @@ pub struct ChannelBlock {
     pub topic_id: u16,
     pub data: Vec<u8>,
 }
-

@@ -1,4 +1,4 @@
-use crate::{POW_TARGET_SIZE, POW_TARGET_INTERVAL_MS, traits::PartSortHeader, types::BlockKey};
+use crate::{POW_TARGET_INTERVAL_MS, POW_TARGET_SIZE, traits::PartSortHeader, types::BlockKey};
 use alloy_rlp::{RlpDecodable, RlpEncodable};
 use crypto_bigint::U256;
 use serde::{Deserialize, Serialize};

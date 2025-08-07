@@ -29,6 +29,7 @@ jemallocator = "0.5"
 reed-solomon-erasure = "6"
 crossbeam = "0.8"
 lazy_static = "1"
+lru = "0.16"
 
 [workspace.features]
 default = []

@@ -1,7 +1,4 @@
-
-pub fn work_hash_to_package_to_u8_vec(
-    block_hash: [u8; 32], work_id: u64
-) -> [u8; 48] {
+pub fn work_hash_to_package_to_u8_vec(block_hash: [u8; 32], work_id: u64) -> [u8; 48] {
     let mut ans = [0u8; 48];
     for i in 0..32 {
         ans[i] = block_hash[i];
@@ -53,9 +50,8 @@ pub fn work_hash_to_package(block_hash: [u8; 32], work_id: u64) -> [u32; 16] {
     }
     let mut real_ans = [0u32; 16];
     for i in 0..16 {
-        real_ans[i] = u32::from_be_bytes([
-            ans[i * 4], ans[i * 4 + 1], ans[i * 4 + 2], ans[i * 4 + 3]
-        ]);
+        real_ans[i] =
+            u32::from_be_bytes([ans[i * 4], ans[i * 4 + 1], ans[i * 4 + 2], ans[i * 4 + 3]]);
     }
     real_ans
 }

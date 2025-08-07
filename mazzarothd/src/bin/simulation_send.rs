@@ -1,5 +1,8 @@
 #![allow(clippy::unwrap_used)]
-use mazzarothd::gossip::udp::{UdpRecv, UdpSend, RecvAction, SendAction};
+use mazzarothd::gossip::{
+    proto::{LISTEN_CAP, LISTEN_TOPIC_LEN},
+    udp::{SendAction, UdpRecv, UdpSend},
+};
 use std::{
     fs::File,
     io::Read,
@@ -23,8 +26,7 @@ fn main() {
     let hash = sha256_hash(&buf);
 
     println!("send hash: {:?}", hash);
-    let mut udp_recv = UdpRecv::new();
-    udp_recv.action(RecvAction::AddNode(RECV_ADDR_RECV.parse().unwrap(), 1));
+    let mut udp_recv = UdpRecv::new(LISTEN_TOPIC_LEN, LISTEN_CAP);
 
     let mut udp_send = UdpSend::new();
     udp_send

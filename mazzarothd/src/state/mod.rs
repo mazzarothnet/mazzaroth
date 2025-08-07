@@ -1,12 +1,11 @@
-use std::sync::Mutex;
 use consensus::types::BlockKey;
 use mvm::models::block::Block;
+use std::sync::Mutex;
 
 use crate::state::{app_data::get_block_db_path, block::BlockStorage};
 
 pub mod app_data;
 pub mod block;
-
 
 lazy_static::lazy_static! {
     #[allow(clippy::unwrap_used)]

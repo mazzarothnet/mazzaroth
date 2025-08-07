@@ -1,3 +1,5 @@
+use std::num::NonZero;
+
 use alloy_rlp::{RlpDecodable, RlpEncodable};
 use consensus::types::{BlockKey, Hash};
 use mvm::models::block::Block;
@@ -11,6 +13,10 @@ pub const ALIVE_TOPIC: u16 = 4;
 pub const MESSAGE_TOPIC: u16 = 5;
 pub const PING_TOPIC: u16 = 6;
 pub const PONG_TOPIC: u16 = 7;
+pub const REMOVE_LISTEN_TOPIC: u16 = 8;
+
+pub const LISTEN_TOPIC_LEN: u16 = 9;
+pub const LISTEN_CAP: NonZero<usize> = NonZero::new(1024).unwrap();
 
 #[derive(Debug, Serialize, Deserialize, RlpEncodable, RlpDecodable)]
 pub struct NotifyBlock {

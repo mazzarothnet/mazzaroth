@@ -30,7 +30,6 @@ fn main() {
     for accounts in account_vec {
         let ts = mt.update_tree(accounts, vec![]).unwrap();
         ts.commit().unwrap();
-
     }
     let tm_ms2 = now.elapsed().as_millis();
     let state_root2 = mt.get_state_root().unwrap();

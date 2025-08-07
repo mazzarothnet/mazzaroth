@@ -5,12 +5,18 @@ use log::warn;
 use mvm::models::block::Block;
 
 use crate::{
+    MAZZAROTH_UDP_PORT, MAZZAROTH_UDP_PORT_DEFAULT, SEED_NODE_ADDR, SEED_NODE_ADDR_DEFAULT,
     gossip::{
+        channel_block::ChannelBlock,
+        proto::{LISTEN_CAP, LISTEN_TOPIC_LEN, PING_TOPIC, PONG_TOPIC},
         udp::{SendAction, UdpRecv, UdpSend},
-        worker::{spawn_std_thread_recv_loop, spawn_std_thread_send_loop, GossipBlock},
-    }, MAZZAROTH_UDP_PORT, MAZZAROTH_UDP_PORT_DEFAULT
+        worker::{GossipBlock, spawn_std_thread_recv_loop, spawn_std_thread_send_loop},
+    },
 };
-use std::{net::UdpSocket, sync::Mutex};
+use std::{
+    net::{SocketAddr, UdpSocket},
+    sync::Mutex,
+};
 
 pub mod channel_block;
 pub mod proto;
@@ -21,7 +27,7 @@ pub mod udp;
 pub mod worker;
 
 lazy_static::lazy_static! {
-    pub static ref UDP_RECV: Mutex<UdpRecv> = Mutex::new(UdpRecv::new());
+    pub static ref UDP_RECV: Mutex<UdpRecv> = Mutex::new(UdpRecv::new(LISTEN_TOPIC_LEN, LISTEN_CAP));
     pub static ref UDP_SEND: Mutex<UdpSend> = Mutex::new(UdpSend::new());
 }
 
@@ -46,7 +52,10 @@ pub fn spawn_gossip_logic() -> anyhow::Result<(Receiver<Block>, Sender<GossipAct
     let send_udp_send = spawn_std_thread_send_loop(udp_socket)
         .with_context(|| "Failed to spawn UDP send thread")?;
     let (tx_recv, rx_recv) = crossbeam::channel::bounded(1024);
-    let (tx_send, rx_send): (Sender<GossipAction>, Receiver<GossipAction>) = crossbeam::channel::bounded(1024);
+    let (tx_send, rx_send): (Sender<GossipAction>, Receiver<GossipAction>) =
+        crossbeam::channel::bounded(1024);
+    let init_ping = get_init_ping()?;
+    send_udp_send.send(init_ping).unwrap();
 
     std::thread::spawn(move || {
         loop {
@@ -81,9 +90,39 @@ pub fn spawn_gossip_logic() -> anyhow::Result<(Receiver<Block>, Sender<GossipAct
     Ok((rx_recv, tx_send))
 }
 
+fn get_init_ping() -> anyhow::Result<SendAction> {
+    let seed_node_addr =
+        std::env::var(SEED_NODE_ADDR).unwrap_or_else(|_| SEED_NODE_ADDR_DEFAULT.to_string());
+    let seed_node_addr = seed_node_addr
+        .parse::<SocketAddr>()
+        .with_context(|| "Failed to parse seed node address")?;
+
+    let send_action = SendAction::Send(
+        ChannelBlock {
+            topic_id: PING_TOPIC,
+            data: "ping".as_bytes().to_vec(),
+        },
+        seed_node_addr,
+    );
+
+    Ok(send_action)
+}
 
 fn process_gossip_block(gossip_block: GossipBlock) -> anyhow::Result<Option<SendAction>> {
-    
+    let ans = match gossip_block.data.topic_id {
+        PING_TOPIC => {
+            let addr = gossip_block.src.to_string();
+            let send_action = SendAction::Send(
+                ChannelBlock {
+                    topic_id: PONG_TOPIC,
+                    data: addr.as_bytes().to_vec(),
+                },
+                gossip_block.src,
+            );
+            Some(send_action)
+        }
+        _ => None,
+    };
 
-    Ok(None)
+    Ok(ans)
 }

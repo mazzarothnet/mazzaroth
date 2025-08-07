@@ -1,6 +1,5 @@
 #![allow(clippy::unwrap_used)]
 use mazzarothd::api::serve;
-use mazzarothd::state::{app_data::get_block_db_path, block::BlockStorage};
 use utils::log::init_log;
 
 fn main() {

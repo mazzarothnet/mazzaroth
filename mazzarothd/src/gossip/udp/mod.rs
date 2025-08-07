@@ -1,77 +1,46 @@
-use log::debug;
-
 use crate::gossip::{
     channel_block::ChannelBlock,
     udp::buf::{UdpBuf, gen_reed_solomon_block, gen_udp_block},
 };
+use lru::LruCache;
 use std::{
     collections::HashMap,
     net::{SocketAddr, UdpSocket},
+    num::NonZero,
 };
 
 pub mod buf;
 
 pub struct UdpRecv {
-    pub node_map: HashMap<SocketAddr, UdpBuf>,
-}
-
-#[derive(Debug, Clone, Copy)]
-pub enum RecvAction {
-    AddNode(SocketAddr, u16),
-    RemoveNode(SocketAddr),
-}
-
-impl Default for UdpRecv {
-    fn default() -> Self {
-        Self::new()
-    }
+    // use lru_cache to store the node_map
+    pub listen_topic_len: u16,
+    pub node_map: LruCache<SocketAddr, UdpBuf>,
 }
 
 impl UdpRecv {
-    pub fn new() -> Self {
+    pub fn new(listen_topic_len: u16, cap: NonZero<usize>) -> Self {
         Self {
-            node_map: HashMap::new(),
-        }
-    }
-
-    pub fn action(&mut self, action: RecvAction) {
-        match action {
-            RecvAction::AddNode(addr, listen_topic_len) => {
-                self.add_node(addr, listen_topic_len);
-            }
-            RecvAction::RemoveNode(addr) => {
-                self.remove_node(addr);
-            }
+            listen_topic_len,
+            node_map: LruCache::new(cap),
         }
     }
 
     /// it will block until receive a message
     pub fn recv(&mut self, src: SocketAddr, data: &[u8]) -> Option<ChannelBlock> {
-        if self.node_map.contains_key(&src) {
-            self.node_map.get_mut(&src)?.try_add_data(data)
-        } else {
-            debug!("UdpSwarm::recv node not found: {}", src);
-            None
-        }
-    }
-
-    pub fn add_node(&mut self, addr: SocketAddr, listen_topic_len: u16) {
-        self.node_map
-            .insert(addr, UdpBuf::new(listen_topic_len));
-    }
-
-    pub fn remove_node(&mut self, addr: SocketAddr) {
-        self.node_map.remove(&addr);
+        let entry = self
+            .node_map
+            .get_or_insert_mut(src, || UdpBuf::new(self.listen_topic_len));
+        entry.try_add_data(data)
     }
 }
 
 pub struct UdpSend {
-    pub send_set: HashMap<SocketAddr, HashMap<u16, u16>>,
+    pub high_send_set: HashMap<SocketAddr, HashMap<u16, u16>>,
+    pub low_send_set: HashMap<SocketAddr, HashMap<u16, u16>>,
 }
 
 pub enum SendAction {
     AddNode(SocketAddr),
-    RemoveNode(SocketAddr),
     Send(ChannelBlock, SocketAddr),
     Broadcast(ChannelBlock, Option<SocketAddr>),
 }
@@ -85,7 +54,8 @@ impl Default for UdpSend {
 impl UdpSend {
     pub fn new() -> Self {
         Self {
-            send_set: HashMap::new(),
+            high_send_set: HashMap::new(),
+            low_send_set: HashMap::new(),
         }
     }
 
@@ -93,9 +63,6 @@ impl UdpSend {
         match action {
             SendAction::AddNode(addr) => {
                 self.add_node(addr);
-            }
-            SendAction::RemoveNode(addr) => {
-                self.remove_node(addr);
             }
             SendAction::Send(cb, dst) => {
                 self.send_to(&cb, dst, socket)?;
@@ -109,11 +76,8 @@ impl UdpSend {
     }
 
     pub fn add_node(&mut self, addr: SocketAddr) {
-        self.send_set.insert(addr, HashMap::new());
-    }
-
-    pub fn remove_node(&mut self, addr: SocketAddr) {
-        self.send_set.remove(&addr);
+        self.high_send_set.insert(addr, HashMap::new());
+        
     }
 
     fn broadcast(
@@ -123,7 +87,7 @@ impl UdpSend {
         socket: &mut UdpSocket,
     ) -> anyhow::Result<()> {
         let (data, total_len, channel_block_len) = gen_reed_solomon_block(channel_block)?;
-        for (dst, topic_to_key) in self.send_set.iter_mut() {
+        for (dst, topic_to_key) in self.high_send_set.iter_mut() {
             if Some(*dst) == sender {
                 continue;
             }
@@ -175,10 +139,7 @@ impl UdpSend {
         socket: &mut UdpSocket,
     ) -> anyhow::Result<()> {
         let (data, total_len, channel_block_len) = gen_reed_solomon_block(cb)?;
-        let topic_to_key = self
-            .send_set
-            .get_mut(&dst)
-            .ok_or_else(|| anyhow::anyhow!("node not found"))?;
+        let topic_to_key = self.high_send_set.entry(dst).or_default();
         Self::send_to_inner(
             socket,
             cb,
