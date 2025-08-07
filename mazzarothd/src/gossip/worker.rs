@@ -1,4 +1,4 @@
-use crate::gossip::{UDP_RECV, UDP_SEND, channel_block::ChannelBlock, ipv6_udp::SendAction};
+use crate::gossip::{UDP_RECV, UDP_SEND, channel_block::ChannelBlock, udp::SendAction};
 use crossbeam::channel::{Receiver, Sender};
 use std::net::{SocketAddr, UdpSocket};
 

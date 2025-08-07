@@ -13,14 +13,19 @@ impl BlockStorage {
         Ok(Self { db })
     }
 
-    pub fn get_block(&self, hash: &BlockKey) -> anyhow::Result<Option<Block>> {
-        let block = self.db.get_data(hash)?;
+    pub fn get_block(&self, key: &BlockKey) -> anyhow::Result<Option<Block>> {
+        let block = self.db.get_data(key)?;
         Ok(block)
     }
 
     pub fn set_block(&self, key: &BlockKey, block: &Block) -> anyhow::Result<()> {
         self.db.set_data(key, block)?;
         Ok(())
+    }
+
+    pub fn has_block(&self, key: &BlockKey) -> anyhow::Result<bool> {
+        let exists = self.db.has_data(key)?;
+        Ok(exists)
     }
 }
 

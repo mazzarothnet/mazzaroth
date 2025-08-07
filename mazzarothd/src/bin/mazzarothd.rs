@@ -1,10 +1,12 @@
+#![allow(clippy::unwrap_used)]
 use mazzarothd::api::serve;
+use mazzarothd::state::{app_data::get_block_db_path, block::BlockStorage};
 use utils::log::init_log;
 
-fn main() -> anyhow::Result<()> {
-    init()?;
+fn main() {
+    init().unwrap();
     tokio::spawn(serve());
-    // tips问题，咋存，开一个新的db专门存储一些奇怪的数据
+
     loop {
         std::thread::sleep(std::time::Duration::from_secs(1));
     }

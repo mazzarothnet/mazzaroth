@@ -1,5 +1,5 @@
 #![allow(clippy::unwrap_used)]
-use mazzarothd::gossip::ipv6_udp::{Ipv6UdpRecv, Ipv6UdpSend, RecvAction, SendAction};
+use mazzarothd::gossip::udp::{UdpRecv, UdpSend, RecvAction, SendAction};
 use std::{
     fs::File,
     io::Read,
@@ -23,10 +23,10 @@ fn main() {
     let hash = sha256_hash(&buf);
 
     println!("send hash: {:?}", hash);
-    let mut udp_recv = Ipv6UdpRecv::new();
+    let mut udp_recv = UdpRecv::new();
     udp_recv.action(RecvAction::AddNode(RECV_ADDR_RECV.parse().unwrap(), 1));
 
-    let mut udp_send = Ipv6UdpSend::new();
+    let mut udp_send = UdpSend::new();
     udp_send
         .action(
             SendAction::AddNode(RECV_ADDR_RECV.parse().unwrap()),

@@ -22,6 +22,8 @@ pub trait DbStorage {
     fn get_data<K: Encodable, V: Decodable>(&self, key: &K) -> Result<Option<V>>;
 
     fn set_data<K: Encodable, V: Encodable>(&self, key: &K, value: &V) -> Result<()>;
+
+    fn has_data<K: Encodable>(&self, key: &K) -> Result<bool>;
 }
 
 // pub struct VmStorage<S: DbStorage> {

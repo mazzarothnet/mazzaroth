@@ -8,12 +8,12 @@ const CHANNEL_BLOCK_SIZE: usize = 1024;
 const PARITY_SHARDS: usize = 10;
 
 #[derive(Debug, Clone, Hash)]
-pub struct Ipv6UdpBuf {
+pub struct UdpBuf {
     pub listen_topic_len: u16,
     topic_buf: Vec<ReedSolomonBuf>,
 }
 
-impl Ipv6UdpBuf {
+impl UdpBuf {
     pub fn new(listen_topic_len: u16) -> Self {
         let mut topic_buf = Vec::new();
         for _ in 0..listen_topic_len {
@@ -26,9 +26,9 @@ impl Ipv6UdpBuf {
     }
 
     pub fn try_add_data(&mut self, mut data: &[u8]) -> Option<ChannelBlock> {
-        let block: Ipv6UdpBlock = Decodable::decode(&mut data)
+        let block: UdpBlock = Decodable::decode(&mut data)
             .map_err(|e| {
-                debug!("Ipv6UdpBlock::decode error: {}", e);
+                debug!("UdpBlock::decode error: {}", e);
             })
             .ok()?;
         if block.topic_id >= self.listen_topic_len {
@@ -70,7 +70,7 @@ pub fn gen_reed_solomon_block(
 
     // let mut blocks = Vec::new();
     // for (index, block) in master_copy.into_iter().enumerate() {
-    //     let b = Ipv6UdpBlock {
+    //     let b = UdpBlock {
     //         topic_id: channel_block.topic_id,
     //         key: channel_block.key,
     //         index: index as u16,
@@ -94,7 +94,7 @@ pub fn gen_udp_block(
     total_len: u32,
     channel_block_len: u16,
 ) -> anyhow::Result<Vec<u8>> {
-    let b = Ipv6UdpBlock {
+    let b = UdpBlock {
         topic_id,
         key,
         index,
@@ -109,7 +109,7 @@ pub fn gen_udp_block(
 }
 
 #[derive(Debug, RlpEncodable, RlpDecodable)]
-struct Ipv6UdpBlock {
+struct UdpBlock {
     topic_id: u16,
     key: u16,
     index: u16,
@@ -140,7 +140,7 @@ impl ReedSolomonBuf {
         }
     }
 
-    fn try_add_data(&mut self, data: Ipv6UdpBlock) -> Option<ChannelBlock> {
+    fn try_add_data(&mut self, data: UdpBlock) -> Option<ChannelBlock> {
         if data.key != self.key || !self.inited {
             if need_update_key(self.key, data.key) || !self.inited {
                 self.inited = true;

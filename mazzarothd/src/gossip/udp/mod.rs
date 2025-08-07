@@ -2,7 +2,7 @@ use log::debug;
 
 use crate::gossip::{
     channel_block::ChannelBlock,
-    ipv6_udp::buf::{Ipv6UdpBuf, gen_reed_solomon_block, gen_udp_block},
+    udp::buf::{UdpBuf, gen_reed_solomon_block, gen_udp_block},
 };
 use std::{
     collections::HashMap,
@@ -11,8 +11,8 @@ use std::{
 
 pub mod buf;
 
-pub struct Ipv6UdpRecv {
-    pub node_map: HashMap<SocketAddr, Ipv6UdpBuf>,
+pub struct UdpRecv {
+    pub node_map: HashMap<SocketAddr, UdpBuf>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -21,13 +21,13 @@ pub enum RecvAction {
     RemoveNode(SocketAddr),
 }
 
-impl Default for Ipv6UdpRecv {
+impl Default for UdpRecv {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl Ipv6UdpRecv {
+impl UdpRecv {
     pub fn new() -> Self {
         Self {
             node_map: HashMap::new(),
@@ -50,14 +50,14 @@ impl Ipv6UdpRecv {
         if self.node_map.contains_key(&src) {
             self.node_map.get_mut(&src)?.try_add_data(data)
         } else {
-            debug!("Ipv6UdpSwarm::recv node not found: {}", src);
+            debug!("UdpSwarm::recv node not found: {}", src);
             None
         }
     }
 
     pub fn add_node(&mut self, addr: SocketAddr, listen_topic_len: u16) {
         self.node_map
-            .insert(addr, Ipv6UdpBuf::new(listen_topic_len));
+            .insert(addr, UdpBuf::new(listen_topic_len));
     }
 
     pub fn remove_node(&mut self, addr: SocketAddr) {
@@ -65,7 +65,7 @@ impl Ipv6UdpRecv {
     }
 }
 
-pub struct Ipv6UdpSend {
+pub struct UdpSend {
     pub send_set: HashMap<SocketAddr, HashMap<u16, u16>>,
 }
 
@@ -76,13 +76,13 @@ pub enum SendAction {
     Broadcast(ChannelBlock, Option<SocketAddr>),
 }
 
-impl Default for Ipv6UdpSend {
+impl Default for UdpSend {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl Ipv6UdpSend {
+impl UdpSend {
     pub fn new() -> Self {
         Self {
             send_set: HashMap::new(),

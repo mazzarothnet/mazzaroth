@@ -1,6 +1,9 @@
 pub mod gossip;
 pub mod api;
-pub mod storage;
+pub mod state;
 
 const MAZZAROTH_HTTP_PORT: &str = "MAZZAROTH_HTTP_PORT";
 const MAZZAROTH_HTTP_PORT_DEFAULT: &str = "8080";
+
+const MAZZAROTH_UDP_PORT: &str = "MAZZAROTH_UDP_PORT";
+const MAZZAROTH_UDP_PORT_DEFAULT: &str = "8081";

@@ -48,6 +48,13 @@ impl DbStorage for RocksDbStorage {
             .with_context(|| "Failed to set data")?;
         Ok(())
     }
+
+    fn has_data<K: Encodable>(&self, key: &K) -> Result<bool> {
+        let mut key_bytes = Vec::new();
+        key.encode(&mut key_bytes);
+        let exists = self.0.key_may_exist(key_bytes.clone());
+        Ok(exists)
+    }
 }
 
 pub struct RocksDbTransaction<'db> {

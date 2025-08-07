@@ -1,7 +1,7 @@
 #![allow(clippy::unwrap_used)]
 use mazzarothd::gossip::{
     channel_block::ChannelBlock,
-    ipv6_udp::{Ipv6UdpRecv, Ipv6UdpSend, RecvAction, SendAction},
+    udp::{UdpRecv, UdpSend, RecvAction, SendAction},
 };
 use std::net::UdpSocket;
 use utils::{log::init_log, sha256::sha256_hash};
@@ -13,9 +13,9 @@ fn main() {
     init_log();
     let socket = UdpSocket::bind(RECV_ADDR).unwrap();
     let mut socket_send = socket.try_clone().unwrap();
-    let mut udp_recv = Ipv6UdpRecv::new();
+    let mut udp_recv = UdpRecv::new();
     udp_recv.action(RecvAction::AddNode(SEND_ADDR_RECV.parse().unwrap(), 1));
-    let mut udp_send = Ipv6UdpSend::new();
+    let mut udp_send = UdpSend::new();
     udp_send
         .action(
             SendAction::AddNode(SEND_ADDR_RECV.parse().unwrap()),
