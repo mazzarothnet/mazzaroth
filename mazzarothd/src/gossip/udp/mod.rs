@@ -1,12 +1,14 @@
 use crate::gossip::{
     channel_block::ChannelBlock,
-    udp::buf::{UdpBuf, gen_reed_solomon_block, gen_udp_block},
+    proto::{MAX_SHARDING_LEN, UDP_LRU_CAP},
+    udp::buf::{ReedSolomonBuf, UdpBlock, UdpBuf, gen_reed_solomon_block, gen_udp_block},
 };
+use alloy_rlp::Decodable;
+use log::debug;
 use lru::LruCache;
 use std::{
-    collections::HashMap,
+    collections::{HashMap, HashSet},
     net::{SocketAddr, UdpSocket},
-    num::NonZero,
 };
 
 pub mod buf;
@@ -18,31 +20,38 @@ pub struct UdpRecv {
 }
 
 impl UdpRecv {
-    pub fn new(listen_topic_len: u16, cap: NonZero<usize>) -> Self {
+    pub fn new(listen_topic_len: u16) -> Self {
         Self {
             listen_topic_len,
-            node_map: LruCache::new(cap),
+            node_map: LruCache::new(UDP_LRU_CAP),
         }
     }
 
     /// it will block until receive a message
-    pub fn recv(&mut self, src: SocketAddr, data: &[u8]) -> Option<ChannelBlock> {
+    pub fn recv(&mut self, src: SocketAddr, mut data: &[u8]) -> Option<ChannelBlock> {
+        let block: UdpBlock = Decodable::decode(&mut data)
+            .map_err(|e| {
+                debug!("UdpBlock::decode error: {}", e);
+            })
+            .ok()?;
+        if block.channel_block_len == 1 {
+            return ReedSolomonBuf::decode_to_channel_block(block.data, block.total_bytes as usize);
+        }
         let entry = self
             .node_map
             .get_or_insert_mut(src, || UdpBuf::new(self.listen_topic_len));
-        entry.try_add_data(data)
+        entry.try_add_data(block)
     }
 }
 
 pub struct UdpSend {
-    pub high_send_set: HashMap<SocketAddr, HashMap<u16, u16>>,
-    pub low_send_set: HashMap<SocketAddr, HashMap<u16, u16>>,
+    pub send_set: LruCache<SocketAddr, HashMap<u16, u16>>,
 }
 
 pub enum SendAction {
-    AddNode(SocketAddr),
     Send(ChannelBlock, SocketAddr),
-    Broadcast(ChannelBlock, Option<SocketAddr>),
+    ShardingSend(ChannelBlock, SocketAddr),
+    Broadcast(ChannelBlock, HashSet<SocketAddr>),
 }
 
 impl Default for UdpSend {
@@ -54,51 +63,46 @@ impl Default for UdpSend {
 impl UdpSend {
     pub fn new() -> Self {
         Self {
-            high_send_set: HashMap::new(),
-            low_send_set: HashMap::new(),
+            send_set: LruCache::new(UDP_LRU_CAP),
         }
     }
 
     pub fn action(&mut self, action: SendAction, socket: &mut UdpSocket) -> anyhow::Result<()> {
         match action {
-            SendAction::AddNode(addr) => {
-                self.add_node(addr);
-            }
             SendAction::Send(cb, dst) => {
                 self.send_to(&cb, dst, socket)?;
             }
-            SendAction::Broadcast(cb, sender) => {
-                self.broadcast(&cb, sender, socket)?;
+            SendAction::ShardingSend(cb, dst) => {
+                self.sharding_send(&cb, dst, socket)?;
+            }
+            SendAction::Broadcast(cb, dsts) => {
+                self.broadcast(&cb, dsts, socket)?;
             }
         }
 
         Ok(())
     }
 
-    pub fn add_node(&mut self, addr: SocketAddr) {
-        self.high_send_set.insert(addr, HashMap::new());
-        
-    }
-
     fn broadcast(
         &mut self,
         channel_block: &ChannelBlock,
-        sender: Option<SocketAddr>,
+        dsts: HashSet<SocketAddr>,
         socket: &mut UdpSocket,
     ) -> anyhow::Result<()> {
-        let (data, total_len, channel_block_len) = gen_reed_solomon_block(channel_block)?;
-        for (dst, topic_to_key) in self.high_send_set.iter_mut() {
-            if Some(*dst) == sender {
-                continue;
-            }
+        let (data, total_bytes, channel_block_len) = gen_reed_solomon_block(channel_block)?;
+        if channel_block_len != 1 {
+            return Err(anyhow::anyhow!("channel_block_len != 1"));
+        }
+        for dst in dsts {
+            let mut topic_to_key = HashMap::new();
             Self::send_to_inner(
                 socket,
                 channel_block,
                 &data,
-                *dst,
-                total_len,
+                dst,
+                total_bytes,
                 channel_block_len,
-                topic_to_key,
+                &mut topic_to_key,
             )?;
         }
         Ok(())
@@ -109,7 +113,7 @@ impl UdpSend {
         channel_block: &ChannelBlock,
         data: &[Vec<u8>],
         dst: SocketAddr,
-        total_len: u32,
+        total_bytes: u32,
         channel_block_len: u16,
         topic_to_key: &mut HashMap<u16, u16>,
     ) -> anyhow::Result<()> {
@@ -124,7 +128,7 @@ impl UdpSend {
                 channel_block.topic_id,
                 *key,
                 index as u16,
-                total_len,
+                total_bytes,
                 channel_block_len,
             )?;
             socket.send_to(&d, dst)?;
@@ -138,14 +142,40 @@ impl UdpSend {
         dst: SocketAddr,
         socket: &mut UdpSocket,
     ) -> anyhow::Result<()> {
-        let (data, total_len, channel_block_len) = gen_reed_solomon_block(cb)?;
-        let topic_to_key = self.high_send_set.entry(dst).or_default();
+        let (data, total_bytes, channel_block_len) = gen_reed_solomon_block(cb)?;
+        if channel_block_len != 1 {
+            return Err(anyhow::anyhow!("channel_block_len != 1"));
+        }
+        let mut topic_to_key = HashMap::new();
         Self::send_to_inner(
             socket,
             cb,
             &data,
             dst,
-            total_len,
+            total_bytes,
+            channel_block_len,
+            &mut topic_to_key,
+        )?;
+        Ok(())
+    }
+
+    fn sharding_send(
+        &mut self,
+        cb: &ChannelBlock,
+        dst: SocketAddr,
+        socket: &mut UdpSocket,
+    ) -> anyhow::Result<()> {
+        let (data, total_bytes, channel_block_len) = gen_reed_solomon_block(cb)?;
+        if channel_block_len > MAX_SHARDING_LEN {
+            return Err(anyhow::anyhow!("channel_block_len > MAX_SHARDING_LEN"));
+        }
+        let topic_to_key = self.send_set.get_or_insert_mut(dst, || HashMap::new());
+        Self::send_to_inner(
+            socket,
+            cb,
+            &data,
+            dst,
+            total_bytes,
             channel_block_len,
             topic_to_key,
         )?;

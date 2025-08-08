@@ -1,6 +1,6 @@
 #![allow(clippy::unwrap_used)]
 use mazzarothd::gossip::{
-    proto::{LISTEN_CAP, LISTEN_TOPIC_LEN},
+    proto::LISTEN_TOPIC_LEN,
     udp::{SendAction, UdpRecv, UdpSend},
 };
 use std::{
@@ -26,25 +26,18 @@ fn main() {
     let hash = sha256_hash(&buf);
 
     println!("send hash: {:?}", hash);
-    let mut udp_recv = UdpRecv::new(LISTEN_TOPIC_LEN, LISTEN_CAP);
-
+    let mut udp_recv = UdpRecv::new(LISTEN_TOPIC_LEN);
     let mut udp_send = UdpSend::new();
-    udp_send
-        .action(
-            SendAction::AddNode(RECV_ADDR_RECV.parse().unwrap()),
-            &mut socket_send,
-        )
-        .unwrap();
     loop {
         let now = Instant::now();
         udp_send
             .action(
-                SendAction::Broadcast(
+                SendAction::ShardingSend(
                     mazzarothd::gossip::channel_block::ChannelBlock {
                         topic_id: 0,
                         data: buf.clone(),
                     },
-                    None,
+                    RECV_ADDR_RECV.parse().unwrap(),
                 ),
                 &mut socket_send,
             )

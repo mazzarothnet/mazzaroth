@@ -1,19 +1,20 @@
 use anyhow::Context;
 use consensus::types::BlockKey;
 use crossbeam::channel::{Receiver, Sender, TryRecvError};
-use log::warn;
+use log::{info, warn};
 use mvm::models::block::Block;
 
 use crate::{
     MAZZAROTH_UDP_PORT, MAZZAROTH_UDP_PORT_DEFAULT, SEED_NODE_ADDR, SEED_NODE_ADDR_DEFAULT,
     gossip::{
         channel_block::ChannelBlock,
-        proto::{LISTEN_CAP, LISTEN_TOPIC_LEN, PING_TOPIC, PONG_TOPIC},
+        proto::{LISTEN_TOPIC_LEN, PING_TOPIC, PONG_TOPIC, REQ_LISTEN_LIST_TOPIC},
         udp::{SendAction, UdpRecv, UdpSend},
         worker::{GossipBlock, spawn_std_thread_recv_loop, spawn_std_thread_send_loop},
     },
 };
 use std::{
+    collections::HashMap,
     net::{SocketAddr, UdpSocket},
     sync::Mutex,
 };
@@ -27,7 +28,7 @@ pub mod udp;
 pub mod worker;
 
 lazy_static::lazy_static! {
-    pub static ref UDP_RECV: Mutex<UdpRecv> = Mutex::new(UdpRecv::new(LISTEN_TOPIC_LEN, LISTEN_CAP));
+    pub static ref UDP_RECV: Mutex<UdpRecv> = Mutex::new(UdpRecv::new(LISTEN_TOPIC_LEN));
     pub static ref UDP_SEND: Mutex<UdpSend> = Mutex::new(UdpSend::new());
 }
 
@@ -59,16 +60,18 @@ pub fn spawn_gossip_logic() -> anyhow::Result<(Receiver<Block>, Sender<GossipAct
 
     std::thread::spawn(move || {
         loop {
+            let mut listen_list = HashMap::new();
             let mut has_action = false;
             let gossip_block = recv_udp_recv.try_recv();
             match gossip_block {
                 Ok(gossip_block) => {
                     has_action = true;
-                    match process_gossip_block(gossip_block) {
-                        Ok(Some(send_action)) => {
-                            //tx_send.send(send_action).unwrap();
+                    match process_gossip_block(gossip_block, &mut listen_list) {
+                        Ok(send_actions) => {
+                            for send_action in send_actions {
+                                send_udp_send.send(send_action).unwrap();
+                            }
                         }
-                        Ok(None) => {}
                         Err(e) => {
                             warn!("Failed to process gossip block: {:?}", e);
                         }
@@ -108,9 +111,14 @@ fn get_init_ping() -> anyhow::Result<SendAction> {
     Ok(send_action)
 }
 
-fn process_gossip_block(gossip_block: GossipBlock) -> anyhow::Result<Option<SendAction>> {
-    let ans = match gossip_block.data.topic_id {
+fn process_gossip_block(
+    gossip_block: GossipBlock,
+    listen_list: &mut HashMap<SocketAddr, u32>,
+) -> anyhow::Result<Vec<SendAction>> {
+    let mut send_actions = Vec::new();
+    match gossip_block.data.topic_id {
         PING_TOPIC => {
+            info!("PING from {}", gossip_block.src);
             let addr = gossip_block.src.to_string();
             let send_action = SendAction::Send(
                 ChannelBlock {
@@ -119,10 +127,27 @@ fn process_gossip_block(gossip_block: GossipBlock) -> anyhow::Result<Option<Send
                 },
                 gossip_block.src,
             );
-            Some(send_action)
+            send_actions.push(send_action);
         }
-        _ => None,
+        PONG_TOPIC => {
+            let from_addr = gossip_block.src;
+            let me_addr = String::from_utf8(gossip_block.data.data)?;
+            info!("PONG from {} to {}", from_addr, me_addr);
+            if listen_list.is_empty() {
+                send_actions.push(SendAction::Send(
+                    ChannelBlock {
+                        topic_id: REQ_LISTEN_LIST_TOPIC,
+                        data: Vec::new(),
+                    },
+                    from_addr,
+                ))
+            }
+        }
+        REQ_LISTEN_LIST_TOPIC => {
+            info!("REQ_LISTEN_LIST_TOPIC from {}", gossip_block.src);
+        }
+        _ => {}
     };
 
-    Ok(ans)
+    Ok(send_actions)
 }

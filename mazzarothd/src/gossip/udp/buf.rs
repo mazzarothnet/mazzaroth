@@ -2,7 +2,7 @@ use alloy_rlp::{Decodable, Encodable, RlpDecodable, RlpEncodable};
 use log::debug;
 use reed_solomon_erasure::galois_8::ReedSolomon;
 
-use crate::gossip::channel_block::ChannelBlock;
+use crate::gossip::{channel_block::ChannelBlock, proto::MAX_SHARDING_LEN};
 
 const CHANNEL_BLOCK_SIZE: usize = 1024;
 const PARITY_SHARDS: usize = 10;
@@ -25,12 +25,7 @@ impl UdpBuf {
         }
     }
 
-    pub fn try_add_data(&mut self, mut data: &[u8]) -> Option<ChannelBlock> {
-        let block: UdpBlock = Decodable::decode(&mut data)
-            .map_err(|e| {
-                debug!("UdpBlock::decode error: {}", e);
-            })
-            .ok()?;
+    pub fn try_add_data(&mut self, block: UdpBlock) -> Option<ChannelBlock> {
         if block.topic_id >= self.listen_topic_len {
             return None;
         }
@@ -43,7 +38,7 @@ pub fn gen_reed_solomon_block(
 ) -> anyhow::Result<(Vec<Vec<u8>>, u32, u16)> {
     let mut raw_data = Vec::new();
     channel_block.encode(&mut raw_data);
-    let total_len = raw_data.len();
+    let total_bytes = raw_data.len();
     let mut master_copy = Vec::new();
     for block in raw_data.chunks(CHANNEL_BLOCK_SIZE) {
         if block.len() != CHANNEL_BLOCK_SIZE {
@@ -68,22 +63,7 @@ pub fn gen_reed_solomon_block(
         erasure_code.encode(&mut master_copy)?;
     }
 
-    // let mut blocks = Vec::new();
-    // for (index, block) in master_copy.into_iter().enumerate() {
-    //     let b = UdpBlock {
-    //         topic_id: channel_block.topic_id,
-    //         key: channel_block.key,
-    //         index: index as u16,
-    //         total_len: total_len as u32,
-    //         channel_block_len: master_copy_len as u16,
-    //         data: block,
-    //     };
-    //     let mut buf = Vec::new();
-    //     b.encode(&mut buf);
-    //     blocks.push(buf);
-    // }
-
-    Ok((master_copy, total_len as u32, master_copy_len as u16))
+    Ok((master_copy, total_bytes as u32, master_copy_len as u16))
 }
 
 pub fn gen_udp_block(
@@ -91,14 +71,14 @@ pub fn gen_udp_block(
     topic_id: u16,
     key: u16,
     index: u16,
-    total_len: u32,
+    total_bytes: u32,
     channel_block_len: u16,
 ) -> anyhow::Result<Vec<u8>> {
     let b = UdpBlock {
         topic_id,
         key,
         index,
-        total_len,
+        total_bytes,
         channel_block_len,
         data: data.to_vec(),
     };
@@ -109,21 +89,21 @@ pub fn gen_udp_block(
 }
 
 #[derive(Debug, RlpEncodable, RlpDecodable)]
-struct UdpBlock {
-    topic_id: u16,
-    key: u16,
-    index: u16,
-    total_len: u32,
-    channel_block_len: u16,
-    data: Vec<u8>,
+pub struct UdpBlock {
+    pub topic_id: u16,
+    pub key: u16,
+    pub index: u16,
+    pub total_bytes: u32,
+    pub channel_block_len: u16,
+    pub data: Vec<u8>,
 }
 
 #[derive(Debug, Clone, Hash)]
-struct ReedSolomonBuf {
+pub struct ReedSolomonBuf {
     key: u16,
     channel_block_len: u16,
     now_size: u16,
-    total_len: u32,
+    total_bytes: u32,
     inited: bool,
     buf: Vec<Option<Vec<u8>>>,
 }
@@ -134,13 +114,16 @@ impl ReedSolomonBuf {
             key: 0,
             channel_block_len: 0,
             now_size: 0,
-            total_len: 0,
+            total_bytes: 0,
             inited: false,
             buf: Vec::new(),
         }
     }
 
     fn try_add_data(&mut self, data: UdpBlock) -> Option<ChannelBlock> {
+        if data.channel_block_len > MAX_SHARDING_LEN {
+            return None;
+        }
         if data.key != self.key || !self.inited {
             if need_update_key(self.key, data.key) || !self.inited {
                 self.inited = true;
@@ -149,7 +132,7 @@ impl ReedSolomonBuf {
                 self.channel_block_len = data.channel_block_len;
                 let buf_len = self.channel_block_len as usize
                     + get_parity_len(self.channel_block_len as usize);
-                self.total_len = data.total_len;
+                self.total_bytes = data.total_bytes;
                 self.buf.clear();
                 self.buf.resize(buf_len, None);
             } else {
@@ -193,16 +176,22 @@ impl ReedSolomonBuf {
                     block_buf.extend_from_slice(&data);
                 }
             }
-            block_buf.truncate(self.total_len as usize);
-            let cb: ChannelBlock = Decodable::decode(&mut block_buf.as_slice())
-                .map_err(|e| {
-                    debug!("ChannelBlock::decode error: {}", e);
-                })
-                .ok()?;
-            return Some(cb);
+
+            return Self::decode_to_channel_block(block_buf, self.total_bytes as usize);
         }
 
         None
+    }
+
+    pub fn decode_to_channel_block(mut data: Vec<u8>, total_bytes: usize) -> Option<ChannelBlock> {
+        data.truncate(total_bytes as usize);
+        let mut data = data.as_slice();
+        let cb: ChannelBlock = Decodable::decode(&mut data)
+            .map_err(|e| {
+                debug!("ChannelBlock::decode error: {}", e);
+            })
+            .ok()?;
+        Some(cb)
     }
 }
 
