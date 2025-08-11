@@ -3,7 +3,7 @@ use rand::Rng;
 use serde::{Deserialize, Serialize};
 const HEIGHT: i64 = 100;
 const WIDTH: i64 = 100;
-
+const ADD_DELAY: f64 = 4.0;
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, Default, RlpDecodable, RlpEncodable)]
 pub struct Position {
     pub x: u64,
@@ -67,7 +67,7 @@ pub fn calc_distance_delay(miner1: &Position, miner2: &Position, block_per_step:
     let dy = (miner1.y as f64 - miner2.y as f64).abs();
     let distance = (dx * dx + dy * dy).sqrt();
     let max_distance = (HEIGHT as f64 * HEIGHT as f64 + WIDTH as f64 * WIDTH as f64).sqrt();
-    let delay = distance / max_distance * block_per_step;
+    let delay = distance / max_distance * block_per_step + ADD_DELAY;
     delay as u64
 }
 

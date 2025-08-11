@@ -2,10 +2,11 @@ use crate::{MAZZAROTH_HTTP_PORT, MAZZAROTH_HTTP_PORT_DEFAULT};
 use axum::Router;
 use tokio::net::TcpListener;
 
-pub mod peer;
+// pub mod peer;
 
 pub fn api_router() -> Router {
-    Router::new().nest("/peer", peer::api_router())
+    Router::new()
+    //.nest("/peer", peer::api_router())
 }
 
 pub async fn serve() -> anyhow::Result<()> {
