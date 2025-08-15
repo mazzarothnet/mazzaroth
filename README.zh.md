@@ -19,12 +19,13 @@ Mazzaroth是一个赋权任何人构建可靠且高效去中心化共识的系�
 ## Mazzaroth的计划
 white paper: https://mazzaroth.gitbook.io/mazzaroth-white-paper
 
-1. **实现支付功能并进行测试**，预期TPS>1000，确认时间小于10S
-2. **实现zk友好的形式化虚拟机**并上线测试网络
-3. **制定经济策略**并上线正式网络
-4. **实现基于Mazzaroth的去中心化社交网络**，MBlog，后续对Mazzaroth的所有提案讨论将会迁移到MBlog。
-5. **实现基于Mazzaroth的去中心化代码托管平台Mhub**。Mazzaroth代码维护将会迁移至Mhub，至此Mazzaroth完全自举
-6. **实现Mazzaroth Rollup、跨链桥等众多功能的支持**
+1. **Genesis-实现支付功能并进行测试**，预期TPS>1000，确认时间小于10S
+2. **Ouroboros-实现State Root写入区块头**
+3. **Prometheus-实现zk友好的形式化虚拟机**
+4. **Midas-制定经济策略**
+5. **Heracles-实现基于Mazzaroth的去中心化社交网络**MBlog，后续对Mazzaroth的所有提案讨论将会迁移到MBlog。
+6. **Dionysus-实现基于Mazzaroth的去中心化代码托管平台Mhub**，Mazzaroth代码维护将会迁移至Mhub，至此Mazzaroth完全自举
+7. **Penelope-实现Mazzaroth Rollup、跨链桥等众多功能的支持**
 
 
 ## 运行Mazzaroth测试

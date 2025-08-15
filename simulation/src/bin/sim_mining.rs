@@ -1,11 +1,12 @@
 #![allow(clippy::unwrap_used)]
-use mining::{
-    run_gpu::mining_gpu_sha256,
-    sha256_mining::{bytes_to_hex, nonce_hash_to_package_to_u8_vec},
-};
+use consensus::{block_header::MAX_TARGET, types::BlockKey};
+use crypto_bigint::U256;
+use mining::{run_gpu::mining_gpu_sha256, sha256_mining::gen_sha256_by_block_hash_and_nonce};
 use utils::sha256::sha256_hash;
 
 fn main() {
+    let mt = MAX_TARGET;
+    println!("mt: {:x}", mt.0);
     let block_hash = sha256_hash(b"12123112asd");
     let work_id = 1123123;
     let mut target = [0u32; 8];
@@ -19,8 +20,8 @@ fn main() {
     target[7] = 0xffffffff;
     let nonce_vec = mining_gpu_sha256(block_hash, work_id, target).unwrap();
     for nonce in nonce_vec {
-        let msg = nonce_hash_to_package_to_u8_vec(block_hash, nonce);
-        let hash = sha256_hash(&msg);
-        println!("nonce: {:x}, hash: {}", nonce, bytes_to_hex(&hash));
+        let hash = gen_sha256_by_block_hash_and_nonce(block_hash, nonce);
+        let block_key = BlockKey(U256::from_be_slice(&hash));
+        println!("nonce: {:x}, hash: {}", nonce, block_key);
     }
 }

@@ -1,8 +1,11 @@
-use crate::state::block::{has_block, set_block};
+use crate::state::{
+    block_check::{normal_check_block_format, save_block_check},
+    block_storage::{has_block, set_block},
+};
 use consensus::types::BlockKey;
 use mvm::models::block::Block;
 use std::{
-    collections::{BTreeMap, BTreeSet, HashSet},
+    collections::{BTreeMap, BTreeSet},
     sync::Mutex,
 };
 use utils::time::get_current_time_ms;
@@ -14,13 +17,12 @@ lazy_static::lazy_static! {
     })));
 }
 
+type CheckBlockExistFn = Box<dyn Fn(&BlockKey) -> anyhow::Result<bool> + Send + Sync>;
 const TIPS_EXPIRE_MS: u64 = 1000 * 30; // tips expire time 30s
 
 // about check
 pub fn push_block(block: Block) -> anyhow::Result<()> {
-    if !check_block_format(&block)? {
-        return Err(anyhow::anyhow!("block format is not valid"));
-    }
+    normal_check_block_format(&block)?;
 
     let mut temp_blocks = TEMP_BLOCKS
         .lock()
@@ -52,38 +54,15 @@ pub fn get_temp_blocks() -> anyhow::Result<BTreeMap<BlockKey, (Block, BTreeSet<B
     Ok(temp_blocks)
 }
 
-fn check_block_format(block: &Block) -> anyhow::Result<bool> {
-    fn check_vec_unique(vec: &Vec<BlockKey>) -> bool {
-        let mut set = HashSet::new();
-        for key in vec {
-            if set.contains(key) {
-                return false;
-            }
-            set.insert(key);
-        }
-        true
-    }
-
-    if !check_vec_unique(&block.inner.header.part_sort_header.parent_keys) {
-        return Err(anyhow::anyhow!("parent_keys is not unique"));
-    }
-
-    if !check_vec_unique(&block.inner.header.part_sort_header.part_sort) {
-        return Err(anyhow::anyhow!("part_sort is not unique"));
-    }
-
-    Ok(true)
-}
-
 struct TempBlock {
     unknown_keys: BTreeMap<BlockKey, Vec<BlockKey>>,
     temp_blocks: BTreeMap<BlockKey, (Block, BTreeSet<BlockKey>)>,
     ready_pop: BTreeMap<BlockKey, Block>,
-    check_block_fn: Box<dyn Fn(&BlockKey) -> anyhow::Result<bool> + Send + Sync>,
+    check_block_fn: CheckBlockExistFn,
 }
 
 impl TempBlock {
-    fn new(check_block_fn: Box<dyn Fn(&BlockKey) -> anyhow::Result<bool> + Send + Sync>) -> Self {
+    fn new(check_block_fn: CheckBlockExistFn) -> Self {
         Self {
             unknown_keys: BTreeMap::new(),
             temp_blocks: BTreeMap::new(),
@@ -142,6 +121,7 @@ impl TempBlock {
 
 // about tips and save block to db
 fn save_block_and_update_tips(block: &Block) -> anyhow::Result<()> {
+    save_block_check(block)?;
     {
         let now = get_current_time_ms();
         let mut tips = TIPS.lock().map_err(|e| {
@@ -158,8 +138,6 @@ fn save_block_and_update_tips(block: &Block) -> anyhow::Result<()> {
 
 #[cfg(test)]
 mod tests {
-    use std::sync::Arc;
-
     use super::*;
     use consensus::{
         block_header::ConsensusHeader,
@@ -168,6 +146,8 @@ mod tests {
     use crypto_bigint::U256;
     use mvm::models::block::BlockInner;
     use rand::{Rng, SeedableRng, seq::SliceRandom};
+    use std::sync::Arc;
+    use std::collections::HashSet;
 
     #[allow(clippy::unwrap_used)]
     #[test]
@@ -184,7 +164,7 @@ mod tests {
         let mut rng = rand::rngs::StdRng::seed_from_u64(121234);
         real_blocks.push(gen_test_block(
             block_size as u32,
-            vec![(block_size + 1) as u32].into_iter().collect(),
+            &vec![(block_size + 1) as u32].into_iter().collect(),
         ));
         for i in 0..block_size {
             let parent_keys: HashSet<u32> = if i > 0 {
@@ -192,7 +172,7 @@ mod tests {
             } else {
                 HashSet::new()
             };
-            let block = gen_test_block(i as u32, parent_keys);
+            let block = gen_test_block(i as u32, &parent_keys);
             real_blocks.push(block);
         }
         real_blocks.shuffle(&mut rng);
@@ -207,7 +187,7 @@ mod tests {
         assert_eq!(block_db.len(), block_size);
     }
 
-    fn gen_test_block(key: u32, parent_keys: HashSet<u32>) -> Block {
+    fn gen_test_block(key: u32, parent_keys: &HashSet<u32>) -> Block {
         let mut header = ConsensusHeader::default();
         header.part_sort_header.parent_keys =
             parent_keys.iter().map(|k| u32_to_block_key(*k)).collect();

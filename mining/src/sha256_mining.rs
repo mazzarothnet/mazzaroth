@@ -1,4 +1,6 @@
-pub fn work_hash_to_package_to_u8_vec(block_hash: [u8; 32], work_id: u64) -> [u8; 48] {
+use utils::sha256::sha256_hash;
+
+pub(crate) fn work_hash_to_package_to_u8_vec(block_hash: [u8; 32], work_id: u64) -> [u8; 48] {
     let mut ans = [0u8; 48];
     for i in 0..32 {
         ans[i] = block_hash[i];
@@ -15,7 +17,7 @@ pub fn work_hash_to_package_to_u8_vec(block_hash: [u8; 32], work_id: u64) -> [u8
     ans
 }
 
-pub fn vec_to_nonce(nonce_vec: [u32; 4]) -> u128 {
+pub(crate) fn vec_to_nonce(nonce_vec: [u32; 4]) -> u128 {
     let mut nonce = 0u128;
     for i in 0..4 {
         nonce = nonce << 32;
@@ -24,8 +26,8 @@ pub fn vec_to_nonce(nonce_vec: [u32; 4]) -> u128 {
     nonce
 }
 
-pub fn nonce_hash_to_package_to_u8_vec(block_hash: [u8; 32], nonce: u128) -> [u8; 48] {
-    let mut ans = [0u8; 48];
+fn nonce_hash_to_package_to_u8_vec(block_hash: [u8; 32], nonce: u128) -> [u8; 48] {
+    let mut ans: [u8; 48] = [0u8; 48];
     for i in 0..32 {
         ans[i] = block_hash[i];
     }
@@ -36,7 +38,12 @@ pub fn nonce_hash_to_package_to_u8_vec(block_hash: [u8; 32], nonce: u128) -> [u8
     ans
 }
 
-pub fn work_hash_to_package(block_hash: [u8; 32], work_id: u64) -> [u32; 16] {
+pub fn gen_sha256_by_block_hash_and_nonce(block_hash: [u8; 32], nonce: u128) -> [u8; 32] {
+    let msg = nonce_hash_to_package_to_u8_vec(block_hash, nonce);
+    sha256_hash(&msg)
+}
+
+pub(crate) fn work_hash_to_package(block_hash: [u8; 32], work_id: u64) -> [u32; 16] {
     let package = work_hash_to_package_to_u8_vec(block_hash, work_id);
     let mut ans: [u8; 64] = [0; 64];
     for i in 0..48 {
@@ -56,10 +63,3 @@ pub fn work_hash_to_package(block_hash: [u8; 32], work_id: u64) -> [u32; 16] {
     real_ans
 }
 
-pub fn bytes_to_hex(bytes: &[u8; 32]) -> String {
-    let mut result = String::new();
-    for &byte in bytes {
-        result.push_str(&format!("{:02x}", byte));
-    }
-    result
-}

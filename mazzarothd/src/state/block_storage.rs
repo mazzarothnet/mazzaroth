@@ -1,5 +1,10 @@
 use crate::state::app_data::get_block_db_path;
-use consensus::{block_header::ConsensusHeader, traits::ConsensusHeaderStorage, types::BlockKey};
+use consensus::{
+    block_header::ConsensusHeader,
+    part_sort_header::gen_part_sort_block,
+    traits::{ConsensusHeaderStorage, PartSortHeader},
+    types::BlockKey,
+};
 use database::rocksdb_no_batch::RocksDbStorage;
 use mvm::{core::storage::DbStorage, models::block::Block};
 use std::sync::Mutex;
@@ -24,6 +29,13 @@ pub fn has_block(block_key: &BlockKey) -> anyhow::Result<bool> {
         .lock()
         .map_err(|e| anyhow::anyhow!("Failed to lock block storage: {}", e))?;
     block_storage.has_block(block_key)
+}
+
+pub fn get_part_sort_header(parent_keys: &[BlockKey]) -> utils::error::Result<PartSortHeader> {
+    let block_storage = BLOCK_STORAGE
+        .lock()
+        .map_err(|e| anyhow::anyhow!("Failed to lock block storage: {}", e))?;
+    gen_part_sort_block(&*block_storage, parent_keys)
 }
 
 lazy_static::lazy_static! {

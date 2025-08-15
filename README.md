@@ -18,17 +18,19 @@ Compared to traditional blockchain VM designs, the state root of the MVM support
 ## Mazzaroth's Roadmap
 white paper: https://mazzaroth.gitbook.io/mazzaroth-white-paper
 
-1. **Implement and Test Payment Functionality**: Achieve a target throughput of over 1,000 transactions per second (TPS) with confirmation times under 10 seconds.
+1. **Genesis-Implement and Test Payment Functionality**: Achieve a target throughput of over 1,000 transactions per second (TPS) with confirmation times under 10 seconds.
 
-2. **Develop and Launch a ZK-Friendly Formal Virtual Machine**: Deploy this on the test network for evaluation.
+2 **Ouroboros-Implement State Root to write blocks**
 
-3. **Formulate Economic Policies and Launch the Main Network**: Establish the economic framework and go live with the main network.
+3. **Prometheus-Develop and Launch a ZK-Friendly Formal Virtual Machine**
 
-4. **Develop a Decentralized Social Network on Mazzaroth (MBlog)**: Migrate all future proposal discussions related to Mazzaroth to MBlog.
+4. **Midas-Formulate Economic Policies and Launch the Main Network**: Establish the economic framework.
 
-5. **Create a Decentralized Code Hosting Platform (Mhub)**: Move the maintenance of Mazzaroth's codebase to Mhub, completing the self-bootstrapping process and ensuring that no centralized entity can pose an absolute threat to Mazzaroth.
+5. **Heracles-Develop a Decentralized Social Network on Mazzaroth (MBlog)**: Migrate all future proposal discussions related to Mazzaroth to MBlog.
 
-6. **Support for Mazzaroth Rollup and Cross-Chain Bridges**: Implement and integrate these advanced functionalities to enhance the platform's capabilities.
+6. **Dionysus-Create a Decentralized Code Hosting Platform (Mhub)**: Move the maintenance of Mazzaroth's codebase to Mhub, completing the self-bootstrapping process and ensuring that no centralized entity can pose an absolute threat to Mazzaroth.
+
+7. **Penelope-Support for Mazzaroth Rollup and Cross-Chain Bridges**: Implement and integrate these advanced functionalities to enhance the platform's capabilities.
 
 
 ## Running Mazzaroth Simulations

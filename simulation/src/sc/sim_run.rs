@@ -45,6 +45,11 @@ pub fn run_sim(db_path: &str, miner_num: u64, block_num: u64, block_per_step: f6
                 panic!("gen_part_sort_block error: {e:?}");
             }
         };
+        let new_part_sort_header =
+            gen_part_sort_block(&storage, &part_sort_header.parent_keys).unwrap();
+        if new_part_sort_header != part_sort_header {
+            panic!("new_part_sort_header != part_sort_header");
+        }
         *part_sort_size
             .entry(part_sort_header.part_sort.len())
             .or_insert(0) += 1;

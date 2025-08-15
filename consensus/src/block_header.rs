@@ -3,6 +3,10 @@ use alloy_rlp::{RlpDecodable, RlpEncodable};
 use crypto_bigint::U256;
 use serde::{Deserialize, Serialize};
 
+pub const MAX_TARGET: BlockKey = BlockKey(U256::from_be_hex(
+    "00000fffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+));
+
 #[derive(Clone, Serialize, Deserialize, RlpDecodable, RlpEncodable, Debug, Default)]
 pub struct ConsensusHeader {
     pub part_sort_header: PartSortHeader,
@@ -30,8 +34,8 @@ pub fn gen_pow_header(
     head_block_pow_header: &PowHeader,
     head_size: u64,
     now_size: u64,
+    now_timestamp_ms: u64,
 ) -> PowHeader {
-    let now_timestamp_ms = utils::time::get_current_time_ms();
     if now_size / POW_TARGET_SIZE == head_size / POW_TARGET_SIZE {
         return PowHeader {
             target: head_block_pow_header.target,
@@ -40,10 +44,13 @@ pub fn gen_pow_header(
         };
     }
     let cast_time_ms = now_timestamp_ms - head_block_pow_header.target_timestamp_ms;
-    let new_target = get_pow_target(
-        head_block_pow_header.target,
-        cast_time_ms,
-        POW_TARGET_INTERVAL_MS,
+    let new_target = std::cmp::min(
+        get_pow_target(
+            head_block_pow_header.target,
+            cast_time_ms,
+            POW_TARGET_INTERVAL_MS,
+        ),
+        MAX_TARGET,
     );
     PowHeader {
         target: new_target,
