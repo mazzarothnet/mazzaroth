@@ -10,6 +10,12 @@ macro_rules! define_byte_array {
         )]
         pub struct $struct_name(pub [u8; $len]);
 
+        impl Default for $struct_name {
+            fn default() -> Self {
+                $struct_name([0u8; $len])
+            }
+        }
+
         impl $struct_name {
             pub fn new(arr: [u8; $len]) -> Self {
                 $struct_name(arr)
