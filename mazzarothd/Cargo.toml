@@ -14,12 +14,12 @@ serde = { workspace = true }
 tokio = {workspace = true}
 anyhow = {workspace = true}
 axum = {workspace = true}
-reed-solomon-erasure = {workspace = true}
 alloy-rlp = { workspace = true }
 log = { workspace = true }
-crossbeam = { workspace = true }
 lazy_static = { workspace = true }
-lru = { workspace = true }
+libp2p = { workspace = true }
+futures = { workspace = true }
+toml = { workspace = true }
 
 [features]
 disable_storage_limit = []

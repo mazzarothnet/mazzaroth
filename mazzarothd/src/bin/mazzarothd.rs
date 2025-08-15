@@ -2,13 +2,16 @@
 use mazzarothd::api::serve;
 use utils::log::init_log;
 
-fn main() {
+#[tokio::main]
+async fn main() {
     init().unwrap();
-    tokio::spawn(serve());
+    tokio::spawn(async {
+        if let Err(e) = serve().await {
+            eprintln!("Failed to serve API: {}", e);
+        }
+    });
 
-    loop {
-        std::thread::sleep(std::time::Duration::from_secs(1));
-    }
+    tokio::signal::ctrl_c().await.unwrap();
 }
 
 fn init() -> anyhow::Result<()> {

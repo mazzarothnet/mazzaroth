@@ -1,29 +1,56 @@
+use crate::state::app_data::get_block_db_path;
 use consensus::{block_header::ConsensusHeader, traits::ConsensusHeaderStorage, types::BlockKey};
 use database::rocksdb_no_batch::RocksDbStorage;
 use mvm::{core::storage::DbStorage, models::block::Block};
+use std::sync::Mutex;
 use utils::error::{Error, Result};
 
-pub struct BlockStorage {
+pub fn get_block(block_key: &BlockKey) -> anyhow::Result<Option<Block>> {
+    let block_storage = BLOCK_STORAGE
+        .lock()
+        .map_err(|e| anyhow::anyhow!("Failed to lock block storage: {}", e))?;
+    block_storage.get_block(block_key)
+}
+
+pub fn set_block(block_key: &BlockKey, block: &Block) -> anyhow::Result<()> {
+    let block_storage = BLOCK_STORAGE
+        .lock()
+        .map_err(|e| anyhow::anyhow!("Failed to lock block storage: {}", e))?;
+    block_storage.set_block(block_key, block)
+}
+
+pub fn has_block(block_key: &BlockKey) -> anyhow::Result<bool> {
+    let block_storage = BLOCK_STORAGE
+        .lock()
+        .map_err(|e| anyhow::anyhow!("Failed to lock block storage: {}", e))?;
+    block_storage.has_block(block_key)
+}
+
+lazy_static::lazy_static! {
+    static ref BLOCK_STORAGE: Mutex<BlockStorage> = Mutex::new(get_block_storage());
+}
+
+struct BlockStorage {
     db: RocksDbStorage,
 }
 
 impl BlockStorage {
-    pub fn new(db: &str) -> anyhow::Result<Self> {
+    fn new(db: &str) -> anyhow::Result<Self> {
         let db = RocksDbStorage::new(db)?;
         Ok(Self { db })
     }
 
-    pub fn get_block(&self, key: &BlockKey) -> anyhow::Result<Option<Block>> {
+    fn get_block(&self, key: &BlockKey) -> anyhow::Result<Option<Block>> {
         let block = self.db.get_data(key)?;
         Ok(block)
     }
 
-    pub fn set_block(&self, key: &BlockKey, block: &Block) -> anyhow::Result<()> {
+    fn set_block(&self, key: &BlockKey, block: &Block) -> anyhow::Result<()> {
         self.db.set_data(key, block)?;
         Ok(())
     }
 
-    pub fn has_block(&self, key: &BlockKey) -> anyhow::Result<bool> {
+    fn has_block(&self, key: &BlockKey) -> anyhow::Result<bool> {
         let exists = self.db.has_data(key)?;
         Ok(exists)
     }
@@ -37,4 +64,9 @@ impl ConsensusHeaderStorage for BlockStorage {
         })?;
         Ok(block.inner.header)
     }
+}
+
+#[allow(clippy::unwrap_used)]
+fn get_block_storage() -> BlockStorage {
+    BlockStorage::new(&get_block_db_path().unwrap()).unwrap()
 }

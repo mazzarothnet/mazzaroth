@@ -15,4 +15,5 @@ cargo clippy --all-targets --all-features "$@" -- \
         -D clippy::needless_pass_by_value \
         -D clippy::option_option \
         -D clippy::wildcard_imports \
-        -A clippy::uninlined_format_args
+        -A clippy::uninlined_format_args \
+        -A clippy::redundant_closure
