@@ -1,4 +1,4 @@
 #![allow(clippy::all)]
-pub mod sha256_mining;
 pub mod run_gpu;
+pub mod sha256_mining;
 pub mod test;

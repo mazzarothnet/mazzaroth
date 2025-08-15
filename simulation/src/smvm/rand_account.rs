@@ -29,4 +29,3 @@ pub fn gen_merkle_tree(path: &str) -> MerkleTree<RocksDbStorage> {
     let mt_storage = RocksDbStorage::new(&format!("{path}/mt")).unwrap();
     MerkleTree::new(mt_storage).unwrap()
 }
-

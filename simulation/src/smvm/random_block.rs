@@ -251,7 +251,7 @@ fn get_rand_from_index(rng: &mut StdRng, account_map: &BTreeMap<u64, AccountPack
 
 fn get_rand_exist_index(rng: &mut StdRng, account_map: &BTreeMap<u64, AccountPackage>) -> u64 {
     let mut has_set = Vec::new();
-    for (i, _v) in account_map {
+    for i in account_map.keys() {
         has_set.push(*i);
     }
     if has_set.is_empty() {

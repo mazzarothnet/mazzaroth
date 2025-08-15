@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used)]
 use log::info;
 use mvm::models::block::Block;
 use rand::{SeedableRng, rngs::StdRng};

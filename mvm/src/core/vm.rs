@@ -753,7 +753,7 @@ impl<S: DbStorage> Mvm<S> {
 pub fn get_key_from_block_key(block_key: &[u8]) -> i32 {
     let mut key: i32 = 0;
     for i in block_key {
-        key += *i as i32;
+        key += i32::from(*i);
     }
     key
 }

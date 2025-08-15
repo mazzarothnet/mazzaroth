@@ -9,5 +9,6 @@ env_logger = {workspace = true}
 pollster = {workspace = true}
 wgpu = {workspace = true}
 sha2  = {workspace = true}
+anyhow = {workspace = true}
 
 utils = {path = "../utils"}

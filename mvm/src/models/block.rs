@@ -6,14 +6,14 @@ use consensus::{
 };
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Serialize, Deserialize, RlpEncodable, RlpDecodable)]
+#[derive(Debug, Serialize, Deserialize, RlpEncodable, RlpDecodable, Clone)]
 pub struct Block {
     pub key: BlockKey,
     pub nonce: u128,
     pub inner: BlockInner,
 }
 
-#[derive(Debug, Serialize, Deserialize, RlpEncodable, RlpDecodable)]
+#[derive(Debug, Serialize, Deserialize, RlpEncodable, RlpDecodable, Clone)]
 pub struct BlockInner {
     pub version: u32,
     pub header: ConsensusHeader,

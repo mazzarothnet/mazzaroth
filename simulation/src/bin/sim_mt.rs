@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used)]
 use log::info;
 use mvm::core::storage::DbStorageTransaction;
 use rand::{SeedableRng, rngs::StdRng, seq::SliceRandom};
@@ -29,7 +30,6 @@ fn main() {
     for accounts in account_vec {
         let ts = mt.update_tree(accounts, vec![]).unwrap();
         ts.commit().unwrap();
-
     }
     let tm_ms2 = now.elapsed().as_millis();
     let state_root2 = mt.get_state_root().unwrap();

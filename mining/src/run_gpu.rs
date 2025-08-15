@@ -1,4 +1,5 @@
 use crate::sha256_mining::{vec_to_nonce, work_hash_to_package, work_hash_to_package_to_u8_vec};
+use anyhow::Context;
 use std::{borrow::Cow, num::NonZeroU64};
 use utils::sha256::sha256_hash;
 use wgpu::util::DeviceExt;
@@ -8,15 +9,21 @@ pub fn get_test_sha256_cpu(block_hash: [u8; 32], work_id: u64) -> [u8; 32] {
     sha256_hash(&input_data)
 }
 
-pub fn get_test_sha256_gpu(block_hash: [u8; 32], work_id: u64) -> [u8; 32] {
+pub fn get_test_sha256_gpu(block_hash: [u8; 32], work_id: u64) -> anyhow::Result<[u8; 32]> {
     let shader = get_test_shader();
     let input_data = work_hash_to_package(block_hash, work_id);
-    let result = submit_work_to_gpu(&input_data, 8, shader, "sha256", 1);
-    let u32_8: [u32; 8] = result.try_into().unwrap();
-    bytes_to_hex_u8(&u32_8)
+    let result = submit_work_to_gpu(&input_data, 8, shader, "sha256", 1)?;
+    let u32_8: [u32; 8] = result
+        .try_into()
+        .map_err(|e| anyhow::anyhow!("Failed to convert result to u32: {:?}", e))?;
+    Ok(bytes_to_hex_u8(&u32_8))
 }
 
-pub fn mining_gpu_sha256(block_hash: [u8; 32], work_id: u64, target: [u32; 8]) -> Vec<u128> {
+pub fn mining_gpu_sha256(
+    block_hash: [u8; 32],
+    work_id: u64,
+    target: [u32; 8],
+) -> anyhow::Result<Vec<u128>> {
     let shader = get_mining_shader();
     let input_data = work_hash_to_package(block_hash, work_id);
     let mut real_input: [u32; 24] = [0; 24];
@@ -34,14 +41,16 @@ pub fn mining_gpu_sha256(block_hash: [u8; 32], work_id: u64, target: [u32; 8]) -
         shader,
         "mining",
         block_counter as u32,
-    );
+    )?;
     let mut nonce_vec = Vec::new();
     for i in 0..block_counter {
-        let nonce = result[i * 4..i * 4 + 4].try_into().unwrap();
+        let nonce = result[i * 4..i * 4 + 4]
+            .try_into()
+            .map_err(|e| anyhow::anyhow!("Failed to convert result to u32: {}", e))?;
         let nonce_u128 = vec_to_nonce(nonce);
         nonce_vec.push(nonce_u128);
     }
-    nonce_vec
+    Ok(nonce_vec)
 }
 
 fn bytes_to_hex_u8(bytes: &[u32; 8]) -> [u8; 32] {
@@ -61,8 +70,8 @@ fn submit_work_to_gpu(
     shader: String,
     fn_name: &str,
     block_counter: u32,
-) -> Vec<u32> {
-    let (device, queue) = get_device();
+) -> anyhow::Result<Vec<u32>> {
+    let (device, queue) = get_device()?;
     let real_sha256_wgsl = shader;
     let module = device.create_shader_module(wgpu::ShaderModuleDescriptor {
         label: None,
@@ -89,7 +98,8 @@ fn submit_work_to_gpu(
         usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ,
         mapped_at_creation: false,
     });
-
+    let min_binding_size =
+        NonZeroU64::new(4).ok_or_else(|| anyhow::anyhow!("Failed to create min binding size"))?;
     let bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
         label: None,
         entries: &[
@@ -98,7 +108,7 @@ fn submit_work_to_gpu(
                 visibility: wgpu::ShaderStages::COMPUTE,
                 ty: wgpu::BindingType::Buffer {
                     ty: wgpu::BufferBindingType::Storage { read_only: true },
-                    min_binding_size: Some(NonZeroU64::new(4).unwrap()),
+                    min_binding_size: Some(min_binding_size),
                     has_dynamic_offset: false,
                 },
                 count: None,
@@ -108,7 +118,7 @@ fn submit_work_to_gpu(
                 visibility: wgpu::ShaderStages::COMPUTE,
                 ty: wgpu::BindingType::Buffer {
                     ty: wgpu::BufferBindingType::Storage { read_only: false },
-                    min_binding_size: Some(NonZeroU64::new(4).unwrap()),
+                    min_binding_size: Some(min_binding_size),
                     has_dynamic_offset: false,
                 },
                 count: None,
@@ -176,12 +186,14 @@ fn submit_work_to_gpu(
     let buffer_slice = download_buffer.slice(..);
     buffer_slice.map_async(wgpu::MapMode::Read, |_| {});
 
-    device.poll(wgpu::PollType::Wait).unwrap();
+    device
+        .poll(wgpu::PollType::Wait)
+        .with_context(|| "Failed to poll")?;
 
     let data = buffer_slice.get_mapped_range();
     let result: &[u32] = bytemuck::cast_slice(&data);
 
-    result.to_vec()
+    Ok(result.to_vec())
 }
 
 fn get_test_shader() -> String {
@@ -196,19 +208,19 @@ fn get_mining_shader() -> String {
     format!("{}\n{}", sha256_wgsl, shader)
 }
 
-fn get_device() -> (wgpu::Device, wgpu::Queue) {
+fn get_device() -> anyhow::Result<(wgpu::Device, wgpu::Queue)> {
     let instance = wgpu::Instance::new(&wgpu::InstanceDescriptor::default());
 
     let adapter =
         pollster::block_on(instance.request_adapter(&wgpu::RequestAdapterOptions::default()))
-            .expect("Failed to create adapter");
+            .with_context(|| "Failed to create adapter")?;
 
     let downlevel_capabilities = adapter.get_downlevel_capabilities();
     if !downlevel_capabilities
         .flags
         .contains(wgpu::DownlevelFlags::COMPUTE_SHADERS)
     {
-        panic!("Adapter does not support compute shaders");
+        anyhow::bail!("Adapter does not support compute shaders");
     }
     let (device, queue) = pollster::block_on(adapter.request_device(&wgpu::DeviceDescriptor {
         label: None,
@@ -217,7 +229,7 @@ fn get_device() -> (wgpu::Device, wgpu::Queue) {
         memory_hints: wgpu::MemoryHints::MemoryUsage,
         trace: wgpu::Trace::Off,
     }))
-    .expect("Failed to create device");
+    .with_context(|| "Failed to create device")?;
 
-    (device, queue)
+    Ok((device, queue))
 }
