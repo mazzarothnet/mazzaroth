@@ -1,5 +1,10 @@
-use crate::sha256_mining::{vec_to_nonce, work_hash_to_package, work_hash_to_package_to_u8_vec};
+use crate::sha256_mining::{
+    gen_sha256_by_block_hash_and_nonce, vec_to_nonce, work_hash_to_package,
+    work_hash_to_package_to_u8_vec,
+};
 use anyhow::Context;
+use consensus::types::BlockKey;
+use crypto_bigint::U256;
 use std::{borrow::Cow, num::NonZeroU64};
 use utils::sha256::sha256_hash;
 use wgpu::util::DeviceExt;
@@ -22,8 +27,9 @@ pub fn get_test_sha256_gpu(block_hash: [u8; 32], work_id: u64) -> anyhow::Result
 pub fn mining_gpu_sha256(
     block_hash: [u8; 32],
     work_id: u64,
-    target: [u32; 8],
-) -> anyhow::Result<Vec<u128>> {
+    target: BlockKey,
+) -> anyhow::Result<Option<u128>> {
+    let target_u32 = hex_u8_to_u32(&target.0.to_be_bytes());
     let shader = get_mining_shader();
     let input_data = work_hash_to_package(block_hash, work_id);
     let mut real_input: [u32; 24] = [0; 24];
@@ -31,7 +37,7 @@ pub fn mining_gpu_sha256(
         real_input[i] = input_data[i];
     }
     for i in 0..8 {
-        real_input[i + 16] = target[i];
+        real_input[i + 16] = target_u32[i];
     }
 
     let block_counter = 64;
@@ -42,15 +48,18 @@ pub fn mining_gpu_sha256(
         "mining",
         block_counter as u32,
     )?;
-    let mut nonce_vec = Vec::new();
     for i in 0..block_counter {
         let nonce = result[i * 4..i * 4 + 4]
             .try_into()
             .map_err(|e| anyhow::anyhow!("Failed to convert result to u32: {}", e))?;
         let nonce_u128 = vec_to_nonce(nonce);
-        nonce_vec.push(nonce_u128);
+        let mined_hash = gen_sha256_by_block_hash_and_nonce(block_hash, nonce_u128);
+        let mined_block_key = BlockKey(U256::from_be_slice(&mined_hash));
+        if mined_block_key < target {
+            return Ok(Some(nonce_u128));
+        }
     }
-    Ok(nonce_vec)
+    Ok(None)
 }
 
 fn bytes_to_hex_u8(bytes: &[u32; 8]) -> [u8; 32] {
@@ -60,6 +69,19 @@ fn bytes_to_hex_u8(bytes: &[u32; 8]) -> [u8; 32] {
         result[i * 4 + 1] = (bytes[i] >> 16) as u8;
         result[i * 4 + 2] = (bytes[i] >> 8) as u8;
         result[i * 4 + 3] = bytes[i] as u8;
+    }
+    result
+}
+
+fn hex_u8_to_u32(bytes: &[u8; 32]) -> [u32; 8] {
+    let mut result = [0u32; 8];
+    for i in 0..8 {
+        result[i] = u32::from_be_bytes([
+            bytes[i * 4],
+            bytes[i * 4 + 1],
+            bytes[i * 4 + 2],
+            bytes[i * 4 + 3],
+        ]);
     }
     result
 }

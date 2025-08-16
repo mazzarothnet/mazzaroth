@@ -2555,6 +2555,8 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "bytemuck",
+ "consensus",
+ "crypto-bigint",
  "env_logger",
  "pollster",
  "sha2",
