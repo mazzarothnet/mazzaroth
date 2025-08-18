@@ -11,7 +11,8 @@ pub static CFG: LazyLock<Config> = LazyLock::new(|| Config::init().expect("Faile
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Config {
     pub http_port: u16,
-    pub gossip_port: u16,
+    pub gossip_tcp_port: u16,
+    pub gossip_udp_port: u16,
     pub bootstrap_addr: Option<String>,
     pub bootstrap_peer_id: Option<String>,
     pub new_genesis: bool,
@@ -21,7 +22,8 @@ impl Default for Config {
     fn default() -> Self {
         Self {
             http_port: 8080,
-            gossip_port: 43221,
+            gossip_tcp_port: 43221,
+            gossip_udp_port: 43222,
             bootstrap_addr: Some(
                 "/ip6/2409:8a00:31d0:a3b0:7c10:9494:279:f924/udp/4001/quic-v1".to_string(),
             ),
