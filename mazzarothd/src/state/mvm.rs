@@ -1,17 +1,20 @@
+use crate::state::{app_data::get_mvm_db_path, block_storage::get_block, tips::get_tips};
 use anyhow::Context;
 use consensus::{traits::GENESIS_BLOCK_KEY, types::BlockKey};
 use database::rocksdb_no_batch::RocksDbStorage;
+use log::info;
 use mvm::core::{
     merkle_tree::MerkleTree,
     vm::{Mvm, NOW_BLOCK_ACTION_DO, NOW_BLOCK_ACTION_ROLLBACK},
 };
 use std::{path::Path, sync::Mutex, time::Duration};
 
-use crate::state::{app_data::get_mvm_db_path, block_storage::get_block, tips::get_tips};
-
 lazy_static::lazy_static! {
     static ref MVM_STORAGE: Mutex<Mvm<RocksDbStorage>> = Mutex::new(get_mvm_storage());
 }
+
+const MVM_MOVE_INTERVAL_MS: u64 = 1000;
+const MVM_MAST_SLEEP_MS: u64 = 1000;
 
 /// it will block thread
 pub fn mvm_process_block() -> anyhow::Result<()> {
@@ -19,9 +22,10 @@ pub fn mvm_process_block() -> anyhow::Result<()> {
     let mut now_time = std::time::Instant::now();
     loop {
         let cast_ms = now_time.elapsed().as_millis() as u64;
-        if cast_ms < 1000 {
-            std::thread::sleep(Duration::from_millis(1000 - cast_ms));
+        if cast_ms < MVM_MOVE_INTERVAL_MS {
+            std::thread::sleep(Duration::from_millis(MVM_MOVE_INTERVAL_MS - cast_ms));
         }
+        std::thread::sleep(Duration::from_millis(MVM_MAST_SLEEP_MS));
         now_time = std::time::Instant::now();
 
         let tips = get_tips()?;
@@ -39,11 +43,95 @@ pub fn mvm_process_block() -> anyhow::Result<()> {
             .ok_or_else(|| anyhow::anyhow!("Block not found"))?;
         next_key = block.inner.header.part_sort_header.head_key;
         move_mvm_to_next_key(now_key, next_key)?;
+        info!("move mvm to next key: {} -> {}", now_key, next_key);
         now_key = next_key;
     }
 }
 
+struct MvmMoveNode {
+    key: BlockKey,
+    head_size: u64,
+    head_key: BlockKey,
+    to_head_path: Vec<BlockKey>,
+}
+
+impl MvmMoveNode {
+    fn new(key: BlockKey) -> anyhow::Result<Self> {
+        let block = get_block(&key)?.ok_or_else(|| anyhow::anyhow!("Block not found"))?;
+        let head_size = block.inner.header.part_sort_header.size;
+        let head_key = block.inner.header.part_sort_header.head_key;
+        let mut to_head_path = Vec::new();
+        to_head_path.push(key);
+        for psk in block
+            .inner
+            .header
+            .part_sort_header
+            .part_sort
+            .into_iter()
+            .rev()
+        {
+            to_head_path.push(psk);
+        }
+        Ok(Self {
+            key,
+            head_size,
+            head_key,
+            to_head_path,
+        })
+    }
+
+    fn to_head(&mut self) -> anyhow::Result<()> {
+        let head_block =
+            get_block(&self.head_key)?.ok_or_else(|| anyhow::anyhow!("Block not found"))?;
+        self.key = self.head_key;
+        self.head_size = head_block.inner.header.part_sort_header.size;
+        self.head_key = head_block.inner.header.part_sort_header.head_key;
+        for psk in head_block
+            .inner
+            .header
+            .part_sort_header
+            .part_sort
+            .into_iter()
+            .rev()
+        {
+            self.to_head_path.push(psk);
+        }
+        Ok(())
+    }
+}
+
 fn move_mvm_to_next_key(now_key: BlockKey, next_key: BlockKey) -> anyhow::Result<()> {
+    let mut now_node = MvmMoveNode::new(now_key)?;
+    let mut next_node = MvmMoveNode::new(next_key)?;
+    while now_node.head_key != next_node.head_key {
+        if now_node.head_size > next_node.head_size {
+            now_node.to_head()?;
+        } else {
+            next_node.to_head()?;
+        }
+    }
+
+    info!(
+        "move mvm to next key now_node path: {:?} \n next_node path: {:?}",
+        now_node.to_head_path, next_node.to_head_path
+    );
+    now_node.to_head_path.pop();
+    next_node.to_head_path.pop();
+    for psk in now_node.to_head_path {
+        let block = get_block(&psk)?.ok_or_else(|| anyhow::anyhow!("Block not found"))?;
+        let mut mvm_storage = MVM_STORAGE
+            .lock()
+            .map_err(|e| anyhow::anyhow!("Failed to lock mvm storage: {}", e))?;
+        mvm_storage.do_block_rollback(&block)?;
+    }
+    for psk in next_node.to_head_path.into_iter().rev() {
+        let block = get_block(&psk)?.ok_or_else(|| anyhow::anyhow!("Block not found"))?;
+        let mut mvm_storage = MVM_STORAGE
+            .lock()
+            .map_err(|e| anyhow::anyhow!("Failed to lock mvm storage: {}", e))?;
+        mvm_storage.do_block(&block)?;
+    }
+
     Ok(())
 }
 

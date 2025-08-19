@@ -62,4 +62,3 @@ pub(crate) fn work_hash_to_package(block_hash: [u8; 32], work_id: u64) -> [u32; 
     }
     real_ans
 }
-

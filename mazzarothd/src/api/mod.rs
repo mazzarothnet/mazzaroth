@@ -30,4 +30,3 @@ pub async fn serve() -> anyhow::Result<()> {
         .with_context(|| "Failed to serve API".to_string())?;
     Ok(())
 }
-

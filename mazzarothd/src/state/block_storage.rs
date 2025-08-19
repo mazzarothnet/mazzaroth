@@ -1,13 +1,17 @@
 use crate::state::app_data::{get_block_db_path, get_block_test_db_path};
 use anyhow::Context;
 use consensus::{
-    block_header::ConsensusHeader,
+    block_header::{ConsensusHeader, MAX_TARGET, PowHeader},
     part_sort_header::gen_part_sort_block,
-    traits::{ConsensusHeaderStorage, PartSortHeader},
-    types::BlockKey,
+    traits::{ConsensusHeaderStorage, GENESIS_BLOCK_KEY, PartSortHeader},
+    types::{AccountKey, BlockKey, DagWork, Hash},
 };
+use crypto_bigint::U256;
 use database::rocksdb_no_batch::RocksDbStorage;
-use mvm::{core::storage::DbStorage, models::block::Block};
+use mvm::{
+    core::storage::DbStorage,
+    models::block::{Block, BlockInner},
+};
 use std::{path::Path, sync::Mutex};
 use utils::error::{Error, Result};
 
@@ -54,6 +58,9 @@ impl BlockStorage {
     }
 
     fn get_block(&self, key: &BlockKey) -> anyhow::Result<Option<Block>> {
+        if key == &BlockKey::from(GENESIS_BLOCK_KEY) {
+            return Ok(Some(get_genesis_block()));
+        }
         let block = self.db.get_data(key)?;
         Ok(block)
     }
@@ -76,6 +83,34 @@ impl ConsensusHeaderStorage for BlockStorage {
             key: key.to_string(),
         })?;
         Ok(block.inner.header)
+    }
+}
+
+fn get_genesis_block() -> Block {
+    Block {
+        key: BlockKey::from(GENESIS_BLOCK_KEY),
+        nonce: 0,
+        inner: BlockInner {
+            version: 0,
+            header: ConsensusHeader {
+                part_sort_header: PartSortHeader {
+                    head_key: BlockKey::from(GENESIS_BLOCK_KEY),
+                    dag_work: DagWork::from(U256::ZERO),
+                    size: 0,
+                    parent_keys: vec![],
+                    part_sort: vec![],
+                },
+                pow_header: PowHeader {
+                    target: MAX_TARGET,
+                    target_timestamp_ms: 0,
+                    now_timestamp_ms: 0,
+                },
+            },
+            transfers: vec![],
+            merges: vec![],
+            miner: AccountKey::default(),
+            miner_last_action_hash: Hash::default(),
+        },
     }
 }
 

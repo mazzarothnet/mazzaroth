@@ -1,5 +1,5 @@
-use crate::sc::sim_miner::Position;
 use super::sim_block::SimBlock;
+use crate::sc::sim_miner::Position;
 use alloy_rlp::{Decodable, Encodable};
 use anyhow::Context;
 use consensus::{
