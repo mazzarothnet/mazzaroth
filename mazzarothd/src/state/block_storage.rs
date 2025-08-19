@@ -11,6 +11,10 @@ use mvm::{core::storage::DbStorage, models::block::Block};
 use std::{path::Path, sync::Mutex};
 use utils::error::{Error, Result};
 
+lazy_static::lazy_static! {
+    static ref BLOCK_STORAGE: Mutex<BlockStorage> = Mutex::new(get_block_storage());
+}
+
 pub fn get_block(block_key: &BlockKey) -> anyhow::Result<Option<Block>> {
     let block_storage = BLOCK_STORAGE
         .lock()
@@ -37,10 +41,6 @@ pub fn get_part_sort_header(parent_keys: &[BlockKey]) -> utils::error::Result<Pa
         .lock()
         .map_err(|e| anyhow::anyhow!("Failed to lock block storage: {}", e))?;
     gen_part_sort_block(&*block_storage, parent_keys)
-}
-
-lazy_static::lazy_static! {
-    static ref BLOCK_STORAGE: Mutex<BlockStorage> = Mutex::new(get_block_storage());
 }
 
 struct BlockStorage {
@@ -84,10 +84,11 @@ fn get_block_storage() -> BlockStorage {
     BlockStorage::new(&get_block_db_path().unwrap()).unwrap()
 }
 
-pub fn use_test_db_and_refresh_block_storage() -> anyhow::Result<()> {
+pub fn use_test_db_and_refresh_block_storage(name: &str) -> anyhow::Result<()> {
     let block_db_path =
-        get_block_test_db_path().with_context(|| "Failed to get block test db path")?;
+        get_block_test_db_path(name).with_context(|| "Failed to get block test db path")?;
     if Path::new(&block_db_path).exists() {
+        println!("remove block db path: {:?}", block_db_path);
         std::fs::remove_dir_all(&block_db_path)?;
     }
     let block_storage =

@@ -9,10 +9,13 @@ use rand::{Rng, SeedableRng, rngs::StdRng};
 #[cfg(test)]
 mod tests {
     use crate::{
-        api::{req::req_block, test::push_random_transfers},
+        network::{
+            req::{req_block, req_tips},
+            test::push_random_transfers,
+        },
         state::{
             block_storage::{set_block, use_test_db_and_refresh_block_storage},
-            tips::{gen_test_block, u32_to_block_key},
+            tips::{gen_test_block, set_test_tips, u32_to_block_key},
         },
     };
     use std::collections::HashSet;
@@ -20,9 +23,9 @@ mod tests {
 
     #[tokio::test]
     async fn test_get_block_api() {
-        use_test_db_and_refresh_block_storage().unwrap();
+        use_test_db_and_refresh_block_storage("test_get_block_api").unwrap();
         tokio::spawn(async {
-            super::super::serve().await.unwrap();
+            crate::api::serve().await.unwrap();
         });
 
         let block_key = u32_to_block_key(2);
@@ -36,6 +39,19 @@ mod tests {
         // println!("new_block_hash: {:?}", new_block_hash);
         // println!("block_hash: {:?}", block_hash);
         assert_eq!(new_block_hash, block_hash);
+    }
+
+    #[tokio::test]
+    async fn test_set_test_tips() {
+        use_test_db_and_refresh_block_storage("test_set_test_tips").unwrap();
+        tokio::spawn(async {
+            crate::api::serve().await.unwrap();
+        });
+        let key = u32_to_block_key(2);
+        set_test_tips(vec![key]).unwrap();
+        let tips = req_tips("localhost:8080").await.unwrap();
+        assert_eq!(tips.len(), 1);
+        assert_eq!(tips[0], key);
     }
 }
 

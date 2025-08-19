@@ -35,3 +35,19 @@ pub async fn req_block(host: &str, block_key: BlockKey) -> anyhow::Result<Block>
         .with_context(|| format!("Failed to decode block from {}", url))?;
     Ok(block)
 }
+
+pub async fn req_tips(host: &str) -> anyhow::Result<Vec<BlockKey>> {
+    let url = format!("http://{}/tips", host);
+    let res = reqwest_client_get(&url)
+        .with_context(|| format!("Failed to get tips from {}", url))?
+        .send()
+        .await
+        .with_context(|| format!("Failed to send request to {}", url))?;
+    let tip_str = res
+        .text()
+        .await
+        .with_context(|| format!("Failed to get tips from {}", url))?;
+    let tips: Vec<BlockKey> = serde_json::from_str(&tip_str)
+        .with_context(|| format!("Failed to parse tips from {}", url))?;
+    Ok(tips)
+}

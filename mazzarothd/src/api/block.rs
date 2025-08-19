@@ -23,7 +23,7 @@ pub async fn get_block_api(Query(block_key): Query<BlockKeyParam>) -> Result<Bin
     Ok(BinaryRes { data: block_bytes })
 }
 
-pub async fn get_tips_api() -> Result<Res<Vec<String>>> {
-    let tips = get_tips()?.into_iter().map(|v| v.to_string()).collect();
+pub async fn get_tips_api() -> Result<Res<Vec<BlockKey>>> {
+    let tips = get_tips()?.into_iter().collect();
     Ok(Res { data: tips })
 }

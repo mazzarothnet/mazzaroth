@@ -8,6 +8,7 @@ use consensus::{
     types::{AccountKey, Hash},
 };
 use crypto_bigint::U256;
+use log::info;
 use mvm::models::block::Block;
 use mvm::models::block::BlockInner;
 use std::{
@@ -28,6 +29,9 @@ const TIPS_EXPIRE_MS: u64 = 1000 * 30; // tips expire time 30s
 
 // about check
 pub fn push_block(block: Block) -> anyhow::Result<()> {
+    if has_block(&block.key)? {
+        return Ok(());
+    }
     normal_check_block_format(&block)?;
 
     let mut temp_blocks = TEMP_BLOCKS
@@ -35,7 +39,17 @@ pub fn push_block(block: Block) -> anyhow::Result<()> {
         .map_err(|e| anyhow::anyhow!("push_block Failed to lock temp_blocks: {}", e))?;
     temp_blocks.push_block(block)?;
     while let Some(block) = temp_blocks.pop_block() {
-        save_block_and_update_tips(&block)?;
+        if let Err(e) = save_block_and_update_tips(&block) {
+            info!(
+                "push_block, save_block_and_update_tips key: {:?}, error: {:?}",
+                block.key, e
+            );
+        } else {
+            info!(
+                "push_block, save_block_and_update_tips key: {:?}, success",
+                block.key
+            );
+        }
     }
 
     Ok(())
@@ -49,6 +63,17 @@ pub fn get_tips() -> anyhow::Result<BTreeSet<BlockKey>> {
         .cloned()
         .collect();
     Ok(tips)
+}
+
+pub fn set_test_tips(tips: Vec<BlockKey>) -> anyhow::Result<()> {
+    let mut tips_map = TIPS
+        .lock()
+        .map_err(|e| anyhow::anyhow!("set_test_tips Failed to lock tips: {}", e))?;
+    tips_map.clear();
+    for tip in tips {
+        tips_map.insert(tip, get_current_time_ms());
+    }
+    Ok(())
 }
 
 pub fn get_temp_blocks() -> anyhow::Result<BTreeMap<BlockKey, (Block, BTreeSet<BlockKey>)>> {

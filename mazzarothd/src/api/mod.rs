@@ -5,8 +5,6 @@ use tokio::net::TcpListener;
 use utils::error::{Res, Result};
 
 pub mod block;
-pub mod req;
-pub mod test;
 
 pub fn api_router() -> Router {
     Router::new()

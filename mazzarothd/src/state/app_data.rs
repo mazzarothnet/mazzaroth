@@ -20,10 +20,10 @@ pub fn get_block_db_path() -> anyhow::Result<String> {
         .to_string())
 }
 
-pub fn get_block_test_db_path() -> anyhow::Result<String> {
+pub fn get_block_test_db_path(name: &str) -> anyhow::Result<String> {
     let path = get_data_path()?;
     let path = std::path::Path::new(&path);
-    let path = path.join("block_test_db");
+    let path = path.join(name);
     Ok(path
         .to_str()
         .ok_or_else(|| anyhow::anyhow!("Failed to get block test db path"))?

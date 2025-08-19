@@ -74,7 +74,10 @@ pub fn run_sim(
             .or_insert(0) += 1;
         let dw = dag_work_to_u64(part_sort_header.dag_work);
         if dw != part_sort_header.size {
-            panic!("dw != part_sort_header.size");
+            panic!(
+                "dw != part_sort_header.size {} {}",
+                dw, part_sort_header.size
+            );
         }
         let distance = i - dw;
         let now_key = BlockKey::from(U256::from_u64(i));
@@ -86,7 +89,11 @@ pub fn run_sim(
             creator_position: selected_miner.position,
             header: ConsensusHeader {
                 part_sort_header: part_sort_header.clone(),
-                pow_header: PowHeader::default(),
+                pow_header: PowHeader {
+                    target: BlockKey::from(U256::MAX),
+                    target_timestamp_ms: 0,
+                    now_timestamp_ms: 0,
+                },
             },
         };
         storage.set_block(now_key, &block).unwrap();
@@ -109,6 +116,15 @@ pub fn run_sim(
         //             .iter()
         //             .map(|k| block_key_to_u64(*k))
         //             .collect::<Vec<_>>(),
+        //     );
+        //     println!(
+        //         "part sort {:?}, head key: {}",
+        //         part_sort_header
+        //             .part_sort
+        //             .iter()
+        //             .map(|k| block_key_to_u64(*k))
+        //             .collect::<Vec<_>>(),
+        //         block_key_to_u64(part_sort_header.head_key)
         //     );
         // }
 

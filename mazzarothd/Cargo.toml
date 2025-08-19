@@ -23,6 +23,7 @@ toml = { workspace = true }
 crypto-bigint = { workspace = true }
 rand = { workspace = true }
 reqwest = { workspace = true }
+serde_json = { workspace = true }
 
 [features]
 disable_storage_limit = []
