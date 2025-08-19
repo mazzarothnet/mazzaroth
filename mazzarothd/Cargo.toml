@@ -22,6 +22,7 @@ futures = { workspace = true }
 toml = { workspace = true }
 crypto-bigint = { workspace = true }
 rand = { workspace = true }
+reqwest = { workspace = true }
 
 [features]
 disable_storage_limit = []

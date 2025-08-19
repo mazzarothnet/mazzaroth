@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use crate::state::block_storage::{get_block, get_part_sort_header};
 use consensus::{
     block_header::{MAX_TARGET, gen_pow_header},
     types::BlockKey,
@@ -6,8 +6,8 @@ use consensus::{
 use crypto_bigint::U256;
 use mining::sha256_mining::gen_sha256_by_block_hash_and_nonce;
 use mvm::models::block::Block;
+use std::collections::HashSet;
 use utils::sha256::sha256_hash_rlp;
-use crate::state::block_storage::{get_block, get_part_sort_header};
 
 // not check timestamp because fn will be used in sync history block
 // please check timestamp in gossip
@@ -47,6 +47,13 @@ pub fn save_block_check(block: &Block) -> anyhow::Result<()> {
         .ok_or_else(|| anyhow::anyhow!("head_key not found"))?
         .inner
         .header;
+    if block.inner.header.pow_header.now_timestamp_ms
+        < head_block_header.pow_header.now_timestamp_ms
+    {
+        return Err(anyhow::anyhow!(
+            "block.inner.header.pow_header.now_timestamp_ms is less than head_block_header.pow_header.now_timestamp_ms"
+        ));
+    }
     let pow_header = gen_pow_header(
         &head_block_header.pow_header,
         head_block_header.part_sort_header.size,

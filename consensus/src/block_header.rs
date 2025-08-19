@@ -23,7 +23,7 @@ pub struct PowHeader {
 impl Default for PowHeader {
     fn default() -> Self {
         Self {
-            target: BlockKey::from(U256::MAX),
+            target: MAX_TARGET,
             target_timestamp_ms: 0,
             now_timestamp_ms: 0,
         }

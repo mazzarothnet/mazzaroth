@@ -1,5 +1,6 @@
 use std::collections::{BTreeMap, BTreeSet};
 
+use consensus::types::BlockKey;
 #[cfg(not(feature = "disable_storage_limit"))]
 use consensus::{
     STO_ACCOUNT_MIN_BALANCE, TRANSFER_GAS, get_now_block_reward,
@@ -29,16 +30,23 @@ use crate::{
     },
 };
 
+const NOW_BLOCK_KEY: &str = "NOW_BLOCK_KEY";
+const NOW_BLOCK_ACTION_KEY: &str = "NOW_BLOCK_ACTION_KEY";
+pub const NOW_BLOCK_ACTION_DO: &str = "NOW_BLOCK_ACTION_DO";
+pub const NOW_BLOCK_ACTION_ROLLBACK: &str = "NOW_BLOCK_ACTION_ROLLBACK";
+
 pub struct Mvm<S: DbStorage> {
     account_db: S,
     merkle_tree: MerkleTree<S>,
+    state: S,
 }
 
 impl<S: DbStorage> Mvm<S> {
-    pub fn new(account_db: S, merkle_tree: MerkleTree<S>) -> Self {
+    pub fn new(account_db: S, merkle_tree: MerkleTree<S>, state: S) -> Self {
         Self {
             account_db,
             merkle_tree,
+            state,
         }
     }
 
@@ -173,6 +181,8 @@ impl<S: DbStorage> Mvm<S> {
     }
 
     pub fn do_block(&mut self, block: &Block) -> Result<()> {
+        self.set_now_block_action(NOW_BLOCK_ACTION_DO)?;
+        self.set_now_block_key(block.key)?;
         let mut account_transaction = self.account_db.begin_transaction()?;
         let mut now_state_map = Self::get_now_state_map(&mut account_transaction, block)?;
         let mut delete_set = BTreeSet::new();
@@ -216,6 +226,8 @@ impl<S: DbStorage> Mvm<S> {
     }
 
     pub fn do_block_rollback(&mut self, block: &Block) -> Result<()> {
+        self.set_now_block_action(NOW_BLOCK_ACTION_ROLLBACK)?;
+        self.set_now_block_key(block.key)?;
         let mut account_transaction = self.account_db.begin_transaction()?;
         let mut now_state_map = Self::get_now_state_map(&mut account_transaction, block)?;
         let mut delete_set = BTreeSet::new();
@@ -261,6 +273,28 @@ impl<S: DbStorage> Mvm<S> {
 
     pub fn get_state_root(&self) -> Result<Hash> {
         self.merkle_tree.get_state_root()
+    }
+
+    fn set_now_block_key(&self, block_key: BlockKey) -> Result<()> {
+        let key = NOW_BLOCK_KEY.to_string();
+        self.state.set_data(&key, &block_key)?;
+        Ok(())
+    }
+
+    pub fn get_now_block_key(&self) -> Result<Option<BlockKey>> {
+        let key = NOW_BLOCK_KEY.to_string();
+        self.state.get_data(&key)
+    }
+
+    fn set_now_block_action(&self, action: &str) -> Result<()> {
+        let key = NOW_BLOCK_ACTION_KEY.to_string();
+        self.state.set_data(&key, &action)?;
+        Ok(())
+    }
+
+    pub fn get_now_block_action(&self) -> Result<Option<String>> {
+        let key = NOW_BLOCK_ACTION_KEY.to_string();
+        self.state.get_data(&key)
     }
 
     fn rollback_all_transfer_and_merge(

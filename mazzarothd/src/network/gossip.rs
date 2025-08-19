@@ -23,6 +23,7 @@ struct MBehaviour {
     gossipsub: gossipsub::Behaviour,
 }
 
+// todo: check block pow and expired
 #[allow(clippy::unwrap_used)]
 pub async fn spawn_gossip_thread() -> mpsc::Sender<Block> {
     let mut swarm = libp2p::SwarmBuilder::with_new_identity()
@@ -165,7 +166,7 @@ fn process_block(mut block_bytes: &[u8]) -> anyhow::Result<()> {
     let block: Block =
         Decodable::decode(&mut block_bytes).with_context(|| "Failed to decode block")?;
     let now = get_current_time_ms();
-    if (now as i64 - block.inner.header.pow_header.now_timestamp_ms as i64).abs() > 1000 * 60 {
+    if (now as i64 - block.inner.header.pow_header.now_timestamp_ms as i64).abs() > 1000 * 300 {
         return Err(anyhow::anyhow!(
             "Block timestamp is too old: {}",
             block.inner.header.pow_header.now_timestamp_ms

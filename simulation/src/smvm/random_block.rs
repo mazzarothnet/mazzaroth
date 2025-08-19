@@ -36,10 +36,12 @@ pub fn new_test_mvm(path: &str) -> Mvm<RocksDbStorage> {
 pub fn load_mvm(path: &str) -> Mvm<RocksDbStorage> {
     let merkle_path = format!("{}/merkle", path);
     let account_path = format!("{}/account", path);
+    let state_path = format!("{}/state", path);
     let merkle_tree_db = RocksDbStorage::new(&merkle_path).unwrap();
     let merkle_tree = MerkleTree::new(merkle_tree_db).unwrap();
     let account_db = RocksDbStorage::new(&account_path).unwrap();
-    Mvm::new(account_db, merkle_tree)
+    let state_db = RocksDbStorage::new(&state_path).unwrap();
+    Mvm::new(account_db, merkle_tree, state_db)
 }
 
 #[derive(Debug, Clone)]

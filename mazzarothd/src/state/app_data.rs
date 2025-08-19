@@ -20,6 +20,16 @@ pub fn get_block_db_path() -> anyhow::Result<String> {
         .to_string())
 }
 
+pub fn get_block_test_db_path() -> anyhow::Result<String> {
+    let path = get_data_path()?;
+    let path = std::path::Path::new(&path);
+    let path = path.join("block_test_db");
+    Ok(path
+        .to_str()
+        .ok_or_else(|| anyhow::anyhow!("Failed to get block test db path"))?
+        .to_string())
+}
+
 pub fn get_mvm_db_path() -> anyhow::Result<String> {
     let path = get_data_path()?;
     let path = std::path::Path::new(&path);
