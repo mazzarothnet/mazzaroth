@@ -6,55 +6,6 @@ use mvm::models::{
 };
 use rand::{Rng, SeedableRng, rngs::StdRng};
 
-#[cfg(test)]
-mod tests {
-    use crate::{
-        network::{
-            req::{req_block, req_tips},
-            test::push_random_transfers,
-        },
-        state::{
-            block_storage::{set_block, use_test_db_and_refresh_block_storage},
-            tips::{gen_test_block, set_test_tips, u32_to_block_key},
-        },
-    };
-    use std::collections::HashSet;
-    use utils::sha256::sha256_hash_rlp;
-
-    #[tokio::test]
-    async fn test_get_block_api() {
-        use_test_db_and_refresh_block_storage("test_get_block_api").unwrap();
-        tokio::spawn(async {
-            crate::api::serve().await.unwrap();
-        });
-
-        let block_key = u32_to_block_key(2);
-        let mut block = gen_test_block(2, &HashSet::new());
-        push_random_transfers(&mut block, 1500);
-        // println!("block size: {:?}", get_block_size(&block));
-        set_block(&block_key, &block).unwrap();
-        let block_hash = sha256_hash_rlp(&block);
-        let new_block = req_block("localhost:8080", block_key).await.unwrap();
-        let new_block_hash = sha256_hash_rlp(&new_block);
-        // println!("new_block_hash: {:?}", new_block_hash);
-        // println!("block_hash: {:?}", block_hash);
-        assert_eq!(new_block_hash, block_hash);
-    }
-
-    #[tokio::test]
-    async fn test_set_test_tips() {
-        use_test_db_and_refresh_block_storage("test_set_test_tips").unwrap();
-        tokio::spawn(async {
-            crate::api::serve().await.unwrap();
-        });
-        let key = u32_to_block_key(2);
-        set_test_tips(vec![key]).unwrap();
-        let tips = req_tips("localhost:8080").await.unwrap();
-        assert_eq!(tips.len(), 1);
-        assert_eq!(tips[0], key);
-    }
-}
-
 pub fn push_random_transfers(block: &mut Block, num: usize) {
     let mut rng = rand::rngs::StdRng::seed_from_u64(1112331);
     for _ in 0..num {
@@ -87,3 +38,52 @@ pub fn get_block_size(block: &Block) -> usize {
     block.encode(&mut bytes);
     bytes.len() / 1024
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::{
+        network::{
+            req::{req_block, req_tips},
+            test::push_random_transfers,
+        },
+        state::{
+            app_data::set_test_data_path_and_clean,
+            block_storage::set_block,
+            tips::{gen_test_block, set_test_tips, u32_to_block_key},
+        },
+    };
+    use std::collections::HashSet;
+    use utils::sha256::sha256_hash_rlp;
+
+    #[allow(clippy::unwrap_used)]
+    #[tokio::test]
+    async fn test_get_block_api() {
+        set_test_data_path_and_clean("test_get_block_api").unwrap();
+        tokio::spawn(async {
+            crate::api::serve().await.unwrap();
+        });
+
+        let block_key = u32_to_block_key(2);
+        let mut block = gen_test_block(2, &HashSet::new());
+        push_random_transfers(&mut block, 1500);
+        set_block(&block_key, &block).unwrap();
+        let block_hash = sha256_hash_rlp(&block);
+        let new_block = req_block("localhost:8080", block_key).await.unwrap();
+        let new_block_hash = sha256_hash_rlp(&new_block);
+        assert_eq!(new_block_hash, block_hash);
+    }
+
+    #[allow(clippy::unwrap_used)]
+    #[tokio::test]
+    async fn test_set_test_tips() {
+        tokio::spawn(async {
+            crate::api::serve().await.unwrap();
+        });
+        let key = u32_to_block_key(2);
+        set_test_tips(vec![key]).unwrap();
+        let tips = req_tips("localhost:8080").await.unwrap();
+        assert_eq!(tips.len(), 1);
+        assert_eq!(tips[0], key);
+    }
+}
+

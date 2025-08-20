@@ -7,7 +7,7 @@ use mvm::core::{
     merkle_tree::MerkleTree,
     vm::{Mvm, NOW_BLOCK_ACTION_DO, NOW_BLOCK_ACTION_ROLLBACK},
 };
-use std::{path::Path, sync::Mutex, time::Duration};
+use std::{sync::Mutex, time::Duration};
 
 lazy_static::lazy_static! {
     static ref MVM_STORAGE: Mutex<Mvm<RocksDbStorage>> = Mutex::new(get_mvm_storage());
@@ -42,6 +42,7 @@ pub fn mvm_process_block() -> anyhow::Result<()> {
             .with_context(|| "Failed to get block")?
             .ok_or_else(|| anyhow::anyhow!("Block not found"))?;
         next_key = block.inner.header.part_sort_header.head_key;
+        info!("try move mvm to next key: {} -> {}", now_key, next_key);
         move_mvm_to_next_key(now_key, next_key)?;
         info!("move mvm to next key: {} -> {}", now_key, next_key);
         now_key = next_key;
@@ -80,7 +81,7 @@ impl MvmMoveNode {
         })
     }
 
-    fn to_head(&mut self) -> anyhow::Result<()> {
+    fn move_to_head(&mut self) -> anyhow::Result<()> {
         let head_block =
             get_block(&self.head_key)?.ok_or_else(|| anyhow::anyhow!("Block not found"))?;
         self.key = self.head_key;
@@ -105,9 +106,9 @@ fn move_mvm_to_next_key(now_key: BlockKey, next_key: BlockKey) -> anyhow::Result
     let mut next_node = MvmMoveNode::new(next_key)?;
     while now_node.head_key != next_node.head_key {
         if now_node.head_size > next_node.head_size {
-            now_node.to_head()?;
+            now_node.move_to_head()?;
         } else {
-            next_node.to_head()?;
+            next_node.move_to_head()?;
         }
     }
 
@@ -136,7 +137,9 @@ fn move_mvm_to_next_key(now_key: BlockKey, next_key: BlockKey) -> anyhow::Result
 }
 
 fn get_mvm_now_key() -> anyhow::Result<BlockKey> {
-    let mut mvm_storage = MVM_STORAGE.lock().unwrap();
+    let mut mvm_storage = MVM_STORAGE
+        .lock()
+        .map_err(|e| anyhow::anyhow!("Failed to lock mvm storage: {}", e))?;
     let now_key = mvm_storage
         .get_now_block_key()
         .with_context(|| "Failed to get now block key")?;
@@ -172,29 +175,12 @@ fn get_mvm_now_key() -> anyhow::Result<BlockKey> {
 #[allow(clippy::unwrap_used)]
 fn get_mvm_storage() -> Mvm<RocksDbStorage> {
     let path = get_mvm_db_path().unwrap();
-    get_mvm_storage_inner(&path, false).unwrap()
-}
-
-fn get_mvm_storage_inner(path: &str, need_reset: bool) -> anyhow::Result<Mvm<RocksDbStorage>> {
-    if need_reset {
-        std::fs::remove_dir_all(&path)?;
-    }
-    {
-        let path = Path::new(path);
-        if !path.exists() {
-            std::fs::create_dir_all(path)?;
-        }
-    }
-
     let merkle_path = format!("{}/merkle", path);
     let account_path = format!("{}/account", path);
     let state_path = format!("{}/state", path);
-    let merkle_tree_db =
-        RocksDbStorage::new(&merkle_path).with_context(|| "Failed to create merkle tree db")?;
-    let merkle_tree =
-        MerkleTree::new(merkle_tree_db).with_context(|| "Failed to create merkle tree")?;
-    let account_db =
-        RocksDbStorage::new(&account_path).with_context(|| "Failed to create account db")?;
-    let state_db = RocksDbStorage::new(&state_path).with_context(|| "Failed to create state db")?;
-    Ok(Mvm::new(account_db, merkle_tree, state_db))
+    let merkle_tree_db = RocksDbStorage::new(&merkle_path).unwrap();
+    let merkle_tree = MerkleTree::new(merkle_tree_db).unwrap();
+    let account_db = RocksDbStorage::new(&account_path).unwrap();
+    let state_db = RocksDbStorage::new(&state_path).unwrap();
+    Mvm::new(account_db, merkle_tree, state_db)
 }

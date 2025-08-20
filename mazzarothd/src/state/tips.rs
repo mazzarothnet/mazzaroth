@@ -167,6 +167,29 @@ fn save_block_and_update_tips(block: &Block) -> anyhow::Result<()> {
     set_block(&block.key, block)
 }
 
+pub fn gen_test_block(key: u32, parent_keys: &HashSet<u32>) -> Block {
+    let mut header = ConsensusHeader::default();
+    header.part_sort_header.parent_keys =
+        parent_keys.iter().map(|k| u32_to_block_key(*k)).collect();
+    Block {
+        key: u32_to_block_key(key),
+        nonce: 0,
+        inner: BlockInner {
+            version: 0,
+            header,
+            transfers: vec![],
+            merges: vec![],
+            miner: AccountKey::default(),
+            miner_last_action_hash: Hash::default(),
+        },
+    }
+}
+
+pub fn u32_to_block_key(key: u32) -> BlockKey {
+    BlockKey(U256::from_u32(key))
+}
+
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -211,26 +234,4 @@ mod tests {
         let block_db = block_db.lock().unwrap();
         assert_eq!(block_db.len(), block_size);
     }
-}
-
-pub fn gen_test_block(key: u32, parent_keys: &HashSet<u32>) -> Block {
-    let mut header = ConsensusHeader::default();
-    header.part_sort_header.parent_keys =
-        parent_keys.iter().map(|k| u32_to_block_key(*k)).collect();
-    Block {
-        key: u32_to_block_key(key),
-        nonce: 0,
-        inner: BlockInner {
-            version: 0,
-            header,
-            transfers: vec![],
-            merges: vec![],
-            miner: AccountKey::default(),
-            miner_last_action_hash: Hash::default(),
-        },
-    }
-}
-
-pub fn u32_to_block_key(key: u32) -> BlockKey {
-    BlockKey(U256::from_u32(key))
 }
