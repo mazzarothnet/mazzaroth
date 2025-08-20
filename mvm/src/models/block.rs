@@ -13,7 +13,7 @@ pub struct Block {
     pub inner: BlockInner,
 }
 
-#[derive(Debug, Serialize, Deserialize, RlpEncodable, RlpDecodable, Clone)]
+#[derive(Debug, Serialize, Deserialize, RlpEncodable, RlpDecodable, Clone, Default)]
 pub struct BlockInner {
     pub version: u32,
     pub header: ConsensusHeader,

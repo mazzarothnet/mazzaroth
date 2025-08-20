@@ -1,9 +1,8 @@
 use crate::state::app_data::get_block_db_path;
 use consensus::{
-    block_header::{ConsensusHeader, MAX_TARGET, PowHeader},
-    part_sort_header::gen_part_sort_block,
+    block_header::{ConsensusHeader, PowHeader, gen_consensus_header},
     traits::{ConsensusHeaderStorage, GENESIS_BLOCK_KEY, PartSortHeader},
-    types::{AccountKey, BlockKey, DagWork, Hash},
+    types::{BlockKey, DagWork},
 };
 use crypto_bigint::U256;
 use database::rocksdb_no_batch::RocksDbStorage;
@@ -39,11 +38,14 @@ pub fn has_block(block_key: &BlockKey) -> anyhow::Result<bool> {
     block_storage.has_block(block_key)
 }
 
-pub fn get_part_sort_header(parent_keys: &[BlockKey]) -> utils::error::Result<PartSortHeader> {
+pub fn gen_consensus_header_with_global_storage(
+    parent_keys: &[BlockKey],
+    now_timestamp_ms: u64,
+) -> utils::error::Result<ConsensusHeader> {
     let block_storage = BLOCK_STORAGE
         .lock()
         .map_err(|e| anyhow::anyhow!("Failed to lock block storage: {}", e))?;
-    gen_part_sort_block(&*block_storage, parent_keys)
+    gen_consensus_header(&*block_storage, parent_keys, now_timestamp_ms)
 }
 
 struct BlockStorage {
@@ -95,20 +97,11 @@ fn get_genesis_block() -> Block {
                 part_sort_header: PartSortHeader {
                     head_key: BlockKey::from(GENESIS_BLOCK_KEY),
                     dag_work: DagWork::from(U256::ZERO),
-                    size: 0,
-                    parent_keys: vec![],
-                    part_sort: vec![],
+                    ..Default::default()
                 },
-                pow_header: PowHeader {
-                    target: MAX_TARGET,
-                    target_timestamp_ms: 0,
-                    now_timestamp_ms: 0,
-                },
+                pow_header: PowHeader::default(),
             },
-            transfers: vec![],
-            merges: vec![],
-            miner: AccountKey::default(),
-            miner_last_action_hash: Hash::default(),
+            ..Default::default()
         },
     }
 }

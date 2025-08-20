@@ -1,23 +1,29 @@
+use crate::traits::ConsensusHeaderStorage;
 use crate::{POW_TARGET_INTERVAL_MS, POW_TARGET_SIZE, traits::PartSortHeader, types::BlockKey};
 use alloy_rlp::{RlpDecodable, RlpEncodable};
 use crypto_bigint::U256;
 use serde::{Deserialize, Serialize};
+use utils::error::Error;
+use utils::error::Result;
 
 pub const MAX_TARGET: BlockKey = BlockKey(U256::from_be_hex(
     "00000fffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
 ));
 
-#[derive(Clone, Serialize, Deserialize, RlpDecodable, RlpEncodable, Debug, Default)]
+#[derive(
+    Clone, Serialize, Deserialize, RlpDecodable, RlpEncodable, Debug, Default, PartialEq, Eq,
+)]
 pub struct ConsensusHeader {
     pub part_sort_header: PartSortHeader,
     pub pow_header: PowHeader,
 }
 
-#[derive(Clone, Serialize, Deserialize, RlpDecodable, RlpEncodable, Debug)]
+#[derive(Clone, Serialize, Deserialize, RlpDecodable, RlpEncodable, Debug, PartialEq, Eq)]
 pub struct PowHeader {
     pub target: BlockKey,
     pub target_timestamp_ms: u64,
     pub now_timestamp_ms: u64,
+    pub head_timestamp_ms: u64,
 }
 
 impl Default for PowHeader {
@@ -26,8 +32,33 @@ impl Default for PowHeader {
             target: MAX_TARGET,
             target_timestamp_ms: 0,
             now_timestamp_ms: 0,
+            head_timestamp_ms: 0,
         }
     }
+}
+
+pub fn gen_consensus_header<S: ConsensusHeaderStorage>(
+    storage: &S,
+    parent_keys: &[BlockKey],
+    now_timestamp_ms: u64,
+) -> Result<ConsensusHeader> {
+    let part_sort_header = crate::part_sort_header::gen_part_sort_block(storage, parent_keys)?;
+    let head_block_header = storage.get_consensus_header(&part_sort_header.head_key)?;
+    let pow_header = gen_pow_header(
+        &head_block_header.pow_header,
+        head_block_header.part_sort_header.size,
+        part_sort_header.size,
+        now_timestamp_ms,
+    );
+    if pow_header.now_timestamp_ms > now_timestamp_ms {
+        return Err(Error::Custom {
+            message: "pow_header.now_timestamp_ms is greater than now_timestamp_ms".to_string(),
+        });
+    }
+    Ok(ConsensusHeader {
+        part_sort_header,
+        pow_header,
+    })
 }
 
 pub fn gen_pow_header(
@@ -36,11 +67,13 @@ pub fn gen_pow_header(
     now_size: u64,
     now_timestamp_ms: u64,
 ) -> PowHeader {
+    let head_timestamp_ms = head_block_pow_header.now_timestamp_ms;
     if now_size / POW_TARGET_SIZE == head_size / POW_TARGET_SIZE {
         return PowHeader {
             target: head_block_pow_header.target,
             target_timestamp_ms: head_block_pow_header.target_timestamp_ms,
             now_timestamp_ms,
+            head_timestamp_ms,
         };
     }
     let cast_time_ms = now_timestamp_ms - head_block_pow_header.target_timestamp_ms;
@@ -56,6 +89,7 @@ pub fn gen_pow_header(
         target: new_target,
         target_timestamp_ms: now_timestamp_ms,
         now_timestamp_ms,
+        head_timestamp_ms,
     }
 }
 

@@ -13,7 +13,10 @@ use consensus::{
 };
 use crypto_bigint::U256;
 use log::info;
-use std::collections::{BTreeMap, BTreeSet, VecDeque};
+use std::{
+    collections::{BTreeMap, BTreeSet, VecDeque},
+    path::Path,
+};
 use utils::file::write_to_json;
 
 fn dag_work_to_u64(dag_work: DagWork) -> u64 {
@@ -28,7 +31,10 @@ pub fn run_sim(
     block_per_step: f64,
     rng: &mut rand::rngs::StdRng,
 ) {
-    std::fs::remove_dir_all(db_path).unwrap();
+    let db_path_p = Path::new(db_path);
+    if db_path_p.exists() {
+        std::fs::remove_dir_all(db_path).unwrap();
+    }
     let mut storage = SimConsensusHeaderStorage::new(db_path);
     let miners = gen_sim_minner_list(miner_num, rng);
     let mut tips = BTreeSet::new();
@@ -91,8 +97,7 @@ pub fn run_sim(
                 part_sort_header: part_sort_header.clone(),
                 pow_header: PowHeader {
                     target: BlockKey::from(U256::MAX),
-                    target_timestamp_ms: 0,
-                    now_timestamp_ms: 0,
+                    ..Default::default()
                 },
             },
         };

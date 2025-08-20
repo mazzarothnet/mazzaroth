@@ -1,8 +1,5 @@
-use crate::state::block_storage::{get_block, get_part_sort_header};
-use consensus::{
-    block_header::{MAX_TARGET, gen_pow_header},
-    types::BlockKey,
-};
+use crate::state::block_storage::gen_consensus_header_with_global_storage;
+use consensus::{block_header::MAX_TARGET, types::BlockKey};
 use crypto_bigint::U256;
 use mining::sha256_mining::gen_sha256_by_block_hash_and_nonce;
 use mvm::models::block::Block;
@@ -37,34 +34,16 @@ pub fn normal_check_block_format(block: &Block) -> anyhow::Result<()> {
 }
 
 pub fn save_block_check(block: &Block) -> anyhow::Result<()> {
-    let part_sort_header = get_part_sort_header(&block.inner.header.part_sort_header.parent_keys)?;
-    if part_sort_header != block.inner.header.part_sort_header {
-        return Err(anyhow::anyhow!(
-            "part_sort_header is not equal to block.inner.header.part_sort_header"
-        ));
-    }
-    let head_block_header = get_block(&block.inner.header.part_sort_header.head_key)?
-        .ok_or_else(|| anyhow::anyhow!("head_key not found"))?
-        .inner
-        .header;
-    if block.inner.header.pow_header.now_timestamp_ms
-        < head_block_header.pow_header.now_timestamp_ms
-    {
-        return Err(anyhow::anyhow!(
-            "block.inner.header.pow_header.now_timestamp_ms is less than head_block_header.pow_header.now_timestamp_ms"
-        ));
-    }
-    let pow_header = gen_pow_header(
-        &head_block_header.pow_header,
-        head_block_header.part_sort_header.size,
-        block.inner.header.part_sort_header.size,
+    let consensus_header = gen_consensus_header_with_global_storage(
+        &block.inner.header.part_sort_header.parent_keys,
         block.inner.header.pow_header.now_timestamp_ms,
-    );
-    if pow_header.target != block.inner.header.pow_header.target {
+    )?;
+    if consensus_header != block.inner.header {
         return Err(anyhow::anyhow!(
-            "pow_header.target is not equal to block.inner.header.pow_header.target"
+            "consensus_header is not equal to block.inner.header"
         ));
     }
+
     Ok(())
 }
 
