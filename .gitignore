@@ -16,3 +16,4 @@ test_block
 /mazzarothd/mazzaroth_data
 /mazzarothd/test_get_block_api
 /mazzarothd/test_set_test_tips
+/mazzarothd/test_mvm_move_path

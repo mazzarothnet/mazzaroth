@@ -99,12 +99,12 @@ impl MvmMoveNode {
     }
 }
 
-struct MvmMovePath {
-    now_to_head_path: Vec<BlockKey>,
-    next_to_head_path: Vec<BlockKey>,
+pub struct MvmMovePath {
+    pub now_to_head_path: Vec<BlockKey>,
+    pub next_to_head_path: Vec<BlockKey>,
 }
 
-fn get_mvm_move_path(now_key: BlockKey, next_key: BlockKey) -> anyhow::Result<MvmMovePath> {
+pub fn get_mvm_move_path(now_key: BlockKey, next_key: BlockKey) -> anyhow::Result<MvmMovePath> {
     let mut now_node = MvmMoveNode::new(now_key)?;
     let mut next_node = MvmMoveNode::new(next_key)?;
     while now_node.head_key != next_node.head_key {

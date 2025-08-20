@@ -189,6 +189,9 @@ pub fn u32_to_block_key(key: u32) -> BlockKey {
     BlockKey(U256::from_u32(key))
 }
 
+pub fn block_key_to_u32(key: BlockKey) -> u32 {
+    key.0.to_limbs()[0].0 as u32
+}
 
 #[cfg(test)]
 mod tests {
