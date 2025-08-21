@@ -3,7 +3,7 @@ use consensus::{traits::GENESIS_BLOCK_KEY, types::BlockKey};
 use mazzarothd::{
     api::spawn_api_thread,
     network::{gossip::spawn_gossip_thread, sync_block::sync_block},
-    state::{mvm::spawn_mvm_thread, mz_state::get_mz_state, tips::force_set_tips},
+    state::{mvm::spawn_mvm_thread, mz_state::get_mz_state, tips::force_insert_tips},
 };
 //use mazzarothd::state::{block_storage::get_block, tips::u32_to_block_key};
 use utils::log::init_log;
@@ -20,7 +20,7 @@ async fn main() {
     if let Some(host) = mz_state.config.block_sync_host.as_ref() {
         sync_block(&mz_state, host).await.unwrap();
     } else {
-        force_set_tips(vec![BlockKey(GENESIS_BLOCK_KEY)], &mz_state).unwrap();
+        force_insert_tips(vec![BlockKey(GENESIS_BLOCK_KEY)], &mz_state).unwrap();
     }
     spawn_mvm_thread(mz_state.clone());
 

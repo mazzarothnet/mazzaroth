@@ -60,12 +60,11 @@ pub fn get_tips(mz_state: &MzState) -> anyhow::Result<BTreeSet<BlockKey>> {
     Ok(tips)
 }
 
-pub fn force_set_tips(tips: Vec<BlockKey>, mz_state: &MzState) -> anyhow::Result<()> {
+pub fn force_insert_tips(tips: Vec<BlockKey>, mz_state: &MzState) -> anyhow::Result<()> {
     let mut tips_map = mz_state
         .tips
         .lock()
-        .map_err(|e| anyhow::anyhow!("set_test_tips Failed to lock tips: {}", e))?;
-    tips_map.clear();
+        .map_err(|e| anyhow::anyhow!("force_insert_tips Failed to lock tips: {}", e))?;
     for tip in tips {
         tips_map.insert(tip, get_current_time_ms());
     }

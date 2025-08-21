@@ -50,7 +50,7 @@ mod tests {
         state::{
             block_storage::set_block,
             mz_state::{clear_path, get_mz_state},
-            tips::{force_set_tips, gen_test_block, u32_to_block_key},
+            tips::{force_insert_tips, gen_test_block, u32_to_block_key},
         },
     };
     use std::collections::HashSet;
@@ -85,7 +85,7 @@ mod tests {
         spawn_api_thread(mz_state.clone(), 8082);
         // tokio::time::sleep(std::time::Duration::from_secs(10)).await;
         let key = u32_to_block_key(2);
-        force_set_tips(vec![key], &mz_state).unwrap();
+        force_insert_tips(vec![key], &mz_state).unwrap();
         let tips = req_tips("localhost:8082").await.unwrap();
         assert_eq!(tips.len(), 1);
         assert_eq!(tips[0], key);
