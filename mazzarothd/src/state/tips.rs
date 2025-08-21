@@ -1,6 +1,7 @@
 use crate::state::{
     block_check::{normal_check_block_format, save_block_check},
-    block_storage::{has_block, set_block},
+    block_storage::{BlockStorage, has_block, set_block},
+    mz_state::MzState,
 };
 use consensus::types::BlockKey;
 use consensus::{
@@ -13,33 +14,26 @@ use mvm::models::block::Block;
 use mvm::models::block::BlockInner;
 use std::{
     collections::{BTreeMap, BTreeSet, HashSet},
-    sync::Mutex,
+    sync::{Arc, Mutex},
 };
 use utils::time::get_current_time_ms;
 
-lazy_static::lazy_static! {
-    static ref TIPS: Mutex<BTreeMap<BlockKey, u64>> = Mutex::new(BTreeMap::new());
-    static ref TEMP_BLOCKS: Mutex<TempBlock> = Mutex::new(TempBlock::new(Box::new(|block| {
-        has_block(block)
-    })));
-}
-
-type CheckBlockExistFn = Box<dyn Fn(&BlockKey) -> anyhow::Result<bool> + Send + Sync>;
 const TIPS_EXPIRE_MS: u64 = 1000 * 30; // tips expire time 30s
 
 // about check
-pub fn push_block(block: Block) -> anyhow::Result<()> {
-    if has_block(&block.key)? {
+pub fn push_block(block: Block, mz_state: &MzState) -> anyhow::Result<()> {
+    if has_block(&mz_state.block_storage, &block.key)? {
         return Ok(());
     }
     normal_check_block_format(&block)?;
 
-    let mut temp_blocks = TEMP_BLOCKS
+    let mut temp_blocks = mz_state
+        .temp_blocks
         .lock()
         .map_err(|e| anyhow::anyhow!("push_block Failed to lock temp_blocks: {}", e))?;
     temp_blocks.push_block(block)?;
     while let Some(block) = temp_blocks.pop_block() {
-        if let Err(e) = save_block_and_update_tips(&block) {
+        if let Err(e) = save_block_and_update_tips(&block, mz_state) {
             info!(
                 "push_block, save_block_and_update_tips key: {:?}, error: {:?}",
                 block.key, e
@@ -55,8 +49,9 @@ pub fn push_block(block: Block) -> anyhow::Result<()> {
     Ok(())
 }
 
-pub fn get_tips() -> anyhow::Result<BTreeSet<BlockKey>> {
-    let tips = TIPS
+pub fn get_tips(mz_state: &MzState) -> anyhow::Result<BTreeSet<BlockKey>> {
+    let tips = mz_state
+        .tips
         .lock()
         .map_err(|e| anyhow::anyhow!("get_tips Failed to lock tips: {}", e))?
         .keys()
@@ -65,8 +60,9 @@ pub fn get_tips() -> anyhow::Result<BTreeSet<BlockKey>> {
     Ok(tips)
 }
 
-pub fn set_test_tips(tips: Vec<BlockKey>) -> anyhow::Result<()> {
-    let mut tips_map = TIPS
+pub fn set_test_tips(tips: Vec<BlockKey>, mz_state: &MzState) -> anyhow::Result<()> {
+    let mut tips_map = mz_state
+        .tips
         .lock()
         .map_err(|e| anyhow::anyhow!("set_test_tips Failed to lock tips: {}", e))?;
     tips_map.clear();
@@ -76,8 +72,11 @@ pub fn set_test_tips(tips: Vec<BlockKey>) -> anyhow::Result<()> {
     Ok(())
 }
 
-pub fn get_temp_blocks() -> anyhow::Result<BTreeMap<BlockKey, (Block, BTreeSet<BlockKey>)>> {
-    let temp_blocks = TEMP_BLOCKS
+pub fn get_temp_blocks(
+    mz_state: &MzState,
+) -> anyhow::Result<BTreeMap<BlockKey, (Block, BTreeSet<BlockKey>)>> {
+    let temp_blocks = mz_state
+        .temp_blocks
         .lock()
         .map_err(|e| anyhow::anyhow!("get_temp_blocks Failed to lock temp_blocks: {}", e))?
         .temp_blocks
@@ -85,20 +84,20 @@ pub fn get_temp_blocks() -> anyhow::Result<BTreeMap<BlockKey, (Block, BTreeSet<B
     Ok(temp_blocks)
 }
 
-struct TempBlock {
-    unknown_keys: BTreeMap<BlockKey, Vec<BlockKey>>,
-    temp_blocks: BTreeMap<BlockKey, (Block, BTreeSet<BlockKey>)>,
-    ready_pop: BTreeMap<BlockKey, Block>,
-    check_block_fn: CheckBlockExistFn,
+pub struct TempBlock {
+    pub unknown_keys: BTreeMap<BlockKey, Vec<BlockKey>>,
+    pub temp_blocks: BTreeMap<BlockKey, (Block, BTreeSet<BlockKey>)>,
+    pub ready_pop: BTreeMap<BlockKey, Block>,
+    pub block_storage: Arc<Mutex<BlockStorage>>,
 }
 
 impl TempBlock {
-    fn new(check_block_fn: CheckBlockExistFn) -> Self {
+    pub fn new(block_storage: Arc<Mutex<BlockStorage>>) -> Self {
         Self {
             unknown_keys: BTreeMap::new(),
             temp_blocks: BTreeMap::new(),
             ready_pop: BTreeMap::new(),
-            check_block_fn,
+            block_storage,
         }
     }
 }
@@ -107,7 +106,7 @@ impl TempBlock {
     fn push_block(&mut self, block: Block) -> anyhow::Result<()> {
         let mut now_block_unknown_keys = BTreeSet::new();
         for parent in block.inner.header.part_sort_header.parent_keys.iter() {
-            if self.unknown_keys.contains_key(parent) || !(self.check_block_fn)(parent)? {
+            if self.unknown_keys.contains_key(parent) || !has_block(&self.block_storage, parent)? {
                 let entry = self
                     .unknown_keys
                     .entry(*parent)
@@ -151,11 +150,11 @@ impl TempBlock {
 }
 
 // about tips and save block to db
-fn save_block_and_update_tips(block: &Block) -> anyhow::Result<()> {
-    save_block_check(block)?;
+fn save_block_and_update_tips(block: &Block, mz_state: &MzState) -> anyhow::Result<()> {
+    save_block_check(&mz_state.block_storage, block)?;
     {
         let now = get_current_time_ms();
-        let mut tips = TIPS.lock().map_err(|e| {
+        let mut tips = mz_state.tips.lock().map_err(|e| {
             anyhow::anyhow!("save_block_and_update_tips Failed to lock tips: {}", e)
         })?;
         for parent in block.inner.header.part_sort_header.parent_keys.iter() {
@@ -164,7 +163,7 @@ fn save_block_and_update_tips(block: &Block) -> anyhow::Result<()> {
         tips.retain(|_, &mut timestamp| now - timestamp < TIPS_EXPIRE_MS);
         tips.insert(block.key, now);
     }
-    set_block(&block.key, block)
+    set_block(&mz_state.block_storage, &block.key, block)
 }
 
 pub fn gen_test_block(key: u32, parent_keys: &HashSet<u32>) -> Block {
@@ -196,20 +195,15 @@ pub fn block_key_to_u32(key: BlockKey) -> u32 {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::state::mz_state::get_mz_state;
     use rand::{Rng, SeedableRng, seq::SliceRandom};
     use std::collections::HashSet;
-    use std::sync::Arc;
 
     #[allow(clippy::unwrap_used)]
     #[test]
     fn test_push_block() {
-        let block_db: Arc<Mutex<BTreeMap<BlockKey, Block>>> = Arc::new(Mutex::new(BTreeMap::new()));
-        let block_db_clone = block_db.clone();
-        let mut temp_blocks = TempBlock::new(Box::new(move |block_key| {
-            let block_db = block_db_clone.lock().unwrap();
-            Ok(block_db.contains_key(block_key))
-        }));
-
+        let mz_state = get_mz_state("test_push_block").unwrap();
+        let mut temp_blocks = mz_state.temp_blocks.lock().unwrap();
         let block_size: usize = 1210;
         let mut real_blocks: Vec<Block> = Vec::new();
         let mut rng = rand::rngs::StdRng::seed_from_u64(121234);
@@ -227,14 +221,14 @@ mod tests {
             real_blocks.push(block);
         }
         real_blocks.shuffle(&mut rng);
+        let mut block_db_len = 0;
         for block in real_blocks {
             temp_blocks.push_block(block).unwrap();
             while let Some(block) = temp_blocks.pop_block() {
-                let mut block_db = block_db.lock().unwrap();
-                block_db.insert(block.key, block);
+                block_db_len += 1;
+                set_block(&mz_state.block_storage, &block.key, &block).unwrap();
             }
         }
-        let block_db = block_db.lock().unwrap();
-        assert_eq!(block_db.len(), block_size);
+        assert_eq!(block_db_len, block_size);
     }
 }

@@ -1,3 +1,4 @@
+use crate::state::{mz_state::MzState, tips::push_block};
 use alloy_rlp::{Decodable, Encodable};
 use anyhow::Context;
 use futures::stream::StreamExt;
@@ -16,8 +17,6 @@ use std::{
 use tokio::{io, io::AsyncBufReadExt, select, sync::mpsc};
 use utils::time::get_current_time_ms;
 
-use crate::{config::CFG, state::tips::push_block};
-
 #[derive(NetworkBehaviour)]
 struct MBehaviour {
     gossipsub: gossipsub::Behaviour,
@@ -25,7 +24,7 @@ struct MBehaviour {
 
 // todo: check block pow and expired
 #[allow(clippy::unwrap_used)]
-pub async fn spawn_gossip_thread() -> mpsc::Sender<Block> {
+pub async fn spawn_gossip_thread(mz_state: MzState) -> mpsc::Sender<Block> {
     let mut swarm = libp2p::SwarmBuilder::with_new_identity()
         .with_tokio()
         .with_tcp(
@@ -80,8 +79,10 @@ pub async fn spawn_gossip_thread() -> mpsc::Sender<Block> {
         .subscribe(&block_topic)
         .unwrap();
 
-    if let (Some(addr), Some(peer_id)) = (CFG.bootstrap_addr.clone(), CFG.bootstrap_peer_id.clone())
-    {
+    if let (Some(addr), Some(peer_id)) = (
+        mz_state.config.bootstrap_addr.clone(),
+        mz_state.config.bootstrap_peer_id.clone(),
+    ) {
         let bootstrap_addr: Multiaddr = addr.parse().unwrap();
         let bootstrap_peer_id = peer_id.parse().unwrap();
         swarm.dial(bootstrap_addr).unwrap();
@@ -92,11 +93,11 @@ pub async fn spawn_gossip_thread() -> mpsc::Sender<Block> {
     }
 
     // 监听地址（引导节点用固定地址，普通节点用动态地址）
-    let listen_addr = format!("/ip6/::/tcp/{}", CFG.gossip_tcp_port)
+    let listen_addr = format!("/ip6/::/tcp/{}", mz_state.config.gossip_tcp_port)
         .parse::<Multiaddr>()
         .unwrap();
     swarm.listen_on(listen_addr).unwrap();
-    let quic_listen_addr = format!("/ip6/::/udp/{}/quic-v1", CFG.gossip_udp_port)
+    let quic_listen_addr = format!("/ip6/::/udp/{}/quic-v1", mz_state.config.gossip_udp_port)
         .parse::<Multiaddr>()
         .unwrap();
     swarm.listen_on(quic_listen_addr).unwrap();
@@ -137,7 +138,7 @@ pub async fn spawn_gossip_thread() -> mpsc::Sender<Block> {
                             );
                         }
                         if message.topic == block_topic_hash {
-                            if let Err(e) = process_block(&message.data) {
+                            if let Err(e) = process_block(&message.data, &mz_state) {
                                 info!("Process block error: {e:?}");
                             }
                         }
@@ -162,7 +163,7 @@ pub async fn spawn_gossip_thread() -> mpsc::Sender<Block> {
     tx
 }
 
-fn process_block(mut block_bytes: &[u8]) -> anyhow::Result<()> {
+fn process_block(mut block_bytes: &[u8], mz_state: &MzState) -> anyhow::Result<()> {
     let block: Block =
         Decodable::decode(&mut block_bytes).with_context(|| "Failed to decode block")?;
     let now = get_current_time_ms();
@@ -172,7 +173,7 @@ fn process_block(mut block_bytes: &[u8]) -> anyhow::Result<()> {
             block.inner.header.pow_header.now_timestamp_ms
         ));
     }
-    push_block(block).with_context(|| "Failed to push block")?;
+    push_block(block, mz_state).with_context(|| "Failed to push block")?;
 
     Ok(())
 }

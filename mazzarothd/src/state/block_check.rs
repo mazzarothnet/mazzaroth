@@ -1,9 +1,12 @@
-use crate::state::block_storage::gen_consensus_header_with_global_storage;
+use crate::state::block_storage::{BlockStorage, gen_consensus_header_with_global_storage};
 use consensus::{block_header::MAX_TARGET, types::BlockKey};
 use crypto_bigint::U256;
 use mining::sha256_mining::gen_sha256_by_block_hash_and_nonce;
 use mvm::models::block::Block;
-use std::collections::HashSet;
+use std::{
+    collections::HashSet,
+    sync::{Arc, Mutex},
+};
 use utils::sha256::sha256_hash_rlp;
 
 // not check timestamp because fn will be used in sync history block
@@ -33,8 +36,12 @@ pub fn normal_check_block_format(block: &Block) -> anyhow::Result<()> {
     Ok(())
 }
 
-pub fn save_block_check(block: &Block) -> anyhow::Result<()> {
+pub fn save_block_check(
+    block_storage_arc: &Arc<Mutex<BlockStorage>>,
+    block: &Block,
+) -> anyhow::Result<()> {
     let consensus_header = gen_consensus_header_with_global_storage(
+        block_storage_arc,
         &block.inner.header.part_sort_header.parent_keys,
         block.inner.header.pow_header.now_timestamp_ms,
     )?;

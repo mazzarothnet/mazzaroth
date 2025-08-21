@@ -31,6 +31,9 @@ pub async fn req_block(host: &str, block_key: BlockKey) -> anyhow::Result<Block>
         .bytes()
         .await
         .with_context(|| format!("Failed to get block bytes from {}", url))?;
+    // if block_bytes.len() < 1000 {
+    //     panic!("block_bytes.len() < 1000");
+    // }
     let block = Block::decode(&mut block_bytes.as_ref())
         .with_context(|| format!("Failed to decode block from {}", url))?;
     Ok(block)

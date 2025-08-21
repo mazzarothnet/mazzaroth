@@ -1,12 +1,6 @@
 use anyhow::Context;
 use serde::{Deserialize, Serialize};
 use std::path::Path;
-use std::sync::LazyLock;
-
-use crate::state::app_data::get_config_path;
-
-#[allow(clippy::expect_used)]
-pub static CFG: LazyLock<Config> = LazyLock::new(|| Config::init().expect("Failed to init config"));
 
 // todo: merge old version config
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -39,15 +33,13 @@ impl Default for Config {
 }
 
 impl Config {
-    pub fn init() -> anyhow::Result<Self> {
-        let config_path = get_config_path().with_context(|| "Failed to get config path")?;
+    pub fn init(config_path: &str) -> anyhow::Result<Self> {
         if !Path::new(&config_path).exists() {
-            Self::save_init_config(&config_path).with_context(|| "Failed to save init config")?;
+            Self::save_init_config(config_path).with_context(|| "Failed to save init config")?;
         }
 
         let config = toml::from_str(
-            &std::fs::read_to_string(config_path.clone())
-                .with_context(|| "Failed to read config file")?,
+            &std::fs::read_to_string(config_path).with_context(|| "Failed to read config file")?,
         )
         .with_context(|| format!("Failed to deserialize config: {}", config_path))?;
 

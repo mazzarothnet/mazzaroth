@@ -1,4 +1,3 @@
-use crate::state::app_data::get_block_db_path;
 use consensus::{
     block_header::{ConsensusHeader, PowHeader, gen_consensus_header},
     traits::{ConsensusHeaderStorage, GENESIS_BLOCK_KEY, PartSortHeader},
@@ -10,45 +9,52 @@ use mvm::{
     core::storage::DbStorage,
     models::block::{Block, BlockInner},
 };
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 use utils::error::{Error, Result};
 
-lazy_static::lazy_static! {
-    static ref BLOCK_STORAGE: Mutex<BlockStorage> = Mutex::new(get_block_storage());
-}
-
-pub fn get_block(block_key: &BlockKey) -> anyhow::Result<Option<Block>> {
-    let block_storage = BLOCK_STORAGE
+pub fn get_block(
+    block_storage_arc: &Arc<Mutex<BlockStorage>>,
+    block_key: &BlockKey,
+) -> anyhow::Result<Option<Block>> {
+    let block_storage = block_storage_arc
         .lock()
         .map_err(|e| anyhow::anyhow!("Failed to lock block storage: {}", e))?;
     block_storage.get_block(block_key)
 }
 
-pub fn set_block(block_key: &BlockKey, block: &Block) -> anyhow::Result<()> {
-    let block_storage = BLOCK_STORAGE
+pub fn set_block(
+    block_storage_arc: &Arc<Mutex<BlockStorage>>,
+    block_key: &BlockKey,
+    block: &Block,
+) -> anyhow::Result<()> {
+    let block_storage = block_storage_arc
         .lock()
         .map_err(|e| anyhow::anyhow!("Failed to lock block storage: {}", e))?;
     block_storage.set_block(block_key, block)
 }
 
-pub fn has_block(block_key: &BlockKey) -> anyhow::Result<bool> {
-    let block_storage = BLOCK_STORAGE
+pub fn has_block(
+    block_storage_arc: &Arc<Mutex<BlockStorage>>,
+    block_key: &BlockKey,
+) -> anyhow::Result<bool> {
+    let block_storage = block_storage_arc
         .lock()
         .map_err(|e| anyhow::anyhow!("Failed to lock block storage: {}", e))?;
     block_storage.has_block(block_key)
 }
 
 pub fn gen_consensus_header_with_global_storage(
+    block_storage_arc: &Arc<Mutex<BlockStorage>>,
     parent_keys: &[BlockKey],
     now_timestamp_ms: u64,
 ) -> utils::error::Result<ConsensusHeader> {
-    let block_storage = BLOCK_STORAGE
+    let block_storage = block_storage_arc
         .lock()
         .map_err(|e| anyhow::anyhow!("Failed to lock block storage: {}", e))?;
     gen_consensus_header(&*block_storage, parent_keys, now_timestamp_ms)
 }
 
-struct BlockStorage {
+pub struct BlockStorage {
     db: RocksDbStorage,
 }
 
@@ -106,7 +112,6 @@ fn get_genesis_block() -> Block {
     }
 }
 
-#[allow(clippy::unwrap_used)]
-fn get_block_storage() -> BlockStorage {
-    BlockStorage::new(&get_block_db_path().unwrap()).unwrap()
+pub fn get_block_storage(path: &str) -> anyhow::Result<BlockStorage> {
+    BlockStorage::new(path)
 }

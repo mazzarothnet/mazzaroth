@@ -1,4 +1,8 @@
-use crate::state::{app_data::get_mvm_db_path, block_storage::get_block, tips::get_tips};
+use crate::state::{
+    block_storage::{BlockStorage, get_block},
+    mz_state::MzState,
+    tips::get_tips,
+};
 use anyhow::Context;
 use consensus::{traits::GENESIS_BLOCK_KEY, types::BlockKey};
 use database::rocksdb_no_batch::RocksDbStorage;
@@ -7,17 +11,16 @@ use mvm::core::{
     merkle_tree::MerkleTree,
     vm::{Mvm, NOW_BLOCK_ACTION_DO, NOW_BLOCK_ACTION_ROLLBACK},
 };
-use std::{sync::Mutex, time::Duration};
-
-lazy_static::lazy_static! {
-    static ref MVM_STORAGE: Mutex<Mvm<RocksDbStorage>> = Mutex::new(get_mvm_storage());
-}
+use std::{
+    sync::{Arc, Mutex},
+    time::Duration,
+};
 
 const MVM_MOVE_INTERVAL_MS: u64 = 2000;
 
 /// it will block thread
-pub fn mvm_process_block() -> anyhow::Result<()> {
-    let mut now_key = get_mvm_now_key()?;
+pub fn mvm_process_block(mz_state: &MzState) -> anyhow::Result<()> {
+    let mut now_key = get_mvm_now_key(mz_state)?;
     let mut now_time = std::time::Instant::now();
     loop {
         let cast_ms = now_time.elapsed().as_millis() as u64;
@@ -26,7 +29,7 @@ pub fn mvm_process_block() -> anyhow::Result<()> {
         }
         now_time = std::time::Instant::now();
 
-        let tips = get_tips()?;
+        let tips = get_tips(mz_state)?;
         if tips.contains(&now_key) {
             continue;
         }
@@ -36,27 +39,29 @@ pub fn mvm_process_block() -> anyhow::Result<()> {
             continue;
         };
 
-        let block = get_block(&next_key)
+        let block = get_block(&mz_state.block_storage, &next_key)
             .with_context(|| "Failed to get block")?
             .ok_or_else(|| anyhow::anyhow!("Block not found"))?;
         next_key = block.inner.header.part_sort_header.head_key;
         info!("try move mvm to next key: {} -> {}", now_key, next_key);
-        move_mvm_to_next_key(now_key, next_key)?;
+        move_mvm_to_next_key(now_key, next_key, mz_state)?;
         info!("move mvm to next key: {} -> {}", now_key, next_key);
         now_key = next_key;
     }
 }
 
-struct MvmMoveNode {
+struct MvmMoveNode<'a> {
+    block_storage_arc: &'a Arc<Mutex<BlockStorage>>,
     key: BlockKey,
     head_size: u64,
     head_key: BlockKey,
     to_head_path: Vec<BlockKey>,
 }
 
-impl MvmMoveNode {
-    fn new(key: BlockKey) -> anyhow::Result<Self> {
-        let block = get_block(&key)?.ok_or_else(|| anyhow::anyhow!("Block not found"))?;
+impl<'a> MvmMoveNode<'a> {
+    fn new(key: BlockKey, block_storage_arc: &'a Arc<Mutex<BlockStorage>>) -> anyhow::Result<Self> {
+        let block = get_block(block_storage_arc, &key)?
+            .ok_or_else(|| anyhow::anyhow!("Block not found"))?;
         let head_size = block.inner.header.part_sort_header.size;
         let head_key = block.inner.header.part_sort_header.head_key;
         let mut to_head_path = Vec::new();
@@ -72,6 +77,7 @@ impl MvmMoveNode {
             to_head_path.push(psk);
         }
         Ok(Self {
+            block_storage_arc,
             key,
             head_size,
             head_key,
@@ -80,8 +86,8 @@ impl MvmMoveNode {
     }
 
     fn move_to_head(&mut self) -> anyhow::Result<()> {
-        let head_block =
-            get_block(&self.head_key)?.ok_or_else(|| anyhow::anyhow!("Block not found"))?;
+        let head_block = get_block(self.block_storage_arc, &self.head_key)?
+            .ok_or_else(|| anyhow::anyhow!("Block not found"))?;
         self.key = self.head_key;
         self.head_size = head_block.inner.header.part_sort_header.size;
         self.head_key = head_block.inner.header.part_sort_header.head_key;
@@ -104,9 +110,13 @@ pub struct MvmMovePath {
     pub next_to_head_path: Vec<BlockKey>,
 }
 
-pub fn get_mvm_move_path(now_key: BlockKey, next_key: BlockKey) -> anyhow::Result<MvmMovePath> {
-    let mut now_node = MvmMoveNode::new(now_key)?;
-    let mut next_node = MvmMoveNode::new(next_key)?;
+pub fn get_mvm_move_path(
+    now_key: BlockKey,
+    next_key: BlockKey,
+    block_storage_arc: &Arc<Mutex<BlockStorage>>,
+) -> anyhow::Result<MvmMovePath> {
+    let mut now_node = MvmMoveNode::new(now_key, block_storage_arc)?;
+    let mut next_node = MvmMoveNode::new(next_key, block_storage_arc)?;
     while now_node.head_key != next_node.head_key {
         if now_node.head_size > next_node.head_size {
             now_node.move_to_head()?;
@@ -120,11 +130,15 @@ pub fn get_mvm_move_path(now_key: BlockKey, next_key: BlockKey) -> anyhow::Resul
     })
 }
 
-fn move_mvm_to_next_key(now_key: BlockKey, next_key: BlockKey) -> anyhow::Result<()> {
+fn move_mvm_to_next_key(
+    now_key: BlockKey,
+    next_key: BlockKey,
+    mz_state: &MzState,
+) -> anyhow::Result<()> {
     let MvmMovePath {
         mut now_to_head_path,
         mut next_to_head_path,
-    } = get_mvm_move_path(now_key, next_key)?;
+    } = get_mvm_move_path(now_key, next_key, &mz_state.block_storage)?;
 
     info!(
         "move mvm to next key now_node path: {:?} next_node path: {:?}",
@@ -133,15 +147,19 @@ fn move_mvm_to_next_key(now_key: BlockKey, next_key: BlockKey) -> anyhow::Result
     now_to_head_path.pop();
     next_to_head_path.pop();
     for psk in now_to_head_path {
-        let block = get_block(&psk)?.ok_or_else(|| anyhow::anyhow!("Block not found"))?;
-        let mut mvm_storage = MVM_STORAGE
+        let block = get_block(&mz_state.block_storage, &psk)?
+            .ok_or_else(|| anyhow::anyhow!("Block not found"))?;
+        let mut mvm_storage = mz_state
+            .mvm
             .lock()
             .map_err(|e| anyhow::anyhow!("Failed to lock mvm storage: {}", e))?;
         mvm_storage.do_block_rollback(&block)?;
     }
     for psk in next_to_head_path.into_iter().rev() {
-        let block = get_block(&psk)?.ok_or_else(|| anyhow::anyhow!("Block not found"))?;
-        let mut mvm_storage = MVM_STORAGE
+        let block = get_block(&mz_state.block_storage, &psk)?
+            .ok_or_else(|| anyhow::anyhow!("Block not found"))?;
+        let mut mvm_storage = mz_state
+            .mvm
             .lock()
             .map_err(|e| anyhow::anyhow!("Failed to lock mvm storage: {}", e))?;
         mvm_storage.do_block(&block)?;
@@ -150,8 +168,9 @@ fn move_mvm_to_next_key(now_key: BlockKey, next_key: BlockKey) -> anyhow::Result
     Ok(())
 }
 
-fn get_mvm_now_key() -> anyhow::Result<BlockKey> {
-    let mut mvm_storage = MVM_STORAGE
+fn get_mvm_now_key(mz_state: &MzState) -> anyhow::Result<BlockKey> {
+    let mut mvm_storage = mz_state
+        .mvm
         .lock()
         .map_err(|e| anyhow::anyhow!("Failed to lock mvm storage: {}", e))?;
     let now_key = mvm_storage
@@ -166,7 +185,7 @@ fn get_mvm_now_key() -> anyhow::Result<BlockKey> {
         .get_now_block_action()
         .with_context(|| "Failed to get now block action")?;
     if let Some(now_action) = now_action {
-        let block = get_block(&now_key)
+        let block = get_block(&mz_state.block_storage, &now_key)
             .with_context(|| "Failed to get block")?
             .ok_or_else(|| anyhow::anyhow!("Block not found"))?;
         if now_action == NOW_BLOCK_ACTION_DO {
@@ -186,15 +205,17 @@ fn get_mvm_now_key() -> anyhow::Result<BlockKey> {
     Ok(now_key)
 }
 
-#[allow(clippy::unwrap_used)]
-fn get_mvm_storage() -> Mvm<RocksDbStorage> {
-    let path = get_mvm_db_path().unwrap();
+pub fn get_mvm_storage(path: &str) -> anyhow::Result<Mvm<RocksDbStorage>> {
+    let os_path = std::path::Path::new(path);
+    if !os_path.exists() {
+        std::fs::create_dir_all(os_path)?;
+    }
     let merkle_path = format!("{}/merkle", path);
     let account_path = format!("{}/account", path);
     let state_path = format!("{}/state", path);
-    let merkle_tree_db = RocksDbStorage::new(&merkle_path).unwrap();
-    let merkle_tree = MerkleTree::new(merkle_tree_db).unwrap();
-    let account_db = RocksDbStorage::new(&account_path).unwrap();
-    let state_db = RocksDbStorage::new(&state_path).unwrap();
-    Mvm::new(account_db, merkle_tree, state_db)
+    let merkle_tree_db = RocksDbStorage::new(&merkle_path)?;
+    let merkle_tree = MerkleTree::new(merkle_tree_db)?;
+    let account_db = RocksDbStorage::new(&account_path)?;
+    let state_db = RocksDbStorage::new(&state_path)?;
+    Ok(Mvm::new(account_db, merkle_tree, state_db))
 }

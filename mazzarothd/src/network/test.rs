@@ -47,43 +47,49 @@ mod tests {
             test::push_random_transfers,
         },
         state::{
-            app_data::set_test_data_path_and_clean,
             block_storage::set_block,
+            mz_state::get_mz_state,
             tips::{gen_test_block, set_test_tips, u32_to_block_key},
         },
     };
     use std::collections::HashSet;
-    use utils::sha256::sha256_hash_rlp;
+    use utils::{file::write_to_json, sha256::sha256_hash_rlp};
 
     #[allow(clippy::unwrap_used)]
     #[tokio::test]
     async fn test_get_block_api() {
-        set_test_data_path_and_clean("test_get_block_api").unwrap();
-        tokio::spawn(async {
-            crate::api::serve().await.unwrap();
+        let mz_state = get_mz_state("test_get_block_api").unwrap();
+        let mz_state_clone = mz_state.clone();
+        tokio::spawn(async move {
+            crate::api::serve(mz_state_clone, 8081).await.unwrap();
         });
 
         let block_key = u32_to_block_key(2);
         let mut block = gen_test_block(2, &HashSet::new());
         push_random_transfers(&mut block, 1500);
-        set_block(&block_key, &block).unwrap();
+        set_block(&mz_state.block_storage, &block_key, &block).unwrap();
         let block_hash = sha256_hash_rlp(&block);
-        let new_block = req_block("localhost:8080", block_key).await.unwrap();
+        let new_block = req_block("localhost:8081", block_key).await.unwrap();
         let new_block_hash = sha256_hash_rlp(&new_block);
+        if new_block_hash != block_hash {
+            write_to_json("new_block.json", &new_block).unwrap();
+            write_to_json("block.json", &block).unwrap();
+        }
         assert_eq!(new_block_hash, block_hash);
     }
 
     #[allow(clippy::unwrap_used)]
     #[tokio::test]
     async fn test_set_test_tips() {
-        tokio::spawn(async {
-            crate::api::serve().await.unwrap();
+        let mz_state = get_mz_state("test_set_test_tips").unwrap();
+        let mz_state_clone = mz_state.clone();
+        tokio::spawn(async move {
+            crate::api::serve(mz_state_clone, 8082).await.unwrap();
         });
         let key = u32_to_block_key(2);
-        set_test_tips(vec![key]).unwrap();
-        let tips = req_tips("localhost:8080").await.unwrap();
+        set_test_tips(vec![key], &mz_state).unwrap();
+        let tips = req_tips("localhost:8082").await.unwrap();
         assert_eq!(tips.len(), 1);
         assert_eq!(tips[0], key);
     }
 }
-
