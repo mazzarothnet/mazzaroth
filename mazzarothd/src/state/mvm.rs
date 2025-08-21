@@ -18,8 +18,15 @@ use std::{
 
 const MVM_MOVE_INTERVAL_MS: u64 = 2000;
 
+#[allow(clippy::unwrap_used)]
+pub fn spawn_mvm_thread(mz_state: MzState) {
+    std::thread::spawn(move || {
+        mvm_process_block(&mz_state).unwrap();
+    });
+}
+
 /// it will block thread
-pub fn mvm_process_block(mz_state: &MzState) -> anyhow::Result<()> {
+fn mvm_process_block(mz_state: &MzState) -> anyhow::Result<()> {
     let mut now_key = get_mvm_now_key(mz_state)?;
     let mut now_time = std::time::Instant::now();
     loop {

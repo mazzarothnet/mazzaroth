@@ -2,7 +2,6 @@ use anyhow::Context;
 use axum::{Router, routing::get};
 use tokio::net::TcpListener;
 use utils::error::{Res, Result};
-
 use crate::state::mz_state::MzState;
 
 pub mod block;
@@ -17,7 +16,7 @@ pub fn api_router(mz_state: MzState) -> Router {
 
 async fn hello() -> Result<Res<String>> {
     Ok(Res {
-        data: "Hello mazzaroth".to_string(),
+        data: "Hello Mazzaroth".to_string(),
     })
 }
 

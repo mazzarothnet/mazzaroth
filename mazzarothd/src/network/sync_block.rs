@@ -6,11 +6,10 @@ use consensus::{traits::GENESIS_BLOCK_KEY, types::BlockKey};
 use log::info;
 
 /// this fn will block
-pub async fn sync_block(mz_state: &MzState) -> anyhow::Result<()> {
-    let host = mz_state.config.block_sync_host.clone();
-    let tips = req_tips(&host).await?;
+pub async fn sync_block(mz_state: &MzState, host: &str) -> anyhow::Result<()> {
+    let tips = req_tips(host).await?;
     for tip in tips {
-        sync_begin_with_key(tip, &host, mz_state).await?;
+        sync_begin_with_key(tip, host, mz_state).await?;
     }
     Ok(())
 }

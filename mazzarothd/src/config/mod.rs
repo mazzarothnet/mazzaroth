@@ -11,7 +11,7 @@ pub struct Config {
     pub bootstrap_addr: Option<String>,
     pub bootstrap_peer_id: Option<String>,
     pub new_genesis: bool,
-    pub block_sync_host: String,
+    pub block_sync_host: Option<String>,
 }
 
 impl Default for Config {
@@ -27,7 +27,7 @@ impl Default for Config {
                 "12D3KooWD4qpZuZXNPC9iMxRJ9UVELUBB6spy8ijrgeJdhJPCN4n".to_string(),
             ),
             new_genesis: false,
-            block_sync_host: "[2409:8a00:31d0:a3b0:7c10:9494:279:f924]:8080".to_string(),
+            block_sync_host: Some("[2409:8a00:31d0:a3b0:7c10:9494:279:f924]:8080".to_string()),
         }
     }
 }

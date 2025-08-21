@@ -1,6 +1,7 @@
 use crate::{
     config::Config,
     state::{
+        account_manager::AccountManager,
         block_storage::{BlockStorage, get_block_storage},
         mvm::get_mvm_storage,
         tips::TempBlock,
@@ -21,6 +22,7 @@ pub struct MzState {
     pub tips: Arc<Mutex<BTreeMap<BlockKey, u64>>>,
     pub temp_blocks: Arc<Mutex<TempBlock>>,
     pub config: Arc<Config>,
+    pub account_manager: Arc<Mutex<AccountManager>>,
 }
 
 pub fn get_mz_state(path: &str) -> anyhow::Result<MzState> {
@@ -32,11 +34,16 @@ pub fn get_mz_state(path: &str) -> anyhow::Result<MzState> {
     let temp_blocks = Arc::new(Mutex::new(TempBlock::new(block_storage.clone())));
     let config_path = format!("{}/config.toml", path);
     let config = Config::init(&config_path)?;
+    let account_manager = Arc::new(Mutex::new(AccountManager::init(&format!(
+        "{}/account_manager.json",
+        path
+    ))?));
     Ok(MzState {
         mvm,
         block_storage,
         tips,
         temp_blocks,
         config: Arc::new(config),
+        account_manager,
     })
 }
