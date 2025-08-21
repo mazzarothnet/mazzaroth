@@ -42,14 +42,15 @@ pub fn get_block_size(block: &Block) -> usize {
 #[cfg(test)]
 mod tests {
     use crate::{
+        api::spawn_api_thread,
         network::{
             req::{req_block, req_tips},
             test::push_random_transfers,
         },
         state::{
             block_storage::set_block,
-            mz_state::get_mz_state,
-            tips::{gen_test_block, set_test_tips, u32_to_block_key},
+            mz_state::{clear_path, get_mz_state},
+            tips::{force_set_tips, gen_test_block, u32_to_block_key},
         },
     };
     use std::collections::HashSet;
@@ -58,12 +59,10 @@ mod tests {
     #[allow(clippy::unwrap_used)]
     #[tokio::test]
     async fn test_get_block_api() {
+        clear_path("test_get_block_api").unwrap();
         let mz_state = get_mz_state("test_get_block_api").unwrap();
-        let mz_state_clone = mz_state.clone();
-        tokio::spawn(async move {
-            crate::api::serve(mz_state_clone, 8081).await.unwrap();
-        });
-
+        spawn_api_thread(mz_state.clone(), 8081);
+        //tokio::time::sleep(std::time::Duration::from_secs(10)).await;
         let block_key = u32_to_block_key(2);
         let mut block = gen_test_block(2, &HashSet::new());
         push_random_transfers(&mut block, 1500);
@@ -81,13 +80,12 @@ mod tests {
     #[allow(clippy::unwrap_used)]
     #[tokio::test]
     async fn test_set_test_tips() {
+        clear_path("test_set_test_tips").unwrap();
         let mz_state = get_mz_state("test_set_test_tips").unwrap();
-        let mz_state_clone = mz_state.clone();
-        tokio::spawn(async move {
-            crate::api::serve(mz_state_clone, 8082).await.unwrap();
-        });
+        spawn_api_thread(mz_state.clone(), 8082);
+        // tokio::time::sleep(std::time::Duration::from_secs(10)).await;
         let key = u32_to_block_key(2);
-        set_test_tips(vec![key], &mz_state).unwrap();
+        force_set_tips(vec![key], &mz_state).unwrap();
         let tips = req_tips("localhost:8082").await.unwrap();
         assert_eq!(tips.len(), 1);
         assert_eq!(tips[0], key);

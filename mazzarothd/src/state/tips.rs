@@ -60,7 +60,7 @@ pub fn get_tips(mz_state: &MzState) -> anyhow::Result<BTreeSet<BlockKey>> {
     Ok(tips)
 }
 
-pub fn set_test_tips(tips: Vec<BlockKey>, mz_state: &MzState) -> anyhow::Result<()> {
+pub fn force_set_tips(tips: Vec<BlockKey>, mz_state: &MzState) -> anyhow::Result<()> {
     let mut tips_map = mz_state
         .tips
         .lock()
@@ -195,13 +195,14 @@ pub fn block_key_to_u32(key: BlockKey) -> u32 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::state::mz_state::get_mz_state;
+    use crate::state::mz_state::{clear_path, get_mz_state};
     use rand::{Rng, SeedableRng, seq::SliceRandom};
     use std::collections::HashSet;
 
     #[allow(clippy::unwrap_used)]
     #[test]
     fn test_push_block() {
+        clear_path("test_push_block").unwrap();
         let mz_state = get_mz_state("test_push_block").unwrap();
         let mut temp_blocks = mz_state.temp_blocks.lock().unwrap();
         let block_size: usize = 1210;

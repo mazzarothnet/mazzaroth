@@ -27,6 +27,7 @@ pub async fn req_block(host: &str, block_key: BlockKey) -> anyhow::Result<Block>
         .send()
         .await
         .with_context(|| format!("Failed to send request to {}", url))?;
+    let res_status = res.status();
     let block_bytes = res
         .bytes()
         .await
@@ -34,8 +35,14 @@ pub async fn req_block(host: &str, block_key: BlockKey) -> anyhow::Result<Block>
     // if block_bytes.len() < 1000 {
     //     panic!("block_bytes.len() < 1000");
     // }
-    let block = Block::decode(&mut block_bytes.as_ref())
-        .with_context(|| format!("Failed to decode block from {}", url))?;
+    let block = Block::decode(&mut block_bytes.as_ref()).with_context(|| {
+        format!(
+            "Failed to decode block from {} {} {}",
+            url,
+            block_bytes.len(),
+            res_status,
+        )
+    })?;
     Ok(block)
 }
 
@@ -46,11 +53,12 @@ pub async fn req_tips(host: &str) -> anyhow::Result<Vec<BlockKey>> {
         .send()
         .await
         .with_context(|| format!("Failed to send request to {}", url))?;
+    let res_status = res.status();
     let tip_str = res
         .text()
         .await
         .with_context(|| format!("Failed to get tips from {}", url))?;
     let tips: Vec<BlockKey> = serde_json::from_str(&tip_str)
-        .with_context(|| format!("Failed to parse tips from {}", url))?;
+        .with_context(|| format!("Failed to parse tips from {} {} {} {:?}", url, tip_str.len(), res_status, tip_str))?;
     Ok(tips)
 }

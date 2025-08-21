@@ -35,7 +35,7 @@ pub fn gen_test_block_and_save(
 mod tests {
     use crate::state::{
         mvm::get_mvm_move_path,
-        mz_state::get_mz_state,
+        mz_state::{clear_path, get_mz_state},
         test::gen_test_block_and_save,
         tips::{block_key_to_u32, u32_to_block_key},
     };
@@ -43,6 +43,7 @@ mod tests {
     #[allow(clippy::unwrap_used)]
     #[test]
     fn test_mvm_move_path() {
+        clear_path("test_mvm_move_path").unwrap();
         let mz_state = get_mz_state("test_mvm_move_path").unwrap();
         gen_test_block_and_save(1, &[0], &mz_state.block_storage).unwrap();
         gen_test_block_and_save(3, &[1], &mz_state.block_storage).unwrap();

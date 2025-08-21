@@ -11,8 +11,7 @@ use consensus::types::BlockKey;
 use database::rocksdb_no_batch::RocksDbStorage;
 use mvm::core::vm::Mvm;
 use std::{
-    collections::BTreeMap,
-    sync::{Arc, Mutex},
+    collections::BTreeMap, path::Path, sync::{Arc, Mutex}
 };
 
 #[derive(Clone)]
@@ -23,6 +22,14 @@ pub struct MzState {
     pub temp_blocks: Arc<Mutex<TempBlock>>,
     pub config: Arc<Config>,
     pub account_manager: Arc<Mutex<AccountManager>>,
+}
+
+pub fn clear_path(path: &str) -> anyhow::Result<()> {
+    let os_path = Path::new(path);
+    if os_path.exists() {
+        std::fs::remove_dir_all(os_path)?;
+    }
+    Ok(())
 }
 
 pub fn get_mz_state(path: &str) -> anyhow::Result<MzState> {

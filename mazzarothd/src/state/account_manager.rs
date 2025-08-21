@@ -2,7 +2,7 @@ use anyhow::Context;
 use consensus::types::AccountKey;
 use rand::SeedableRng;
 use serde::{Deserialize, Serialize};
-use std::{collections::HashMap, path::Path};
+use std::path::Path;
 use utils::{
     file::{read_from_json, write_to_json},
     secp::gen_keypair,
@@ -17,7 +17,7 @@ pub struct AccountKeyPair {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct AccountManager {
-    pub account_map: HashMap<AccountKey, AccountKeyPair>,
+    pub account_map: Vec<AccountKeyPair>,
     pub now_selected_account: AccountKey,
 }
 
@@ -27,9 +27,8 @@ impl Default for AccountManager {
         let mut rng = rand::rngs::StdRng::seed_from_u64(now_time as u64);
         let (secret_key, public_key) = gen_keypair(&mut rng);
         let account_key = AccountKey(public_key);
-        let mut account_map = HashMap::new();
-        account_map.insert(
-            account_key.clone(),
+        let mut account_map = Vec::new();
+        account_map.push(
             AccountKeyPair {
                 public_key: account_key.clone(),
                 private_key: secret_key,

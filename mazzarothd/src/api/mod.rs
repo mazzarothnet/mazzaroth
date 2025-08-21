@@ -20,7 +20,14 @@ async fn hello() -> Result<Res<String>> {
     })
 }
 
-pub async fn serve(mz_state: MzState, http_port: u16) -> anyhow::Result<()> {
+#[allow(clippy::unwrap_used)]
+pub fn spawn_api_thread(mz_state: MzState, port: u16) {
+    tokio::spawn(async move {
+        serve(mz_state, port).await.unwrap();
+    });
+}
+
+async fn serve(mz_state: MzState, http_port: u16) -> anyhow::Result<()> {
     let app = api_router(mz_state);
     let listener = TcpListener::bind(format!("[::]:{}", http_port))
         .await
