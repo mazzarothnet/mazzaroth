@@ -281,20 +281,17 @@ impl<S: DbStorage> Mvm<S> {
         Ok(())
     }
 
-    pub fn get_now_block_key(&self) -> Result<Option<BlockKey>> {
-        let key = NOW_BLOCK_KEY.to_string();
-        self.state.get_data(&key)
+    pub fn get_now_block_key_and_action(&self) -> Result<(Option<BlockKey>, Option<String>)> {
+        Ok((
+            self.state.get_data(&NOW_BLOCK_KEY.to_string())?,
+            self.state.get_data(&NOW_BLOCK_ACTION_KEY.to_string())?,
+        ))
     }
 
     fn set_now_block_action(&self, action: &str) -> Result<()> {
         let key = NOW_BLOCK_ACTION_KEY.to_string();
         self.state.set_data(&key, &action)?;
         Ok(())
-    }
-
-    pub fn get_now_block_action(&self) -> Result<Option<String>> {
-        let key = NOW_BLOCK_ACTION_KEY.to_string();
-        self.state.get_data(&key)
     }
 
     fn rollback_all_transfer_and_merge(

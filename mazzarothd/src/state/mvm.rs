@@ -169,25 +169,28 @@ fn move_mvm_to_next_key(
 }
 
 fn get_mvm_now_key(mz_state: &MzState) -> anyhow::Result<BlockKey> {
-    let mut mvm_storage = mz_state
-        .mvm
-        .lock()
-        .map_err(|e| anyhow::anyhow!("Failed to lock mvm storage: {}", e))?;
-    let now_key = mvm_storage
-        .get_now_block_key()
-        .with_context(|| "Failed to get now block key")?;
+    let (now_key, now_action) = {
+        let mvm_storage = mz_state
+            .mvm
+            .lock()
+            .map_err(|e| anyhow::anyhow!("Failed to lock mvm storage: {}", e))?;
+        mvm_storage
+            .get_now_block_key_and_action()
+            .with_context(|| "Failed to get now block key")?
+    };
     let now_key = if let Some(now_key) = now_key {
         now_key
     } else {
         return Ok(BlockKey(GENESIS_BLOCK_KEY));
     };
-    let now_action = mvm_storage
-        .get_now_block_action()
-        .with_context(|| "Failed to get now block action")?;
     if let Some(now_action) = now_action {
         let block = get_block(&mz_state.block_storage, &now_key)
             .with_context(|| "Failed to get block")?
             .ok_or_else(|| anyhow::anyhow!("Block not found"))?;
+        let mut mvm_storage = mz_state
+            .mvm
+            .lock()
+            .map_err(|e| anyhow::anyhow!("Failed to lock mvm storage: {}", e))?;
         if now_action == NOW_BLOCK_ACTION_DO {
             mvm_storage
                 .do_block(&block)
