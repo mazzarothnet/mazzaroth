@@ -16,7 +16,7 @@ use std::{
     time::Duration,
 };
 
-const MVM_MOVE_INTERVAL_MS: u64 = 2000;
+const MVM_MOVE_INTERVAL_MS: u64 = 500;
 
 #[allow(clippy::unwrap_used)]
 pub fn spawn_mvm_thread(mz_state: MzState) {
@@ -40,16 +40,12 @@ fn mvm_process_block(mz_state: &MzState) -> anyhow::Result<()> {
         if tips.contains(&now_key) {
             continue;
         }
-        let mut next_key = if let Some(next_key) = tips.first() {
+        let next_key = if let Some(next_key) = tips.first() {
             *next_key
         } else {
             continue;
         };
 
-        let block = get_block(&mz_state.block_storage, &next_key)
-            .with_context(|| "Failed to get block")?
-            .ok_or_else(|| anyhow::anyhow!("Block not found"))?;
-        next_key = block.inner.header.part_sort_header.head_key;
         info!("try move mvm to next key: {} -> {}", now_key, next_key);
         move_mvm_to_next_key(now_key, next_key, mz_state)?;
         info!("move mvm to next key: {} -> {}", now_key, next_key);
@@ -131,10 +127,22 @@ pub fn get_mvm_move_path(
             next_node.move_to_head()?;
         }
     }
+    info!("now_node: {:?}", now_node.to_head_path);
+    info!("next_node: {:?}", next_node.to_head_path);
+    while check_end_equal(&now_node.to_head_path, &next_node.to_head_path).unwrap_or(false) {
+        now_node.to_head_path.pop();
+        next_node.to_head_path.pop();
+    }
     Ok(MvmMovePath {
         now_to_head_path: now_node.to_head_path,
         next_to_head_path: next_node.to_head_path,
     })
+}
+
+fn check_end_equal(now_node: &[BlockKey], next_node: &[BlockKey]) -> Option<bool> {
+    let now_node_end = now_node.last()?;
+    let next_node_end = next_node.last()?;
+    Some(now_node_end == next_node_end)
 }
 
 fn move_mvm_to_next_key(
@@ -143,16 +151,14 @@ fn move_mvm_to_next_key(
     mz_state: &MzState,
 ) -> anyhow::Result<()> {
     let MvmMovePath {
-        mut now_to_head_path,
-        mut next_to_head_path,
+        now_to_head_path,
+        next_to_head_path,
     } = get_mvm_move_path(now_key, next_key, &mz_state.block_storage)?;
 
     info!(
         "move mvm to next key now_node path: {:?} next_node path: {:?}",
         now_to_head_path, next_to_head_path
     );
-    now_to_head_path.pop();
-    next_to_head_path.pop();
     for psk in now_to_head_path {
         let block = get_block(&mz_state.block_storage, &psk)?
             .ok_or_else(|| anyhow::anyhow!("Block not found"))?;

@@ -18,25 +18,24 @@ pub struct AccountKeyPair {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct AccountManager {
     pub account_map: Vec<AccountKeyPair>,
-    pub now_selected_account: AccountKey,
+    pub now_selected_account: AccountKeyPair,
 }
 
 impl Default for AccountManager {
     fn default() -> Self {
         let now_time = get_current_time_ms();
-        let mut rng = rand::rngs::StdRng::seed_from_u64(now_time as u64);
+        let mut rng = rand::rngs::StdRng::seed_from_u64(now_time);
         let (secret_key, public_key) = gen_keypair(&mut rng);
         let account_key = AccountKey(public_key);
         let mut account_map = Vec::new();
-        account_map.push(
-            AccountKeyPair {
-                public_key: account_key.clone(),
-                private_key: secret_key,
-            },
-        );
+        let now_selected_account = AccountKeyPair {
+            public_key: account_key,
+            private_key: secret_key,
+        };
+        account_map.push(now_selected_account.clone());
         Self {
             account_map,
-            now_selected_account: account_key,
+            now_selected_account,
         }
     }
 }

@@ -5,12 +5,14 @@ use utils::error::{Res, Result};
 use crate::state::mz_state::MzState;
 
 pub mod block;
+pub mod account;
 
 pub fn api_router(mz_state: MzState) -> Router {
     Router::new()
         .route("/", get(hello))
         .route("/block", get(block::get_block_api))
         .route("/tips", get(block::get_tips_api))
+        .route("/account", get(account::get_current_account))
         .with_state(mz_state)
 }
 

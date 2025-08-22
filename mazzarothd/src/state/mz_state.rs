@@ -5,13 +5,16 @@ use crate::{
         block_storage::{BlockStorage, get_block_storage},
         mvm::get_mvm_storage,
         tips::TempBlock,
+        transfer::PendingTransfer,
     },
 };
 use consensus::types::BlockKey;
 use database::rocksdb_no_batch::RocksDbStorage;
 use mvm::core::vm::Mvm;
 use std::{
-    collections::BTreeMap, path::Path, sync::{Arc, Mutex}
+    collections::BTreeMap,
+    path::Path,
+    sync::{Arc, Mutex},
 };
 
 #[derive(Clone)]
@@ -22,6 +25,7 @@ pub struct MzState {
     pub temp_blocks: Arc<Mutex<TempBlock>>,
     pub config: Arc<Config>,
     pub account_manager: Arc<Mutex<AccountManager>>,
+    pub pending_transfers: Arc<Mutex<PendingTransfer>>,
 }
 
 pub fn clear_path(path: &str) -> anyhow::Result<()> {
@@ -45,6 +49,7 @@ pub fn get_mz_state(path: &str) -> anyhow::Result<MzState> {
         "{}/account_manager.json",
         path
     ))?));
+    let pending_transfers = Arc::new(Mutex::new(PendingTransfer::default()));
     Ok(MzState {
         mvm,
         block_storage,
@@ -52,5 +57,6 @@ pub fn get_mz_state(path: &str) -> anyhow::Result<MzState> {
         temp_blocks,
         config: Arc::new(config),
         account_manager,
+        pending_transfers,
     })
 }

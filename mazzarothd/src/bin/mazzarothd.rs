@@ -2,6 +2,7 @@
 use consensus::{traits::GENESIS_BLOCK_KEY, types::BlockKey};
 use mazzarothd::{
     api::spawn_api_thread,
+    mining::spawn_mining_thread,
     network::{gossip::spawn_gossip_thread, sync_block::sync_block},
     state::{mvm::spawn_mvm_thread, mz_state::get_mz_state, tips::force_insert_tips},
 };
@@ -23,6 +24,7 @@ async fn main() {
         force_insert_tips(vec![BlockKey(GENESIS_BLOCK_KEY)], &mz_state).unwrap();
     }
     spawn_mvm_thread(mz_state.clone());
+    spawn_mining_thread(mz_state.clone(), new_block_sender);
 
     tokio::signal::ctrl_c().await.unwrap();
 }

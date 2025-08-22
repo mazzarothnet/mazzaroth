@@ -5,3 +5,4 @@ pub mod mz_state;
 pub mod test;
 pub mod tips;
 pub mod account_manager;
+pub mod transfer;

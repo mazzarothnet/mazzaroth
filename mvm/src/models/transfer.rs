@@ -2,13 +2,13 @@ use alloy_rlp::{RlpDecodable, RlpEncodable};
 use consensus::types::{AccountKey, Hash, Signature};
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Serialize, Deserialize, RlpEncodable, RlpDecodable, Clone)]
+#[derive(Debug, Serialize, Deserialize, RlpEncodable, RlpDecodable, Clone, PartialEq, Eq, Hash)]
 pub struct Transfer {
     pub inner: TransferInner,
     pub from_signature: Signature,
 }
 
-#[derive(Debug, Serialize, Deserialize, RlpEncodable, RlpDecodable, Clone)]
+#[derive(Debug, Serialize, Deserialize, RlpEncodable, RlpDecodable, Clone, PartialEq, Eq, Hash)]
 pub struct TransferInner {
     pub from: AccountKey,
     pub to: AccountKey,

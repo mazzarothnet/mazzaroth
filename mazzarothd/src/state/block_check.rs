@@ -18,6 +18,9 @@ pub fn normal_check_block_format(block: &Block) -> anyhow::Result<()> {
     if block.key > block.inner.header.pow_header.target {
         return Err(anyhow::anyhow!("block key is greater than target"));
     }
+    if !block.inner.is_less_than_max_block_size() {
+        return Err(anyhow::anyhow!("block size is greater than max block size"));
+    }
     let block_hash = sha256_hash_rlp(&block.inner);
     let mined_hash = gen_sha256_by_block_hash_and_nonce(block_hash, block.nonce);
     let mined_block_key = BlockKey(U256::from_be_slice(&mined_hash));

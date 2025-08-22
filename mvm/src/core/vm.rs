@@ -275,10 +275,8 @@ impl<S: DbStorage> Mvm<S> {
         self.merkle_tree.get_state_root()
     }
 
-    fn set_now_block_key(&self, block_key: BlockKey) -> Result<()> {
-        let key = NOW_BLOCK_KEY.to_string();
-        self.state.set_data(&key, &block_key)?;
-        Ok(())
+    pub fn get_account(&self, account_key: AccountKey) -> Result<Option<Account>> {
+        self.account_db.get_data(&account_key)
     }
 
     pub fn get_now_block_key_and_action(&self) -> Result<(Option<BlockKey>, Option<String>)> {
@@ -286,6 +284,12 @@ impl<S: DbStorage> Mvm<S> {
             self.state.get_data(&NOW_BLOCK_KEY.to_string())?,
             self.state.get_data(&NOW_BLOCK_ACTION_KEY.to_string())?,
         ))
+    }
+
+    fn set_now_block_key(&self, block_key: BlockKey) -> Result<()> {
+        let key = NOW_BLOCK_KEY.to_string();
+        self.state.set_data(&key, &block_key)?;
+        Ok(())
     }
 
     fn set_now_block_action(&self, action: &str) -> Result<()> {
