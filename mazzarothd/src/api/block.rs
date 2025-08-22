@@ -3,7 +3,6 @@ use axum::extract::{Query, State};
 use consensus::types::BlockKey;
 use crypto_bigint::U256;
 use utils::error::{BinaryRes, Error, Res, Result};
-
 use crate::state::{block_storage::get_block, mz_state::MzState, tips::get_tips};
 use serde::Deserialize;
 

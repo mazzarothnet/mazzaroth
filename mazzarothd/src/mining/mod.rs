@@ -63,11 +63,20 @@ fn try_gen_new_block(
             info!("miner account not found, use default account");
             Hash([0u8; 32])
         });
+    let pending_transfers = {
+        let mut pending_transfers_lock = mz_state.pending_transfers.lock().map_err(|e| {
+            anyhow::anyhow!("try_gen_new_block Failed to lock pending_transfers: {}", e)
+        })?;
+        let transfers = std::mem::take(&mut pending_transfers_lock.transfers);
+        transfers
+    }
+    .into_iter()
+    .collect::<Vec<_>>();
     let target = consensus_header.pow_header.target;
     let block_inner = BlockInner {
         version: 0,
         header: consensus_header,
-        transfers: Vec::new(),
+        transfers: pending_transfers,
         merges: Vec::new(),
         miner: miner_account.public_key,
         miner_last_action_hash: account_action_hash,

@@ -1,18 +1,20 @@
+use crate::state::mz_state::MzState;
 use anyhow::Context;
 use axum::{Router, routing::get};
 use tokio::net::TcpListener;
 use utils::error::{Res, Result};
-use crate::state::mz_state::MzState;
 
-pub mod block;
 pub mod account;
+pub mod block;
 
 pub fn api_router(mz_state: MzState) -> Router {
     Router::new()
         .route("/", get(hello))
         .route("/block", get(block::get_block_api))
         .route("/tips", get(block::get_tips_api))
-        .route("/account", get(account::get_current_account))
+        .route("/current", get(account::get_current_account))
+        .route("/account", get(account::get_account))
+        .route("/transfer", get(account::transfer))
         .with_state(mz_state)
 }
 

@@ -1,6 +1,6 @@
 use super::{
     sim_block::SimBlock,
-    sim_miner::{Position, gen_sim_minner_list, select_miner},
+    sim_miner::{Position, gen_sim_miner_list, select_miner},
     sim_storage::SimConsensusHeaderStorage,
 };
 use crate::sc::sim_miner::calc_distance_delay;
@@ -36,7 +36,7 @@ pub fn run_sim(
         std::fs::remove_dir_all(db_path).unwrap();
     }
     let mut storage = SimConsensusHeaderStorage::new(db_path);
-    let miners = gen_sim_minner_list(miner_num, rng);
+    let miners = gen_sim_miner_list(miner_num, rng);
     let mut tips = BTreeSet::new();
     tips.insert(BlockKey::from(GENESIS_BLOCK_KEY));
     let mut part_sort_size: BTreeMap<usize, i64> = BTreeMap::new();

@@ -223,7 +223,7 @@ fn gen_rand_transfer(
         miner_package.account.balance += transfer.inner.gas_price * TRANSFER_GAS;
 
         debug!(
-            "random transfer minner update account: {:?} {:?} {:?}",
+            "random transfer miner update account: {:?} {:?} {:?}",
             miner_package.account.key,
             miner_package.account.action_hash,
             miner_package.account.balance
@@ -353,7 +353,7 @@ fn gen_rand_merge(
         let miner_package = account_map.get_mut(&miner_index).unwrap();
         miner_package.account.balance += merge.inner.gas_price * TRANSFER_GAS;
         debug!(
-            "random merge minner update account: {:?} {:?} {:?}",
+            "random merge miner update account: {:?} {:?} {:?}",
             miner_package.account.key,
             Hash(merge_inner_hash),
             miner_package.account.balance

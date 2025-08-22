@@ -17,7 +17,7 @@ pub struct SimMiner {
     pub power: f64,
 }
 
-pub fn gen_sim_minner_list(miner_num: u64, rng: &mut rand::rngs::StdRng) -> Vec<SimMiner> {
+pub fn gen_sim_miner_list(miner_num: u64, rng: &mut rand::rngs::StdRng) -> Vec<SimMiner> {
     let mut miners = Vec::new();
     for i in 0..miner_num {
         let x = rng.random_range(0..HEIGHT) as u64;
@@ -65,16 +65,16 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_gen_sim_minner_list() {
+    fn test_gen_sim_miner_list() {
         let mut rng = rand::rngs::StdRng::seed_from_u64(1112331);
-        let miners = gen_sim_minner_list(10, &mut rng);
+        let miners = gen_sim_miner_list(10, &mut rng);
         assert_eq!(miners.len(), 10);
     }
 
     #[test]
     fn test_select_miner() {
         let mut rng = rand::rngs::StdRng::seed_from_u64(1112331);
-        let miners = gen_sim_minner_list(10, &mut rng);
+        let miners = gen_sim_miner_list(10, &mut rng);
         let miner = select_miner(&miners, &mut rng);
         assert!(miner.id < 10);
     }
