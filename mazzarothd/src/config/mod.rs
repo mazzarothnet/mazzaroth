@@ -10,7 +10,6 @@ pub struct Config {
     pub gossip_udp_port: u16,
     pub bootstrap_addr: Option<String>,
     pub bootstrap_peer_id: Option<String>,
-    pub new_genesis: bool,
     pub block_sync_host: Option<String>,
 }
 
@@ -20,14 +19,9 @@ impl Default for Config {
             http_port: 8080,
             gossip_tcp_port: 43221,
             gossip_udp_port: 43222,
-            bootstrap_addr: Some(
-                "/ip6/2409:8a00:31d0:a3b0:7c10:9494:279:f924/udp/4001/quic-v1".to_string(),
-            ),
-            bootstrap_peer_id: Some(
-                "12D3KooWD4qpZuZXNPC9iMxRJ9UVELUBB6spy8ijrgeJdhJPCN4n".to_string(),
-            ),
-            new_genesis: false,
-            block_sync_host: Some("[2409:8a00:31d0:a3b0:7c10:9494:279:f924]:8080".to_string()),
+            bootstrap_addr: None,
+            bootstrap_peer_id: None,
+            block_sync_host: None,
         }
     }
 }

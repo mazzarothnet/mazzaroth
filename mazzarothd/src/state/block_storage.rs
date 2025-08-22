@@ -78,6 +78,9 @@ impl BlockStorage {
     }
 
     fn has_block(&self, key: &BlockKey) -> anyhow::Result<bool> {
+        if key == &BlockKey::from(GENESIS_BLOCK_KEY) {
+            return Ok(true);
+        }
         let exists = self.db.has_data(key)?;
         Ok(exists)
     }
