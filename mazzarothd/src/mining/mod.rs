@@ -1,11 +1,9 @@
-use std::time::Duration;
-
 use crate::state::{
     block_storage::gen_consensus_header_with_global_storage,
     mz_state::MzState,
     tips::{get_tips, push_block},
 };
-use consensus::types::{BlockKey, Hash};
+use consensus::types::BlockKey;
 use crypto_bigint::U256;
 use log::info;
 use mining::{
@@ -13,6 +11,7 @@ use mining::{
     sha256_mining::gen_sha256_by_block_hash_and_nonce,
 };
 use mvm::models::block::{Block, BlockInner};
+use std::time::Duration;
 use utils::{sha256::sha256_hash_rlp, time::get_current_time_ms};
 
 #[allow(clippy::unwrap_used)]
@@ -53,16 +52,6 @@ fn try_gen_new_block(
         .map_err(|e| anyhow::anyhow!("try_gen_new_block Failed to lock account_manager: {}", e))?
         .now_selected_account
         .clone();
-    let account_action_hash = mz_state
-        .mvm
-        .lock()
-        .map_err(|e| anyhow::anyhow!("try_gen_new_block Failed to lock mvm: {}", e))?
-        .get_account(miner_account.public_key)?
-        .map(|account| account.action_hash)
-        .unwrap_or_else(|| {
-            info!("miner account not found, use default account");
-            Hash([0u8; 32])
-        });
     let pending_transfers = {
         let mut pending_transfers_lock = mz_state.pending_transfers.lock().map_err(|e| {
             anyhow::anyhow!("try_gen_new_block Failed to lock pending_transfers: {}", e)
@@ -79,7 +68,6 @@ fn try_gen_new_block(
         transfers: pending_transfers,
         merges: Vec::new(),
         miner: miner_account.public_key,
-        miner_last_action_hash: account_action_hash,
     };
     let block_inner_hash = sha256_hash_rlp(&block_inner);
     let nonce = if let Some(nonce) =

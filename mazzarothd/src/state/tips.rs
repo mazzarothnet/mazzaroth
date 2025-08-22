@@ -4,10 +4,7 @@ use crate::state::{
     mz_state::MzState,
 };
 use consensus::types::BlockKey;
-use consensus::{
-    block_header::ConsensusHeader,
-    types::{AccountKey, Hash},
-};
+use consensus::{block_header::ConsensusHeader, types::AccountKey};
 use crypto_bigint::U256;
 use log::info;
 use mvm::models::block::Block;
@@ -178,7 +175,6 @@ pub fn gen_test_block(key: u32, parent_keys: &HashSet<u32>) -> Block {
             transfers: vec![],
             merges: vec![],
             miner: AccountKey::default(),
-            miner_last_action_hash: Hash::default(),
         },
     }
 }
