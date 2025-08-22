@@ -46,9 +46,8 @@ fn mvm_process_block(mz_state: &MzState) -> anyhow::Result<()> {
             continue;
         };
 
-        info!("try move mvm to next key: {} -> {}", now_key, next_key);
         move_mvm_to_next_key(now_key, next_key, mz_state)?;
-        info!("move mvm to next key: {} -> {}", now_key, next_key);
+        info!("move mvm to next key success: {} -> {}", now_key, next_key);
         now_key = next_key;
     }
 }
@@ -155,10 +154,10 @@ fn move_mvm_to_next_key(
         next_to_head_path,
     } = get_mvm_move_path(now_key, next_key, &mz_state.block_storage)?;
 
-    info!(
-        "move mvm to next key now_node path: {:?} next_node path: {:?}",
-        now_to_head_path, next_to_head_path
-    );
+    // info!(
+    //     "move mvm to next key now_node path: {:?} next_node path: {:?}",
+    //     now_to_head_path, next_to_head_path
+    // );
     for psk in now_to_head_path {
         let block = get_block(&mz_state.block_storage, &psk)?
             .ok_or_else(|| anyhow::anyhow!("Block not found"))?;
