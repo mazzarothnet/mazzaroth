@@ -1,12 +1,11 @@
 use crate::{
-    config::Config,
-    state::{
+    config::Config, network::gossip::load_or_generate_keypair, state::{
         account_manager::AccountManager,
-        block_storage::{BlockStorage, get_block_storage},
+        block_storage::{get_block_storage, BlockStorage},
         mvm::get_mvm_storage,
         tips::TempBlock,
         transfer::PendingTransfer,
-    },
+    }
 };
 use consensus::types::BlockKey;
 use database::rocksdb_no_batch::RocksDbStorage;
@@ -26,6 +25,7 @@ pub struct MzState {
     pub config: Arc<Config>,
     pub account_manager: Arc<Mutex<AccountManager>>,
     pub pending_transfers: Arc<Mutex<PendingTransfer>>,
+    pub p2p_keypair: libp2p::identity::Keypair,
 }
 
 pub fn clear_path(path: &str) -> anyhow::Result<()> {
@@ -50,6 +50,7 @@ pub fn get_mz_state(path: &str) -> anyhow::Result<MzState> {
         path
     ))?));
     let pending_transfers = Arc::new(Mutex::new(PendingTransfer::default()));
+    let p2p_keypair = load_or_generate_keypair(&format!("{}/p2p_keypair.bin", path))?;
     Ok(MzState {
         mvm,
         block_storage,
@@ -58,5 +59,6 @@ pub fn get_mz_state(path: &str) -> anyhow::Result<MzState> {
         config: Arc::new(config),
         account_manager,
         pending_transfers,
+        p2p_keypair,
     })
 }

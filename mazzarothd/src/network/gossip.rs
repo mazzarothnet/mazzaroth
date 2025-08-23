@@ -2,6 +2,7 @@ use crate::state::{mz_state::MzState, tips::push_block};
 use alloy_rlp::{Decodable, Encodable};
 use anyhow::Context;
 use futures::stream::StreamExt;
+use libp2p::identity::Keypair;
 use libp2p::{
     Multiaddr, gossipsub, noise,
     swarm::{NetworkBehaviour, SwarmEvent},
@@ -9,6 +10,8 @@ use libp2p::{
 };
 use log::info;
 use mvm::models::block::Block;
+use std::fs;
+use std::path::Path;
 use std::{
     collections::hash_map::DefaultHasher,
     hash::{Hash, Hasher},
@@ -22,10 +25,23 @@ struct MBehaviour {
     gossipsub: gossipsub::Behaviour,
 }
 
+pub fn load_or_generate_keypair(path: &str) -> anyhow::Result<Keypair> {
+    if Path::new(path).exists() {
+        let bytes = fs::read(path)?;
+        let keypair = Keypair::from_protobuf_encoding(&bytes)?;
+        Ok(keypair)
+    } else {
+        let keypair = Keypair::generate_ed25519();
+        let bytes = keypair.to_protobuf_encoding()?;
+        fs::write(path, &bytes)?;
+        Ok(keypair)
+    }
+}
+
 // todo: check block pow and expired
 #[allow(clippy::unwrap_used)]
 pub async fn spawn_gossip_thread(mz_state: MzState) -> mpsc::Sender<Block> {
-    let mut swarm = libp2p::SwarmBuilder::with_new_identity()
+    let mut swarm = libp2p::SwarmBuilder::with_existing_identity(mz_state.p2p_keypair.clone())
         .with_tokio()
         .with_tcp(
             tcp::Config::default(),

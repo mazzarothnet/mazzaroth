@@ -7,19 +7,22 @@ use mazzarothd::{
     state::{mvm::spawn_mvm_thread, mz_state::get_mz_state, tips::force_insert_tips},
 };
 use utils::log::init_log;
-//use mazzarothd::state::{block_storage::get_block, tips::u32_to_block_key};
-use std::path::Path;
 
 #[tokio::main]
 async fn main() {
     init().unwrap();
-    //let mz_state = get_mz_state("mazzarothd/test_get_block_api").unwrap();
-    // let block = get_block(&mz_state.block_storage, &u32_to_block_key(2)).unwrap().unwrap();
+    // let mz_state = get_mz_state("mazzarothd/test_get_block_api").unwrap();
+    // let block = mazzarothd::state::block_storage::get_block(
+    //     &mz_state.block_storage,
+    //     &mazzarothd::state::tips::u32_to_block_key(2),
+    // )
+    // .unwrap()
+    // .unwrap();
     // println!("block: {:?}", block);
     let path = "mazzaroth_data";
-    if Path::new(path).exists() {
-        std::fs::remove_dir_all(path).unwrap();
-    }
+    // if std::path::Path::new(path).exists() {
+    //     std::fs::remove_dir_all(path).unwrap();
+    // }
     let mz_state = get_mz_state(path).unwrap();
     spawn_api_thread(mz_state.clone(), mz_state.config.http_port);
     let new_block_sender = spawn_gossip_thread(mz_state.clone()).await;
