@@ -36,6 +36,15 @@ pub fn clear_path(path: &str) -> anyhow::Result<()> {
     Ok(())
 }
 
+// todo: there has a bug, if not clean the path, node can not start
+pub fn clean_block_and_mvm(path: &str) -> anyhow::Result<()> {
+    let block_path = format!("{}/block", path);
+    let mvm_path = format!("{}/mvm", path);
+    clear_path(&block_path)?;
+    clear_path(&mvm_path)?;
+    Ok(())
+}
+
 pub fn get_mz_state(path: &str) -> anyhow::Result<MzState> {
     let block_path = format!("{}/block", path);
     let mvm_path = format!("{}/mvm", path);
