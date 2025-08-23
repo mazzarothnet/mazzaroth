@@ -26,13 +26,16 @@ pub fn spawn_mining_thread(mz_state: MzState, block_sender: tokio::sync::mpsc::S
             loop {
                 let block = try_gen_new_block(&mz_state, &sha256_context).unwrap();
                 if let Some(block) = block {
-                    info!("mining new block: {:?} target: {:?}", block.key, block.inner.header.pow_header.target);
+                    info!(
+                        "mining new block: {:?} target: {:?}",
+                        block.key, block.inner.header.pow_header.target
+                    );
                     block_sender.send(block.clone()).await.unwrap();
                     push_block(block, &mz_state).unwrap();
-                    tokio::time::sleep(Duration::from_millis(1000)).await;
                 } else {
                     info!("mining new block failed");
                 }
+                tokio::time::sleep(Duration::from_millis(1000)).await;
             }
         });
     });
@@ -44,6 +47,9 @@ fn try_gen_new_block(
 ) -> anyhow::Result<Option<Block>> {
     let now_time = get_current_time_ms();
     let tips = get_tips(mz_state)?.into_iter().collect::<Vec<_>>();
+    if tips.is_empty() {
+        return Ok(None);
+    }
     let consensus_header =
         gen_consensus_header_with_global_storage(&mz_state.block_storage, &tips, now_time)?;
     let miner_account = mz_state
