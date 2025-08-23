@@ -26,7 +26,7 @@ pub fn spawn_mining_thread(mz_state: MzState, block_sender: tokio::sync::mpsc::S
             loop {
                 let block = try_gen_new_block(&mz_state, &sha256_context).unwrap();
                 if let Some(block) = block {
-                    info!("mining new block: {:?}", block.key);
+                    info!("mining new block: {:?} target: {:?}", block.key, block.inner.header.pow_header.target);
                     block_sender.send(block.clone()).await.unwrap();
                     push_block(block, &mz_state).unwrap();
                     tokio::time::sleep(Duration::from_millis(1000)).await;
