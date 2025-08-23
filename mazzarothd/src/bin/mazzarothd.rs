@@ -44,8 +44,21 @@ fn init() -> anyhow::Result<()> {
 }
 
 fn hook_panic() {
-    std::panic::set_hook(Box::new(|info| {
-        eprintln!("panic: {:?}", info);
+    std::panic::set_hook(Box::new(|info: &std::panic::PanicHookInfo| {
+        let message = match info.payload().downcast_ref::<&str>() {
+            Some(s) => *s,
+            None => match info.payload().downcast_ref::<String>() {
+                Some(s) => s.as_str(),
+                None => "no further details available",
+            },
+        };
+
+        let location = info.location().map_or("unknown location".to_string(), |loc| {
+            format!("{}:{}:{}", loc.file(), loc.line(), loc.column())
+        });
+
+        eprintln!("panic occurred: '{}' at {}", message, location);
+
         std::process::exit(1);
     }));
 }
