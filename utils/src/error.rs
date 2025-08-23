@@ -3,6 +3,7 @@ use axum::{
     http::{Response, StatusCode},
     response::IntoResponse,
 };
+use log::info;
 use thiserror::Error;
 
 /// error type
@@ -87,5 +88,20 @@ impl<T: serde::Serialize> IntoResponse for Res<T> {
             .status(StatusCode::OK)
             .body(body)
             .unwrap_or_default()
+    }
+}
+
+pub struct BinaryRes {
+    pub data: Vec<u8>,
+}
+
+impl IntoResponse for BinaryRes {
+    fn into_response(self) -> axum::response::Response {
+        Response::builder()
+            .body(Body::from(self.data))
+            .unwrap_or_else(|e| {
+                info!("Failed to build response: {e:?}");
+                Default::default()
+            })
     }
 }

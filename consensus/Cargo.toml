@@ -10,3 +10,4 @@ serde = { workspace = true }
 anyhow = { workspace = true }
 crypto-bigint = { workspace = true }
 alloy-rlp = { workspace = true }
+hex = { workspace = true }

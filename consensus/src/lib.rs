@@ -4,10 +4,12 @@ pub mod traits;
 pub mod types;
 
 pub const MAX_PART_SORT_SIZE: usize = 200;
-pub const MAX_ANCESTOR_SIZE: usize = 20;
+pub const MAX_ANCESTOR_SIZE: usize = 15;
 pub const BLOCK_PER_SECOND: u64 = 1;
-pub const SECOND_PER_DAY: u64 = 24 * 60 * 60;
-pub const DAY_PER_UPDATE: u64 = 2;
+// pub const SECOND_PER_DAY: u64 = 24 * 60 * 60;
+// pub const DAY_PER_UPDATE: u64 = 2;
+pub const SECOND_PER_DAY: u64 = 10;
+pub const DAY_PER_UPDATE: u64 = 1;
 pub const POW_TARGET_SIZE: u64 = BLOCK_PER_SECOND * SECOND_PER_DAY * DAY_PER_UPDATE;
 pub const POW_TARGET_INTERVAL_MS: u64 = 1000 * SECOND_PER_DAY * DAY_PER_UPDATE;
 

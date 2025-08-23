@@ -43,6 +43,9 @@ pub fn gen_part_sort_block<S: ConsensusHeaderStorage>(
         let block_header = storage.get_consensus_header(key)?;
         selected_head_dag_work += get_work_from_target(block_header.pow_header.target);
     }
+    if parent_keys.is_empty() || top_sort.is_empty() {
+        return Err(Error::EmptyParentKeys);
+    }
     let part_sort_block = PartSortHeader {
         head_key: selected_head_key,
         dag_work: selected_head_dag_work,

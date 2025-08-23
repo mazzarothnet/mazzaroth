@@ -36,10 +36,12 @@ pub fn new_test_mvm(path: &str) -> Mvm<RocksDbStorage> {
 pub fn load_mvm(path: &str) -> Mvm<RocksDbStorage> {
     let merkle_path = format!("{}/merkle", path);
     let account_path = format!("{}/account", path);
+    let state_path = format!("{}/state", path);
     let merkle_tree_db = RocksDbStorage::new(&merkle_path).unwrap();
     let merkle_tree = MerkleTree::new(merkle_tree_db).unwrap();
     let account_db = RocksDbStorage::new(&account_path).unwrap();
-    Mvm::new(account_db, merkle_tree)
+    let state_db = RocksDbStorage::new(&state_path).unwrap();
+    Mvm::new(account_db, merkle_tree, state_db)
 }
 
 #[derive(Debug, Clone)]
@@ -60,7 +62,6 @@ pub fn gen_empty_block(account_num: u64) -> Vec<Block> {
                 transfers: vec![],
                 merges: vec![],
                 miner: AccountKey([i as u8; 33]),
-                miner_last_action_hash: Hash([0; 32]),
             },
         });
     }
@@ -89,11 +90,11 @@ pub fn gen_rand_blocks(rng: &mut StdRng, block_num: u64, account_num: u64) -> Ve
     for i in 0..block_num {
         let block_key = BlockKey(U256::from_u64(i));
         let miner_index = get_rand_exist_index(rng, &account_map);
-        let (miner_key, miner_last_action_hash) = {
+        let (miner_key, _miner_last_action_hash) = {
             let miner_package = account_map.get_mut(&miner_index).unwrap();
             let last_action_hash = miner_package.account.action_hash;
             miner_package.account.balance += get_now_block_reward(0);
-            miner_package.account.action_hash = Hash(block_key.0.to_be_bytes());
+            //miner_package.account.action_hash = Hash(block_key.0.to_be_bytes());
             debug!(
                 "random miner update account: {:?} {:?} {:?}",
                 miner_package.account.key,
@@ -111,7 +112,6 @@ pub fn gen_rand_blocks(rng: &mut StdRng, block_num: u64, account_num: u64) -> Ve
                 transfers: vec![],
                 merges: vec![],
                 miner: miner_key,
-                miner_last_action_hash,
             },
         };
 
@@ -221,7 +221,7 @@ fn gen_rand_transfer(
         miner_package.account.balance += transfer.inner.gas_price * TRANSFER_GAS;
 
         debug!(
-            "random transfer minner update account: {:?} {:?} {:?}",
+            "random transfer miner update account: {:?} {:?} {:?}",
             miner_package.account.key,
             miner_package.account.action_hash,
             miner_package.account.balance
@@ -351,7 +351,7 @@ fn gen_rand_merge(
         let miner_package = account_map.get_mut(&miner_index).unwrap();
         miner_package.account.balance += merge.inner.gas_price * TRANSFER_GAS;
         debug!(
-            "random merge minner update account: {:?} {:?} {:?}",
+            "random merge miner update account: {:?} {:?} {:?}",
             miner_package.account.key,
             Hash(merge_inner_hash),
             miner_package.account.balance

@@ -30,6 +30,12 @@ libp2p = {version = "0.56", features = ["tokio", "gossipsub", "mdns", "noise", "
 jemallocator = "0.5"
 lazy_static = "1"
 toml = "0.9"
+reqwest = { version = "0.12", features = [
+    "json",
+    "stream",
+    "rustls-tls",
+], default-features = false }
+hex = "0.4"
 
 [workspace.features]
 default = []

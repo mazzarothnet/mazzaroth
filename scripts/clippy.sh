@@ -16,4 +16,5 @@ cargo clippy --all-targets --all-features "$@" -- \
         -D clippy::option_option \
         -D clippy::wildcard_imports \
         -A clippy::uninlined_format_args \
-        -A clippy::redundant_closure
+        -A clippy::redundant_closure \
+        -A clippy::collapsible_if

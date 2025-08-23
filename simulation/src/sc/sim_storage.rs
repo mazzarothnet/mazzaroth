@@ -1,5 +1,5 @@
-use crate::sc::sim_miner::Position;
 use super::sim_block::SimBlock;
+use crate::sc::sim_miner::Position;
 use alloy_rlp::{Decodable, Encodable};
 use anyhow::Context;
 use consensus::{
@@ -44,14 +44,11 @@ impl SimConsensusHeaderStorage {
                     part_sort_header: PartSortHeader {
                         head_key: BlockKey::from(GENESIS_BLOCK_KEY),
                         dag_work: DagWork::from(U256::ZERO),
-                        size: 0,
-                        parent_keys: vec![],
-                        part_sort: vec![],
+                        ..Default::default()
                     },
                     pow_header: PowHeader {
                         target: BlockKey::from(U256::MAX),
-                        target_timestamp_ms: 0,
-                        now_timestamp_ms: 0,
+                        ..Default::default()
                     },
                 },
             }));

@@ -1,48 +1,60 @@
-use crate::state::app_data::get_block_db_path;
 use consensus::{
-    block_header::ConsensusHeader,
-    part_sort_header::gen_part_sort_block,
-    traits::{ConsensusHeaderStorage, PartSortHeader},
-    types::BlockKey,
+    block_header::{ConsensusHeader, PowHeader, gen_consensus_header},
+    traits::{ConsensusHeaderStorage, GENESIS_BLOCK_KEY, PartSortHeader},
+    types::{BlockKey, DagWork},
 };
+use crypto_bigint::U256;
 use database::rocksdb_no_batch::RocksDbStorage;
-use mvm::{core::storage::DbStorage, models::block::Block};
-use std::sync::Mutex;
+use mvm::{
+    core::storage::DbStorage,
+    models::block::{Block, BlockInner},
+};
+use std::sync::{Arc, Mutex};
 use utils::error::{Error, Result};
 
-pub fn get_block(block_key: &BlockKey) -> anyhow::Result<Option<Block>> {
-    let block_storage = BLOCK_STORAGE
+pub fn get_block(
+    block_storage_arc: &Arc<Mutex<BlockStorage>>,
+    block_key: &BlockKey,
+) -> anyhow::Result<Option<Block>> {
+    let block_storage = block_storage_arc
         .lock()
         .map_err(|e| anyhow::anyhow!("Failed to lock block storage: {}", e))?;
     block_storage.get_block(block_key)
 }
 
-pub fn set_block(block_key: &BlockKey, block: &Block) -> anyhow::Result<()> {
-    let block_storage = BLOCK_STORAGE
+pub fn set_block(
+    block_storage_arc: &Arc<Mutex<BlockStorage>>,
+    block_key: &BlockKey,
+    block: &Block,
+) -> anyhow::Result<()> {
+    let block_storage = block_storage_arc
         .lock()
         .map_err(|e| anyhow::anyhow!("Failed to lock block storage: {}", e))?;
     block_storage.set_block(block_key, block)
 }
 
-pub fn has_block(block_key: &BlockKey) -> anyhow::Result<bool> {
-    let block_storage = BLOCK_STORAGE
+pub fn has_block(
+    block_storage_arc: &Arc<Mutex<BlockStorage>>,
+    block_key: &BlockKey,
+) -> anyhow::Result<bool> {
+    let block_storage = block_storage_arc
         .lock()
         .map_err(|e| anyhow::anyhow!("Failed to lock block storage: {}", e))?;
     block_storage.has_block(block_key)
 }
 
-pub fn get_part_sort_header(parent_keys: &[BlockKey]) -> utils::error::Result<PartSortHeader> {
-    let block_storage = BLOCK_STORAGE
+pub fn gen_consensus_header_with_global_storage(
+    block_storage_arc: &Arc<Mutex<BlockStorage>>,
+    parent_keys: &[BlockKey],
+    now_timestamp_ms: u64,
+) -> utils::error::Result<ConsensusHeader> {
+    let block_storage = block_storage_arc
         .lock()
         .map_err(|e| anyhow::anyhow!("Failed to lock block storage: {}", e))?;
-    gen_part_sort_block(&*block_storage, parent_keys)
+    gen_consensus_header(&*block_storage, parent_keys, now_timestamp_ms)
 }
 
-lazy_static::lazy_static! {
-    static ref BLOCK_STORAGE: Mutex<BlockStorage> = Mutex::new(get_block_storage());
-}
-
-struct BlockStorage {
+pub struct BlockStorage {
     db: RocksDbStorage,
 }
 
@@ -53,6 +65,9 @@ impl BlockStorage {
     }
 
     fn get_block(&self, key: &BlockKey) -> anyhow::Result<Option<Block>> {
+        if key == &BlockKey::from(GENESIS_BLOCK_KEY) {
+            return Ok(Some(get_genesis_block()));
+        }
         let block = self.db.get_data(key)?;
         Ok(block)
     }
@@ -63,6 +78,9 @@ impl BlockStorage {
     }
 
     fn has_block(&self, key: &BlockKey) -> anyhow::Result<bool> {
+        if key == &BlockKey::from(GENESIS_BLOCK_KEY) {
+            return Ok(true);
+        }
         let exists = self.db.has_data(key)?;
         Ok(exists)
     }
@@ -78,7 +96,25 @@ impl ConsensusHeaderStorage for BlockStorage {
     }
 }
 
-#[allow(clippy::unwrap_used)]
-fn get_block_storage() -> BlockStorage {
-    BlockStorage::new(&get_block_db_path().unwrap()).unwrap()
+fn get_genesis_block() -> Block {
+    Block {
+        key: BlockKey::from(GENESIS_BLOCK_KEY),
+        nonce: 0,
+        inner: BlockInner {
+            version: 0,
+            header: ConsensusHeader {
+                part_sort_header: PartSortHeader {
+                    head_key: BlockKey::from(GENESIS_BLOCK_KEY),
+                    dag_work: DagWork::from(U256::ZERO),
+                    ..Default::default()
+                },
+                pow_header: PowHeader::default(),
+            },
+            ..Default::default()
+        },
+    }
+}
+
+pub fn get_block_storage(path: &str) -> anyhow::Result<BlockStorage> {
+    BlockStorage::new(path)
 }

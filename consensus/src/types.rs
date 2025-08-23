@@ -34,7 +34,7 @@ macro_rules! define_byte_array {
             where
                 S: Serializer,
             {
-                serializer.serialize_bytes(&self.0)
+                serializer.serialize_str(&hex::encode(self.0))
             }
         }
 
@@ -43,15 +43,10 @@ macro_rules! define_byte_array {
             where
                 D: Deserializer<'de>,
             {
-                let vec: Vec<u8> = Deserialize::deserialize(deserializer)?;
-                if vec.len() != $len {
-                    return Err(serde::de::Error::invalid_length(
-                        vec.len(),
-                        &stringify!($len),
-                    ));
-                }
+                let s = String::deserialize(deserializer)?;
+                let key = hex::decode(s).map_err(serde::de::Error::custom)?;
                 let mut arr = [0u8; $len];
-                arr.copy_from_slice(&vec);
+                arr.copy_from_slice(&key);
                 Ok($struct_name(arr))
             }
         }

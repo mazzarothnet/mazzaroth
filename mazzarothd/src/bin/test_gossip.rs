@@ -1,13 +1,13 @@
-use std::{
-    collections::hash_map::DefaultHasher,
-    hash::{Hash, Hasher},
-    time::Duration,
-};
 use futures::stream::StreamExt;
 use libp2p::{
     Multiaddr, gossipsub, noise,
     swarm::{NetworkBehaviour, SwarmEvent},
     tcp, yamux,
+};
+use std::{
+    collections::hash_map::DefaultHasher,
+    hash::{Hash, Hasher},
+    time::Duration,
 };
 use tokio::{io, io::AsyncBufReadExt, select};
 

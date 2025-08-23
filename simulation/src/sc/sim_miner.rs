@@ -17,21 +17,9 @@ pub struct SimMiner {
     pub power: f64,
 }
 
-pub fn gen_sim_minner_list(miner_num: u64) -> Vec<SimMiner> {
-    let poor_minner_num = miner_num / 10;
-    let mut rng = rand::rng();
+pub fn gen_sim_miner_list(miner_num: u64, rng: &mut rand::rngs::StdRng) -> Vec<SimMiner> {
     let mut miners = Vec::new();
-    for i in 0..poor_minner_num {
-        let x = rng.random_range(0..HEIGHT * 10) as u64;
-        let y = rng.random_range(0..WIDTH * 10) as u64;
-        let power = f64::from(rng.random_range(0..100));
-        miners.push(SimMiner {
-            id: i,
-            position: Position { x, y },
-            power,
-        });
-    }
-    for i in poor_minner_num..miner_num {
+    for i in 0..miner_num {
         let x = rng.random_range(0..HEIGHT) as u64;
         let y = rng.random_range(0..WIDTH) as u64;
         let power = f64::from(rng.random_range(0..100));
@@ -44,14 +32,13 @@ pub fn gen_sim_minner_list(miner_num: u64) -> Vec<SimMiner> {
     miners
 }
 
-pub fn select_miner(miners: &[SimMiner]) -> SimMiner {
+pub fn select_miner(miners: &[SimMiner], rng: &mut rand::rngs::StdRng) -> SimMiner {
     let mut vv = Vec::new();
     vv.push(miners[0].power as u64);
     for i in 1..miners.len() {
         vv.push(vv[i - 1] + miners[i].power as u64);
     }
     let end = vv[vv.len() - 1];
-    let mut rng = rand::rng();
     let r = rng.random_range(0..end);
     for i in 0..vv.len() {
         if r <= vv[i] {
@@ -67,24 +54,28 @@ pub fn calc_distance_delay(miner1: &Position, miner2: &Position, block_per_step:
     let dy = (miner1.y as f64 - miner2.y as f64).abs();
     let distance = (dx * dx + dy * dy).sqrt();
     let max_distance = (HEIGHT as f64 * HEIGHT as f64 + WIDTH as f64 * WIDTH as f64).sqrt();
-    let delay = distance / max_distance * block_per_step + ADD_DELAY;
+    let delay = (distance / max_distance + ADD_DELAY) * block_per_step;
     delay as u64
 }
 
 #[cfg(test)]
 mod tests {
+    use rand::SeedableRng;
+
     use super::*;
 
     #[test]
-    fn test_gen_sim_minner_list() {
-        let miners = gen_sim_minner_list(10);
+    fn test_gen_sim_miner_list() {
+        let mut rng = rand::rngs::StdRng::seed_from_u64(1112331);
+        let miners = gen_sim_miner_list(10, &mut rng);
         assert_eq!(miners.len(), 10);
     }
 
     #[test]
     fn test_select_miner() {
-        let miners = gen_sim_minner_list(10);
-        let miner = select_miner(&miners);
+        let mut rng = rand::rngs::StdRng::seed_from_u64(1112331);
+        let miners = gen_sim_miner_list(10, &mut rng);
+        let miner = select_miner(&miners, &mut rng);
         assert!(miner.id < 10);
     }
 }

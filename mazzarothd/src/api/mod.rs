@@ -1,18 +1,41 @@
-use crate::config::CFG;
+use crate::state::mz_state::MzState;
 use anyhow::Context;
-use axum::Router;
+use axum::{Router, routing::get};
 use tokio::net::TcpListener;
+use utils::error::{Res, Result};
 
-pub fn api_router() -> Router {
+pub mod account;
+pub mod block;
+
+pub fn api_router(mz_state: MzState) -> Router {
     Router::new()
+        .route("/", get(hello))
+        .route("/block", get(block::get_block_api))
+        .route("/tips", get(block::get_tips_api))
+        .route("/current", get(account::get_current_account))
+        .route("/account", get(account::get_account))
+        .route("/transfer", get(account::transfer))
+        .with_state(mz_state)
 }
 
-pub async fn serve() -> anyhow::Result<()> {
-    let port = CFG.http_port;
-    let app = api_router();
-    let listener = TcpListener::bind(format!("0.0.0.0:{}", port))
+async fn hello() -> Result<Res<String>> {
+    Ok(Res {
+        data: "Hello Mazzaroth".to_string(),
+    })
+}
+
+#[allow(clippy::unwrap_used)]
+pub fn spawn_api_thread(mz_state: MzState, port: u16) {
+    tokio::spawn(async move {
+        serve(mz_state, port).await.unwrap();
+    });
+}
+
+async fn serve(mz_state: MzState, http_port: u16) -> anyhow::Result<()> {
+    let app = api_router(mz_state);
+    let listener = TcpListener::bind(format!("[::]:{}", http_port))
         .await
-        .with_context(|| format!("Failed to bind to port {}", port))?;
+        .with_context(|| format!("Failed to bind to port {}", http_port))?;
     axum::serve(listener, app)
         .await
         .with_context(|| "Failed to serve API".to_string())?;

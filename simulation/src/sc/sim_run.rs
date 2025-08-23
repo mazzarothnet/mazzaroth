@@ -1,6 +1,6 @@
 use super::{
     sim_block::SimBlock,
-    sim_miner::{Position, gen_sim_minner_list, select_miner},
+    sim_miner::{Position, gen_sim_miner_list, select_miner},
     sim_storage::SimConsensusHeaderStorage,
 };
 use crate::sc::sim_miner::calc_distance_delay;
@@ -13,7 +13,10 @@ use consensus::{
 };
 use crypto_bigint::U256;
 use log::info;
-use std::collections::{BTreeMap, BTreeSet, VecDeque};
+use std::{
+    collections::{BTreeMap, BTreeSet, VecDeque},
+    path::Path,
+};
 use utils::file::write_to_json;
 
 fn dag_work_to_u64(dag_work: DagWork) -> u64 {
@@ -21,16 +24,25 @@ fn dag_work_to_u64(dag_work: DagWork) -> u64 {
 }
 
 #[allow(clippy::panic, clippy::manual_is_finite)]
-pub fn run_sim(db_path: &str, miner_num: u64, block_num: u64, block_per_step: f64) {
-    std::fs::remove_dir_all(db_path).unwrap();
+pub fn run_sim(
+    db_path: &str,
+    miner_num: u64,
+    block_num: u64,
+    block_per_step: f64,
+    rng: &mut rand::rngs::StdRng,
+) {
+    let db_path_p = Path::new(db_path);
+    if db_path_p.exists() {
+        std::fs::remove_dir_all(db_path).unwrap();
+    }
     let mut storage = SimConsensusHeaderStorage::new(db_path);
-    let miners = gen_sim_minner_list(miner_num);
+    let miners = gen_sim_miner_list(miner_num, rng);
     let mut tips = BTreeSet::new();
     tips.insert(BlockKey::from(GENESIS_BLOCK_KEY));
     let mut part_sort_size: BTreeMap<usize, i64> = BTreeMap::new();
     // let mut tmp_block = Vec::new();
-    for i in 2..block_num {
-        let selected_miner = select_miner(&miners);
+    for i in 1..block_num {
+        let selected_miner = select_miner(&miners, rng);
         let local_tips = cal_tips_by_position(
             tips.clone(),
             selected_miner.position,
@@ -38,6 +50,19 @@ pub fn run_sim(db_path: &str, miner_num: u64, block_num: u64, block_per_step: f6
             &storage,
             block_per_step,
         );
+        // println!(
+        //     "tips: {:?}",
+        //     tips.iter()
+        //         .map(|k| block_key_to_u64(*k))
+        //         .collect::<Vec<_>>()
+        // );
+        // println!(
+        //     "local_tips: {:?}",
+        //     local_tips
+        //         .iter()
+        //         .map(|k| block_key_to_u64(*k))
+        //         .collect::<Vec<_>>()
+        // );
         let part_sort_header = match gen_part_sort_block(&storage, &local_tips) {
             Ok(part_sort_header) => part_sort_header,
             Err(e) => {
@@ -55,7 +80,10 @@ pub fn run_sim(db_path: &str, miner_num: u64, block_num: u64, block_per_step: f6
             .or_insert(0) += 1;
         let dw = dag_work_to_u64(part_sort_header.dag_work);
         if dw != part_sort_header.size {
-            panic!("dw != part_sort_header.size");
+            panic!(
+                "dw != part_sort_header.size {} {}",
+                dw, part_sort_header.size
+            );
         }
         let distance = i - dw;
         let now_key = BlockKey::from(U256::from_u64(i));
@@ -67,7 +95,10 @@ pub fn run_sim(db_path: &str, miner_num: u64, block_num: u64, block_per_step: f6
             creator_position: selected_miner.position,
             header: ConsensusHeader {
                 part_sort_header: part_sort_header.clone(),
-                pow_header: PowHeader::default(),
+                pow_header: PowHeader {
+                    target: BlockKey::from(U256::MAX),
+                    ..Default::default()
+                },
             },
         };
         storage.set_block(now_key, &block).unwrap();
@@ -77,6 +108,30 @@ pub fn run_sim(db_path: &str, miner_num: u64, block_num: u64, block_per_step: f6
         //     panic!("tmp_block.len() > 100");
         // }
         tips.insert(now_key);
+
+        // if i % 100 == 0 {
+        //     panic!("debug");
+        // } else {
+        //     println!(
+        //         "now key: {}, size: {}, parent {:?}",
+        //         block_key_to_u64(now_key),
+        //         part_sort_header.size,
+        //         part_sort_header
+        //             .parent_keys
+        //             .iter()
+        //             .map(|k| block_key_to_u64(*k))
+        //             .collect::<Vec<_>>(),
+        //     );
+        //     println!(
+        //         "part sort {:?}, head key: {}",
+        //         part_sort_header
+        //             .part_sort
+        //             .iter()
+        //             .map(|k| block_key_to_u64(*k))
+        //             .collect::<Vec<_>>(),
+        //         block_key_to_u64(part_sort_header.head_key)
+        //     );
+        // }
 
         while tips.len() > MAX_ANCESTOR_SIZE * 2 {
             tips.pop_first();
@@ -95,6 +150,10 @@ pub fn run_sim(db_path: &str, miner_num: u64, block_num: u64, block_per_step: f6
         (block_per_step as u64)
     );
     write_to_json(&output_path, &part_sort_size).unwrap();
+}
+
+pub fn block_key_to_u64(block_key: BlockKey) -> u64 {
+    block_key.0.to_limbs()[0].0
 }
 
 pub fn cal_tips_by_position(

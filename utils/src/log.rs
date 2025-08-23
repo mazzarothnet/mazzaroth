@@ -1,6 +1,6 @@
 use log::info;
 use log4rs::{
-    append::file::FileAppender,
+    append::{console::ConsoleAppender, file::FileAppender},
     config::{Appender, Config, Logger, Root},
     encode::pattern::PatternEncoder,
 };
@@ -12,15 +12,19 @@ pub fn init_log() {
         .build("logs/mazzaroth.log")
         .unwrap();
 
+    let console = ConsoleAppender::builder().build();
+
     let config = Config::builder()
         .appender(Appender::builder().build("file", Box::new(file)))
+        .appender(Appender::builder().build("console", Box::new(console)))
         .logger(
             Logger::builder()
                 .appender("file")
+                .appender("console")
                 .additive(false)
                 .build("app::module", log::LevelFilter::Debug),
         )
-        .build(Root::builder().appender("file").build(
+        .build(Root::builder().appender("file").appender("console").build(
             #[cfg(debug_assertions)]
             log::LevelFilter::Debug,
             #[cfg(not(debug_assertions))]
