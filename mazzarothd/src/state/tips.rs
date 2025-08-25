@@ -11,7 +11,7 @@ use mvm::models::block::Block;
 use mvm::models::block::BlockInner;
 use std::{
     collections::{BTreeMap, BTreeSet, HashSet},
-    sync::{Arc,}// Mutex},
+    sync::Arc,
 };
 use utils::mutex_log::Mutex;
 use utils::time::get_current_time_ms;

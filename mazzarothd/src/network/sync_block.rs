@@ -13,6 +13,7 @@ pub async fn sync_block(mz_state: &MzState, host: &str) -> anyhow::Result<()> {
         info!("sync_block, sync tip: {:?}", tip);
         sync_begin_with_key(tip, host, mz_state).await?;
     }
+    info!("sync_block end");
     Ok(())
 }
 

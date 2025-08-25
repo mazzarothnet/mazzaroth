@@ -12,11 +12,7 @@ use crate::{
 use consensus::types::BlockKey;
 use database::rocksdb_no_batch::RocksDbStorage;
 use mvm::core::vm::Mvm;
-use std::{
-    collections::BTreeMap,
-    path::Path,
-    sync::Arc, // Mutex},
-};
+use std::{collections::BTreeMap, path::Path, sync::Arc};
 use utils::mutex_log::Mutex;
 
 #[derive(Clone)]

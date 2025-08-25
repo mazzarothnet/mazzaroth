@@ -11,10 +11,7 @@ use mvm::core::{
     merkle_tree::MerkleTree,
     vm::{Mvm, NOW_BLOCK_ACTION_DO, NOW_BLOCK_ACTION_ROLLBACK},
 };
-use std::{
-    sync::{Arc},//, Mutex},
-    time::Duration,
-};
+use std::{sync::Arc, time::Duration};
 use utils::mutex_log::Mutex;
 
 const MVM_MOVE_INTERVAL_MS: u64 = 500;

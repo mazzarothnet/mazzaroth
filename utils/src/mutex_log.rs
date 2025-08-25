@@ -13,7 +13,8 @@ impl<T> Mutex<T> {
     }
 
     pub fn lock(&self) -> LockResult<LoggingMutexGuard<'_, T>> {
-        //info!("[{}] Locking mutex", self.name);
+        #[cfg(feature = "log_mutex")]
+        info!("[{}] Locking mutex", self.name);
         match self.inner.lock() {
             Ok(guard) => Ok(LoggingMutexGuard {
                 guard,
@@ -51,6 +52,7 @@ impl<'a, T> std::ops::DerefMut for LoggingMutexGuard<'a, T> {
 
 impl<'a, T> Drop for LoggingMutexGuard<'a, T> {
     fn drop(&mut self) {
-        //info!("[{}] Unlocked mutex", self.name);
+        #[cfg(feature = "log_mutex")]
+        info!("[{}] Unlocked mutex", self.name);
     }
 }

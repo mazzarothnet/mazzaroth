@@ -3,10 +3,7 @@ use consensus::{block_header::MAX_TARGET, types::BlockKey};
 use crypto_bigint::U256;
 use mining::sha256_mining::gen_sha256_by_block_hash_and_nonce;
 use mvm::models::block::Block;
-use std::{
-    collections::HashSet,
-    sync::{Arc}//, Mutex},
-};
+use std::{collections::HashSet, sync::Arc};
 use utils::mutex_log::Mutex;
 use utils::sha256::sha256_hash_rlp;
 

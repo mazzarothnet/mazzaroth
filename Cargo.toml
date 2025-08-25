@@ -40,6 +40,7 @@ hex = "0.4"
 [workspace.features]
 default = []
 disable_storage_limit = []
+log_mutex = []
 
 [profile.test]
 opt-level = 3

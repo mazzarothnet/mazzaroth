@@ -3,7 +3,7 @@ use crate::state::{
     tips::u32_to_block_key,
 };
 use mvm::models::block::{Block, BlockInner};
-use std::sync::Arc; //, Mutex};
+use std::sync::Arc;
 use utils::mutex_log::Mutex;
 use utils::time::get_current_time_ms;
 

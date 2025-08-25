@@ -16,3 +16,6 @@ secp256k1 = { workspace = true }
 rand = { workspace = true }
 # jemallocator = { workspace = true, optional = true }
 axum = { workspace = true }
+
+[features]
+log_mutex = []

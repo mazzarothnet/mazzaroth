@@ -11,16 +11,8 @@ use utils::log::init_log;
 #[tokio::main]
 async fn main() {
     init().unwrap();
-    // let mz_state = get_mz_state("mazzarothd/test_get_block_api").unwrap();
-    // let block = mazzarothd::state::block_storage::get_block(
-    //     &mz_state.block_storage,
-    //     &mazzarothd::state::tips::u32_to_block_key(2),
-    // )
-    // .unwrap()
-    // .unwrap();
-    // println!("block: {:?}", block);
     let path = "mazzaroth_data";
-    mazzarothd::state::mz_state::clean_block_and_mvm(path).unwrap();
+    //mazzarothd::state::mz_state::clean_block_and_mvm(path).unwrap();
     let mz_state = get_mz_state(path).unwrap();
     spawn_api_thread(mz_state.clone(), mz_state.config.http_port);
     let new_block_sender = spawn_gossip_thread(mz_state.clone()).await;
@@ -29,10 +21,12 @@ async fn main() {
     } else {
         force_insert_tips(vec![BlockKey(GENESIS_BLOCK_KEY)], &mz_state).unwrap();
     }
+    log::info!("spawn_mvm_thread");
     spawn_mvm_thread(mz_state.clone());
+    log::info!("spawn_mining_thread");
     spawn_mining_thread(mz_state.clone(), new_block_sender);
-
     tokio::signal::ctrl_c().await.unwrap();
+    std::process::exit(1);
 }
 
 fn init() -> anyhow::Result<()> {
@@ -58,7 +52,6 @@ fn hook_panic() {
             });
 
         eprintln!("panic occurred: '{}' at {}", message, location);
-
         std::process::exit(1);
     }));
 }
