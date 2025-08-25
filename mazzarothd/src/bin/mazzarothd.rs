@@ -51,9 +51,11 @@ fn hook_panic() {
             },
         };
 
-        let location = info.location().map_or("unknown location".to_string(), |loc| {
-            format!("{}:{}:{}", loc.file(), loc.line(), loc.column())
-        });
+        let location = info
+            .location()
+            .map_or("unknown location".to_string(), |loc| {
+                format!("{}:{}:{}", loc.file(), loc.line(), loc.column())
+            });
 
         eprintln!("panic occurred: '{}' at {}", message, location);
 
