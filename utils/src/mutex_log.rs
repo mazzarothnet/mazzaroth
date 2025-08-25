@@ -1,25 +1,26 @@
-use std::sync::{LockResult, Mutex, MutexGuard, PoisonError};
-use log::{info, warn};
+use log::info;
+use std::sync::{LockResult, MutexGuard, PoisonError};
 
-pub struct StdMutexLog<T> {
-    inner: Mutex<T>,
+pub struct Mutex<T> {
+    inner: std::sync::Mutex<T>,
     name: &'static str,
 }
 
-impl<T> StdMutexLog<T> {
-    pub fn new(inner: Mutex<T>, name: &'static str) -> Self {
-        Self { inner, name }
+impl<T> Mutex<T> {
+    pub fn new(inner: T, name: &'static str) -> Self {
+        let mutex = std::sync::Mutex::new(inner);
+        Self { inner: mutex, name }
     }
 
     pub fn lock(&self) -> LockResult<LoggingMutexGuard<'_, T>> {
-        info!("[{}] Locking mutex", self.name);
+        //info!("[{}] Locking mutex", self.name);
         match self.inner.lock() {
             Ok(guard) => Ok(LoggingMutexGuard {
                 guard,
                 name: self.name,
             }),
             Err(e) => {
-                warn!("[{}] Poisoned mutex", self.name);
+                info!("[{}] Poisoned mutex", self.name);
                 Err(PoisonError::new(LoggingMutexGuard {
                     guard: e.into_inner(),
                     name: self.name,
@@ -29,6 +30,7 @@ impl<T> StdMutexLog<T> {
     }
 }
 
+#[allow(dead_code)]
 pub struct LoggingMutexGuard<'a, T> {
     guard: MutexGuard<'a, T>,
     name: &'static str,
@@ -49,6 +51,6 @@ impl<'a, T> std::ops::DerefMut for LoggingMutexGuard<'a, T> {
 
 impl<'a, T> Drop for LoggingMutexGuard<'a, T> {
     fn drop(&mut self) {
-        info!("[{}] Unlocked mutex", self.name);
+        //info!("[{}] Unlocked mutex", self.name);
     }
 }

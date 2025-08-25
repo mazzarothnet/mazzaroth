@@ -12,9 +12,10 @@ use mvm::core::{
     vm::{Mvm, NOW_BLOCK_ACTION_DO, NOW_BLOCK_ACTION_ROLLBACK},
 };
 use std::{
-    sync::{Arc, Mutex},
+    sync::{Arc},//, Mutex},
     time::Duration,
 };
+use utils::mutex_log::Mutex;
 
 const MVM_MOVE_INTERVAL_MS: u64 = 500;
 

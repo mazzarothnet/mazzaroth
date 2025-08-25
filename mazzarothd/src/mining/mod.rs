@@ -62,8 +62,7 @@ fn try_gen_new_block(
         let mut pending_transfers_lock = mz_state.pending_transfers.lock().map_err(|e| {
             anyhow::anyhow!("try_gen_new_block Failed to lock pending_transfers: {}", e)
         })?;
-        let transfers = std::mem::take(&mut pending_transfers_lock.transfers);
-        transfers
+        std::mem::take(&mut pending_transfers_lock.transfers)
     }
     .into_iter()
     .collect::<Vec<_>>();

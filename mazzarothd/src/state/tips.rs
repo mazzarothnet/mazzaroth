@@ -11,8 +11,9 @@ use mvm::models::block::Block;
 use mvm::models::block::BlockInner;
 use std::{
     collections::{BTreeMap, BTreeSet, HashSet},
-    sync::{Arc, Mutex},
+    sync::{Arc,}// Mutex},
 };
+use utils::mutex_log::Mutex;
 use utils::time::get_current_time_ms;
 
 const TIPS_EXPIRE_MS: u64 = 1000 * 30; // tips expire time 30s

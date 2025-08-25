@@ -5,8 +5,9 @@ use mining::sha256_mining::gen_sha256_by_block_hash_and_nonce;
 use mvm::models::block::Block;
 use std::{
     collections::HashSet,
-    sync::{Arc, Mutex},
+    sync::{Arc}//, Mutex},
 };
+use utils::mutex_log::Mutex;
 use utils::sha256::sha256_hash_rlp;
 
 // not check timestamp because fn will be used in sync history block

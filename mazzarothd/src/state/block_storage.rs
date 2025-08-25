@@ -9,8 +9,9 @@ use mvm::{
     core::storage::DbStorage,
     models::block::{Block, BlockInner},
 };
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc};//, Mutex};
 use utils::error::{Error, Result};
+use utils::mutex_log::Mutex;
 
 pub fn get_block(
     block_storage_arc: &Arc<Mutex<BlockStorage>>,

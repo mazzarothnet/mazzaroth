@@ -1,5 +1,6 @@
 use mazzarothd::network::gossip::load_or_generate_keypair;
 
+#[allow(clippy::unwrap_used)]
 fn main() {
     let path = "mazzaroth_data";
     if !std::path::Path::new(path).exists() {
