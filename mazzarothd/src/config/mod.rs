@@ -20,12 +20,12 @@ impl Default for Config {
             gossip_tcp_port: 43221,
             gossip_udp_port: 43222,
             bootstrap_addr: Some(
-                "/ip6/2409:8a00:31d4:48b0:e1bb:3842:e9cf:836f/udp/43222/quic-v1".to_string(),
+                "/ip6/2409:8a00:31d4:48b0:c4f3:4a0c:f189:122c/udp/43222/quic-v1".to_string(),
             ),
             bootstrap_peer_id: Some(
                 "12D3KooWGfiJK6duQayz8cnWNJ8aBKNgUhsnfmq1jJTBsJvWzLEq".to_string(),
             ),
-            block_sync_host: Some("[2409:8a00:31d4:48b0:e1bb:3842:e9cf:836f]:8080".to_string()),
+            block_sync_host: Some("[2409:8a00:31d4:48b0:c4f3:4a0c:f189:122c]:8080".to_string()),
         }
     }
 }

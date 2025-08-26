@@ -1,10 +1,12 @@
 #![allow(clippy::unwrap_used)]
+use std::sync::atomic::AtomicBool;
+
 use consensus::traits::GENESIS_BLOCK_KEY;
 use mazzarothd::{
     api::spawn_api_thread,
     mining::spawn_mining_thread,
     network::{gossip::spawn_gossip_thread, sync_block::sync_block},
-    state::{mvm::spawn_mvm_thread, mz_state::get_mz_state, tips::force_insert_tips},
+    state::{mvm::spawn_mvm_thread, mz_state::{get_mz_state, MzState}, tips::force_insert_tips},
 };
 use utils::log::init_log;
 
@@ -25,9 +27,10 @@ async fn main() {
     spawn_mvm_thread(mz_state.clone());
     log::info!("spawn_mining_thread");
     spawn_mining_thread(mz_state.clone(), new_block_sender);
+    spawn_exit_thread(mz_state.clone());
     tokio::signal::ctrl_c().await.unwrap();
-    mazzarothd::state::state_dump::dump_blocks(&mz_state, 1000).unwrap();
-    std::process::exit(1);
+    log::info!("ctrl_c");
+    NEED_EXIT.store(true, std::sync::atomic::Ordering::SeqCst);
 }
 
 fn init() -> anyhow::Result<()> {
@@ -53,6 +56,21 @@ fn hook_panic() {
             });
 
         eprintln!("panic occurred: '{}' at {}", message, location);
-        std::process::exit(1);
+        NEED_EXIT.store(true, std::sync::atomic::Ordering::SeqCst);
     }));
+}
+
+static NEED_EXIT: AtomicBool = AtomicBool::new(false);
+fn spawn_exit_thread(mz_state: MzState) {
+    tokio::spawn(async move {
+        while !NEED_EXIT.load(std::sync::atomic::Ordering::SeqCst) {
+            log::info!("exit thread");
+            tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+        }
+        if let Err(e) = mazzarothd::state::state_dump::dump_blocks(&mz_state, 100) {
+            log::error!("dump_blocks error: {:?}", e);
+        }
+        log::info!("exit");
+        std::process::exit(1);
+    });
 }

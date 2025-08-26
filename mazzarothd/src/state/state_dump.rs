@@ -21,6 +21,18 @@ pub struct DumpTempBlock {
     pub unknown_keys: Vec<BlockKey>,
 }
 pub fn dump_blocks(mz_state: &MzState, max_length: usize) -> anyhow::Result<()> {
+    let temp_blocks = get_temp_blocks(mz_state)?;
+    let mut temp_blocks_vec = Vec::new();
+    for (key, (block, unknown_keys)) in temp_blocks.into_iter() {
+        temp_blocks_vec.push(DumpTempBlock {
+            key,
+            head_key: block.inner.header.part_sort_header.head_key,
+            unknown_keys: unknown_keys.into_iter().collect::<Vec<_>>(),
+        });
+    }
+    let temp_blocks_path = format!("{}/temp_blocks.json", mz_state.path);
+    write_to_json(&temp_blocks_path, &temp_blocks_vec)?;
+
     let tips = get_tips(mz_state)?;
     let tips_path = format!("{}/tips.json", mz_state.path);
     write_to_json(&tips_path, &tips)?;
@@ -46,16 +58,5 @@ pub fn dump_blocks(mz_state: &MzState, max_length: usize) -> anyhow::Result<()> 
     let blocks_path = format!("{}/blocks.json", mz_state.path);
     write_to_json(&blocks_path, &blocks)?;
 
-    let temp_blocks = get_temp_blocks(mz_state)?;
-    let mut temp_blocks_vec = Vec::new();
-    for (key, (block, unknown_keys)) in temp_blocks.into_iter() {
-        temp_blocks_vec.push(DumpTempBlock {
-            key,
-            head_key: block.inner.header.part_sort_header.head_key,
-            unknown_keys: unknown_keys.into_iter().collect::<Vec<_>>(),
-        });
-    }
-    let temp_blocks_path = format!("{}/temp_blocks.json", mz_state.path);
-    write_to_json(&temp_blocks_path, &temp_blocks_vec)?;
     Ok(())
 }

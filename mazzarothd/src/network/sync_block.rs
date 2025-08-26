@@ -7,6 +7,7 @@ use log::info;
 
 /// this fn will block
 pub async fn sync_block(mz_state: &MzState, host: &str) -> anyhow::Result<()> {
+    tokio::time::sleep(std::time::Duration::from_secs(5)).await;
     let tips = req_tips(host).await?;
     info!("sync_block, tips: {:?}", tips);
     for tip in tips {

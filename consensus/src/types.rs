@@ -55,7 +55,7 @@ macro_rules! define_byte_array {
 
 macro_rules! impl_u256_ops {
     ($type_name:ident) => {
-        #[derive(Debug, Clone, PartialEq, Eq, Copy, Ord, PartialOrd, Hash)]
+        #[derive(Clone, PartialEq, Eq, Copy, Ord, PartialOrd, Hash)]
         pub struct $type_name(pub crypto_bigint::U256);
 
         impl Serialize for $type_name {
@@ -76,6 +76,12 @@ macro_rules! impl_u256_ops {
                 let s = String::deserialize(deserializer)?;
                 let bytes = hex::decode(s).map_err(serde::de::Error::custom)?;
                 Ok($type_name(crypto_bigint::U256::from_be_slice(&bytes)))
+            }
+        }
+
+        impl std::fmt::Debug for $type_name {
+            fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+                write!(f, "{}", self.to_string())
             }
         }
 
