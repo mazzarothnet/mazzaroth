@@ -20,7 +20,7 @@ pub struct DumpTempBlock {
     pub head_key: BlockKey,
     pub unknown_keys: Vec<BlockKey>,
 }
-pub fn dump_blocks(mz_state: &MzState) -> anyhow::Result<()> {
+pub fn dump_blocks(mz_state: &MzState, max_length: usize) -> anyhow::Result<()> {
     let tips = get_tips(mz_state)?;
     let tips_path = format!("{}/tips.json", mz_state.path);
     write_to_json(&tips_path, &tips)?;
@@ -33,7 +33,7 @@ pub fn dump_blocks(mz_state: &MzState) -> anyhow::Result<()> {
     .part_sort_header
     .head_key;
     let mut blocks = Vec::new();
-    while head != GENESIS_BLOCK_KEY {
+    while head != GENESIS_BLOCK_KEY && blocks.len() < max_length {
         let block = get_block(&mz_state.block_storage, &head)?
             .ok_or_else(|| anyhow::anyhow!("block not found"))?;
         blocks.push(DumpBlock {

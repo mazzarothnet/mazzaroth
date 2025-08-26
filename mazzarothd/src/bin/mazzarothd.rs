@@ -26,7 +26,7 @@ async fn main() {
     log::info!("spawn_mining_thread");
     spawn_mining_thread(mz_state.clone(), new_block_sender);
     tokio::signal::ctrl_c().await.unwrap();
-    mazzarothd::state::state_dump::dump_blocks(&mz_state).unwrap();
+    mazzarothd::state::state_dump::dump_blocks(&mz_state, 1000).unwrap();
     std::process::exit(1);
 }
 
