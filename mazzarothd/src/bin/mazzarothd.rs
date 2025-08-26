@@ -1,5 +1,5 @@
 #![allow(clippy::unwrap_used)]
-use consensus::{traits::GENESIS_BLOCK_KEY, types::BlockKey};
+use consensus::traits::GENESIS_BLOCK_KEY;
 use mazzarothd::{
     api::spawn_api_thread,
     mining::spawn_mining_thread,
@@ -19,13 +19,14 @@ async fn main() {
     if let Some(host) = mz_state.config.block_sync_host.as_ref() {
         sync_block(&mz_state, host).await.unwrap();
     } else {
-        force_insert_tips(vec![BlockKey(GENESIS_BLOCK_KEY)], &mz_state).unwrap();
+        force_insert_tips(vec![GENESIS_BLOCK_KEY], &mz_state).unwrap();
     }
     log::info!("spawn_mvm_thread");
     spawn_mvm_thread(mz_state.clone());
     log::info!("spawn_mining_thread");
     spawn_mining_thread(mz_state.clone(), new_block_sender);
     tokio::signal::ctrl_c().await.unwrap();
+    mazzarothd::state::state_dump::dump_blocks(&mz_state).unwrap();
     std::process::exit(1);
 }
 

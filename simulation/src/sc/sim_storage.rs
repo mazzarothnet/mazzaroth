@@ -36,13 +36,13 @@ impl SimConsensusHeaderStorage {
     }
 
     pub fn get_block(&self, key: &BlockKey) -> Result<Option<SimBlock>> {
-        if key == &BlockKey::from(GENESIS_BLOCK_KEY) {
+        if *key == GENESIS_BLOCK_KEY {
             return Ok(Some(SimBlock {
-                key: BlockKey::from(GENESIS_BLOCK_KEY),
+                key: GENESIS_BLOCK_KEY,
                 creator_position: Position::default(),
                 header: ConsensusHeader {
                     part_sort_header: PartSortHeader {
-                        head_key: BlockKey::from(GENESIS_BLOCK_KEY),
+                        head_key: GENESIS_BLOCK_KEY,
                         dag_work: DagWork::from(U256::ZERO),
                         ..Default::default()
                     },

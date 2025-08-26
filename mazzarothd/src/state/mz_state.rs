@@ -17,6 +17,7 @@ use utils::mutex_log::Mutex;
 
 #[derive(Clone)]
 pub struct MzState {
+    pub path: &'static str,
     pub mvm: Arc<Mutex<Mvm<RocksDbStorage>>>,
     pub block_storage: Arc<Mutex<BlockStorage>>,
     pub tips: Arc<Mutex<BTreeMap<BlockKey, u64>>>,
@@ -44,7 +45,7 @@ pub fn clean_block_and_mvm(path: &str) -> anyhow::Result<()> {
     Ok(())
 }
 
-pub fn get_mz_state(path: &str) -> anyhow::Result<MzState> {
+pub fn get_mz_state(path: &'static str) -> anyhow::Result<MzState> {
     let block_path = format!("{}/block", path);
     let mvm_path = format!("{}/mvm", path);
     let block_storage = Arc::new(Mutex::new(get_block_storage(&block_path)?, "block_storage"));
@@ -63,6 +64,7 @@ pub fn get_mz_state(path: &str) -> anyhow::Result<MzState> {
     let pending_transfers = Arc::new(Mutex::new(PendingTransfer::default(), "pending_transfers"));
     let p2p_keypair = load_or_generate_keypair(&format!("{}/p2p_keypair.bin", path))?;
     Ok(MzState {
+        path,
         mvm,
         block_storage,
         tips,

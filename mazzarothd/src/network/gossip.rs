@@ -189,6 +189,7 @@ fn process_block(mut block_bytes: &[u8], mz_state: &MzState) -> anyhow::Result<(
             block.inner.header.pow_header.now_timestamp_ms
         ));
     }
+    info!("process_block, block: {:?}", block.key);
     push_block(block, mz_state).with_context(|| "Failed to push block")?;
 
     Ok(())

@@ -191,7 +191,7 @@ fn get_mvm_now_key(mz_state: &MzState) -> anyhow::Result<BlockKey> {
     let now_key = if let Some(now_key) = now_key {
         now_key
     } else {
-        return Ok(BlockKey(GENESIS_BLOCK_KEY));
+        return Ok(GENESIS_BLOCK_KEY);
     };
     if let Some(now_action) = now_action {
         let block = get_block(&mz_state.block_storage, &now_key)

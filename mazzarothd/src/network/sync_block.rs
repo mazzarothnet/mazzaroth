@@ -23,7 +23,7 @@ async fn sync_begin_with_key(
     mz_state: &MzState,
 ) -> anyhow::Result<()> {
     let mut head_link: Vec<BlockKey> = Vec::new();
-    while key != BlockKey::from(GENESIS_BLOCK_KEY) {
+    while key != GENESIS_BLOCK_KEY {
         head_link.push(key);
         if has_block(&mz_state.block_storage, &key)? {
             break;

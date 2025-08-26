@@ -54,7 +54,7 @@ pub fn gen_consensus_header<S: ConsensusHeaderStorage>(
     .ok_or_else(|| Error::Custom {
         message: "gen_pow_header failed".to_string(),
     })?;
-    if part_sort_header.head_key == BlockKey(GENESIS_BLOCK_KEY) {
+    if part_sort_header.head_key == GENESIS_BLOCK_KEY {
         pow_header.target_timestamp_ms = now_timestamp_ms;
     }
     if pow_header.now_timestamp_ms > now_timestamp_ms {

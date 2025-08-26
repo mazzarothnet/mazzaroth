@@ -9,7 +9,7 @@ use mvm::{
     core::storage::DbStorage,
     models::block::{Block, BlockInner},
 };
-use std::sync::Arc; 
+use std::sync::Arc;
 use utils::error::{Error, Result};
 use utils::mutex_log::Mutex;
 
@@ -66,7 +66,7 @@ impl BlockStorage {
     }
 
     fn get_block(&self, key: &BlockKey) -> anyhow::Result<Option<Block>> {
-        if key == &BlockKey::from(GENESIS_BLOCK_KEY) {
+        if *key == GENESIS_BLOCK_KEY {
             return Ok(Some(get_genesis_block()));
         }
         let block = self.db.get_data(key)?;
@@ -79,7 +79,7 @@ impl BlockStorage {
     }
 
     fn has_block(&self, key: &BlockKey) -> anyhow::Result<bool> {
-        if key == &BlockKey::from(GENESIS_BLOCK_KEY) {
+        if *key == GENESIS_BLOCK_KEY {
             return Ok(true);
         }
         let exists = self.db.has_data(key)?;
@@ -99,13 +99,13 @@ impl ConsensusHeaderStorage for BlockStorage {
 
 fn get_genesis_block() -> Block {
     Block {
-        key: BlockKey::from(GENESIS_BLOCK_KEY),
+        key: GENESIS_BLOCK_KEY,
         nonce: 0,
         inner: BlockInner {
             version: 0,
             header: ConsensusHeader {
                 part_sort_header: PartSortHeader {
-                    head_key: BlockKey::from(GENESIS_BLOCK_KEY),
+                    head_key: GENESIS_BLOCK_KEY,
                     dag_work: DagWork::from(U256::ZERO),
                     ..Default::default()
                 },

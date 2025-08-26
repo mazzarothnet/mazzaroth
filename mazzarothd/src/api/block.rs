@@ -1,14 +1,13 @@
+use crate::state::{block_storage::get_block, mz_state::MzState, tips::get_tips};
 use alloy_rlp::Encodable;
 use axum::extract::{Query, State};
 use consensus::types::BlockKey;
-use crypto_bigint::U256;
-use utils::error::{BinaryRes, Error, Res, Result};
-use crate::state::{block_storage::get_block, mz_state::MzState, tips::get_tips};
 use serde::Deserialize;
+use utils::error::{BinaryRes, Error, Res, Result};
 
 #[derive(Deserialize)]
 pub struct BlockKeyParam {
-    block_key: String,
+    block_key: BlockKey,
 }
 
 pub async fn get_block_api(
@@ -16,7 +15,7 @@ pub async fn get_block_api(
     Query(block_key): Query<BlockKeyParam>,
 ) -> Result<BinaryRes> {
     let block_key = block_key.block_key;
-    let block_key = BlockKey(U256::from_be_hex(block_key.as_str()));
+    //let block_key = BlockKey(U256::from_be_hex(block_key.as_str()));
     let block =
         get_block(&state.block_storage, &block_key)?.ok_or_else(|| Error::BlockNotFound {
             key: block_key.to_string(),
