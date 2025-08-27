@@ -5,6 +5,7 @@ use consensus::{
 };
 use crypto_bigint::U256;
 use database::rocksdb_no_batch::RocksDbStorage;
+use log::info;
 use mvm::{
     core::storage::DbStorage,
     models::block::{Block, BlockInner},
@@ -28,6 +29,7 @@ pub fn set_block(
     block_key: &BlockKey,
     block: &Block,
 ) -> anyhow::Result<()> {
+    info!("set_block, key: {:?}", block_key);
     let block_storage = block_storage_arc
         .lock()
         .map_err(|e| anyhow::anyhow!("Failed to lock block storage: {}", e))?;

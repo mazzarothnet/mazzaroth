@@ -1,4 +1,5 @@
 use crate::state::block_storage::{BlockStorage, gen_consensus_header_with_global_storage};
+use anyhow::Context;
 use consensus::{block_header::MAX_TARGET, types::BlockKey};
 use crypto_bigint::U256;
 use mining::sha256_mining::gen_sha256_by_block_hash_and_nonce;
@@ -45,7 +46,8 @@ pub fn save_block_check(
         block_storage_arc,
         &block.inner.header.part_sort_header.parent_keys,
         block.inner.header.pow_header.now_timestamp_ms,
-    )?;
+    )
+    .with_context(|| "save_block_check gen_consensus_header_with_global_storage")?;
     if consensus_header != block.inner.header {
         return Err(anyhow::anyhow!(
             "consensus_header is not equal to block.inner.header"

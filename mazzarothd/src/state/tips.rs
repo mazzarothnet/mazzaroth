@@ -3,14 +3,15 @@ use crate::state::{
     block_storage::{BlockStorage, has_block, set_block},
     mz_state::MzState,
 };
+use anyhow::Context;
 use consensus::types::BlockKey;
 use consensus::{block_header::ConsensusHeader, types::AccountKey};
 use crypto_bigint::U256;
-use log::info;
+use log::{error, info};
 use mvm::models::block::Block;
 use mvm::models::block::BlockInner;
 use std::{
-    collections::{BTreeMap, BTreeSet, HashSet},
+    collections::{BTreeMap, BTreeSet, HashSet, VecDeque},
     sync::Arc,
 };
 use utils::mutex_log::Mutex;
@@ -32,7 +33,7 @@ pub fn push_block(block: Block, mz_state: &MzState) -> anyhow::Result<()> {
     temp_blocks.push_block(block)?;
     while let Some(block) = temp_blocks.pop_block() {
         if let Err(e) = save_block_and_update_tips(&block, mz_state) {
-            info!(
+            error!(
                 "push_block, save_block_and_update_tips key: {:?}, error: {:?}",
                 block.key, e
             );
@@ -82,10 +83,38 @@ pub fn get_temp_blocks(
 }
 
 pub struct TempBlock {
-    pub unknown_keys: BTreeMap<BlockKey, Vec<BlockKey>>,
+    pub unknown_keys: BTreeMap<BlockKey, BTreeSet<BlockKey>>,
     pub temp_blocks: BTreeMap<BlockKey, (Block, BTreeSet<BlockKey>)>,
-    pub ready_pop: BTreeMap<BlockKey, Block>,
+    pub ready_pop: ReadyPop,
     pub block_storage: Arc<Mutex<BlockStorage>>,
+}
+
+pub struct ReadyPop {
+    deq: VecDeque<Block>,
+    keys: BTreeSet<BlockKey>,
+}
+impl ReadyPop {
+    fn new() -> Self {
+        Self {
+            deq: VecDeque::new(),
+            keys: BTreeSet::new(),
+        }
+    }
+
+    fn push(&mut self, block: Block) {
+        self.keys.insert(block.key);
+        self.deq.push_back(block);
+    }
+
+    fn pop(&mut self) -> Option<Block> {
+        let block = self.deq.pop_front()?;
+        self.keys.remove(&block.key);
+        Some(block)
+    }
+
+    fn contains(&self, block_key: &BlockKey) -> bool {
+        self.keys.contains(block_key)
+    }
 }
 
 impl TempBlock {
@@ -93,7 +122,7 @@ impl TempBlock {
         Self {
             unknown_keys: BTreeMap::new(),
             temp_blocks: BTreeMap::new(),
-            ready_pop: BTreeMap::new(),
+            ready_pop: ReadyPop::new(),
             block_storage,
         }
     }
@@ -101,20 +130,24 @@ impl TempBlock {
 
 impl TempBlock {
     fn push_block(&mut self, block: Block) -> anyhow::Result<()> {
+        if self.ready_pop.contains(&block.key) || self.temp_blocks.contains_key(&block.key) {
+            return Ok(());
+        }
+        info!("push_block, key: {:?}", block.key);
         let mut now_block_unknown_keys = BTreeSet::new();
         for parent in block.inner.header.part_sort_header.parent_keys.iter() {
             if self.unknown_keys.contains_key(parent) || !has_block(&self.block_storage, parent)? {
                 let entry = self
                     .unknown_keys
                     .entry(*parent)
-                    .or_insert_with(|| Vec::new());
-                entry.push(block.key);
+                    .or_insert_with(|| BTreeSet::new());
+                entry.insert(block.key);
                 now_block_unknown_keys.insert(*parent);
             }
         }
 
         if now_block_unknown_keys.is_empty() {
-            self.ready_pop.insert(block.key, block);
+            self.ready_pop.push(block);
         } else {
             self.temp_blocks
                 .insert(block.key, (block, now_block_unknown_keys));
@@ -124,12 +157,12 @@ impl TempBlock {
     }
 
     fn pop_block(&mut self) -> Option<Block> {
-        let (pop_key, block) = self.ready_pop.pop_first()?;
+        let block = self.ready_pop.pop()?;
         let mut ready_pop_keys = BTreeSet::new();
-        if let Some(keys) = self.unknown_keys.remove(&pop_key) {
+        if let Some(keys) = self.unknown_keys.remove(&block.key) {
             for key in keys {
                 if let Some((_b, unknown_keys)) = self.temp_blocks.get_mut(&key) {
-                    unknown_keys.remove(&pop_key);
+                    unknown_keys.remove(&block.key);
                     if unknown_keys.is_empty() {
                         ready_pop_keys.insert(key);
                     }
@@ -138,7 +171,7 @@ impl TempBlock {
         }
         for key in ready_pop_keys {
             if let Some((block, _)) = self.temp_blocks.remove(&key) {
-                self.ready_pop.insert(key, block);
+                self.ready_pop.push(block);
             }
         }
 
@@ -148,12 +181,15 @@ impl TempBlock {
 
 // about tips and save block to db
 fn save_block_and_update_tips(block: &Block, mz_state: &MzState) -> anyhow::Result<()> {
-    save_block_check(&mz_state.block_storage, block)?;
+    save_block_check(&mz_state.block_storage, block)
+        .with_context(|| "save_block_and_update_tips save_block_check")?;
     {
         let now = get_current_time_ms();
-        let mut tips = mz_state.tips.lock().map_err(|e| {
-            anyhow::anyhow!("save_block_and_update_tips Failed to lock tips: {}", e)
-        })?;
+        let mut tips = mz_state
+            .tips
+            .lock()
+            .map_err(|e| anyhow::anyhow!("save_block_and_update_tips Failed to lock tips: {}", e))
+            .with_context(|| "save_block_and_update_tips get tips")?;
         for parent in block.inner.header.part_sort_header.parent_keys.iter() {
             tips.remove(parent);
         }

@@ -30,10 +30,10 @@ async fn sync_begin_with_key(
             break;
         }
         let block = req_block(host, key).await?;
-        info!(
-            "sync_begin_with_key, sync head key: {:?}",
-            block.inner.header.part_sort_header.head_key
-        );
+        // info!(
+        //     "sync_begin_with_key, sync head key: {:?}",
+        //     block.inner.header.part_sort_header.head_key
+        // );
         key = block.inner.header.part_sort_header.head_key;
     }
     for key in head_link.iter().rev() {
@@ -47,7 +47,7 @@ async fn req_and_push_block(host: &str, key: BlockKey, mz_state: &MzState) -> an
     let block = req_block(host, key).await?;
     for pb in &block.inner.header.part_sort_header.part_sort {
         let pb_block = req_block(host, *pb).await?;
-        info!("sync_begin_with_key, sync pb key: {:?}", pb_block.key);
+        //info!("sync_begin_with_key, sync pb key: {:?}", pb_block.key);
         push_block(pb_block, mz_state)?;
     }
     push_block(block, mz_state)?;

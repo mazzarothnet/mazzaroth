@@ -6,7 +6,11 @@ use mazzarothd::{
     api::spawn_api_thread,
     mining::spawn_mining_thread,
     network::{gossip::spawn_gossip_thread, sync_block::sync_block},
-    state::{mvm::spawn_mvm_thread, mz_state::{get_mz_state, MzState}, tips::force_insert_tips},
+    state::{
+        mvm::spawn_mvm_thread,
+        mz_state::{MzState, get_mz_state},
+        tips::force_insert_tips,
+    },
 };
 use utils::log::init_log;
 
@@ -62,10 +66,9 @@ fn hook_panic() {
 
 static NEED_EXIT: AtomicBool = AtomicBool::new(false);
 fn spawn_exit_thread(mz_state: MzState) {
-    tokio::spawn(async move {
+    std::thread::spawn(move || {
         while !NEED_EXIT.load(std::sync::atomic::Ordering::SeqCst) {
-            log::info!("exit thread");
-            tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+            std::thread::sleep(std::time::Duration::from_secs(1));
         }
         if let Err(e) = mazzarothd::state::state_dump::dump_blocks(&mz_state, 100) {
             log::error!("dump_blocks error: {:?}", e);

@@ -12,6 +12,7 @@ pub struct DumpBlock {
     pub key: BlockKey,
     pub head_key: BlockKey,
     pub part_sort_key: Vec<BlockKey>,
+    pub parent_keys: Vec<BlockKey>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -52,6 +53,7 @@ pub fn dump_blocks(mz_state: &MzState, max_length: usize) -> anyhow::Result<()> 
             key: block.key,
             head_key: block.inner.header.part_sort_header.head_key,
             part_sort_key: block.inner.header.part_sort_header.part_sort,
+            parent_keys: block.inner.header.part_sort_header.parent_keys,
         });
         head = block.inner.header.part_sort_header.head_key;
     }
