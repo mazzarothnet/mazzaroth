@@ -394,6 +394,7 @@ impl<S: DbStorage> Mvm<S> {
         Ok(set_account_hash)
     }
 
+    #[allow(unused_variables)]
     fn verify_miner_reward(
         now_state_map: &BTreeMap<AccountKey, Account>,
         block: &Block,

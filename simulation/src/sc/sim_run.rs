@@ -38,7 +38,7 @@ pub fn run_sim(
     let mut storage = SimConsensusHeaderStorage::new(db_path);
     let miners = gen_sim_miner_list(miner_num, rng);
     let mut tips = BTreeSet::new();
-    tips.insert(BlockKey::from(GENESIS_BLOCK_KEY));
+    tips.insert(GENESIS_BLOCK_KEY);
     let mut part_sort_size: BTreeMap<usize, i64> = BTreeMap::new();
     // let mut tmp_block = Vec::new();
     for i in 1..block_num {
@@ -175,7 +175,7 @@ pub fn cal_tips_by_position(
         let i64_key = block.key.0.to_limbs()[0].0;
         let observed_time =
             i64_key + calc_distance_delay(&block.creator_position, &position, block_per_step);
-        if observed_time <= now || tip == BlockKey::from(GENESIS_BLOCK_KEY) {
+        if observed_time <= now || tip == GENESIS_BLOCK_KEY {
             ans.insert(tip);
         } else {
             for parent in block.header.part_sort_header.parent_keys {

@@ -100,7 +100,7 @@ fn get_link_set<S: ConsensusHeaderStorage>(
         link_set.extend(header.part_sort_header.part_sort.into_iter());
         link_set.insert(now_key);
         head_link_set.insert(now_key);
-        if now_key != BlockKey::from(GENESIS_BLOCK_KEY) {
+        if now_key != GENESIS_BLOCK_KEY {
             now_key = header.part_sort_header.head_key;
         } else {
             break;
@@ -150,7 +150,7 @@ fn check_well_connected_block<S: ConsensusHeaderStorage>(
             .part_sort_header
             .parent_keys;
         if readded_set.len() >= MAX_PART_SORT_SIZE
-            || now_key == BlockKey::from(GENESIS_BLOCK_KEY)
+            || now_key == GENESIS_BLOCK_KEY
             || parent_keys.is_empty()
         {
             return Ok(false);
@@ -177,7 +177,7 @@ fn check_head_well_connected_block<S: ConsensusHeaderStorage>(
     let mut now_key = key;
     while count < MAX_ANCESTOR_SIZE {
         let header = storage.get_consensus_header(&now_key)?;
-        if now_key != BlockKey::from(GENESIS_BLOCK_KEY) {
+        if now_key != GENESIS_BLOCK_KEY {
             if head_link_set.contains(&header.part_sort_header.head_key) {
                 return Ok(true);
             }

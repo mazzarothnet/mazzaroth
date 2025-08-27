@@ -7,12 +7,14 @@ use log::info;
 
 /// this fn will block
 pub async fn sync_block(mz_state: &MzState, host: &str) -> anyhow::Result<()> {
+    tokio::time::sleep(std::time::Duration::from_secs(5)).await;
     let tips = req_tips(host).await?;
     info!("sync_block, tips: {:?}", tips);
     for tip in tips {
         info!("sync_block, sync tip: {:?}", tip);
         sync_begin_with_key(tip, host, mz_state).await?;
     }
+    info!("sync_block end");
     Ok(())
 }
 
@@ -22,7 +24,7 @@ async fn sync_begin_with_key(
     mz_state: &MzState,
 ) -> anyhow::Result<()> {
     let mut head_link: Vec<BlockKey> = Vec::new();
-    while key != BlockKey::from(GENESIS_BLOCK_KEY) {
+    while key != GENESIS_BLOCK_KEY {
         head_link.push(key);
         if has_block(&mz_state.block_storage, &key)? {
             break;
@@ -45,7 +47,7 @@ async fn req_and_push_block(host: &str, key: BlockKey, mz_state: &MzState) -> an
     let block = req_block(host, key).await?;
     for pb in &block.inner.header.part_sort_header.part_sort {
         let pb_block = req_block(host, *pb).await?;
-        info!("sync_begin_with_key, sync pb key: {:?}", pb_block.key);
+        //info!("sync_begin_with_key, sync pb key: {:?}", pb_block.key);
         push_block(pb_block, mz_state)?;
     }
     push_block(block, mz_state)?;

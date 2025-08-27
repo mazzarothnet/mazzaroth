@@ -58,7 +58,7 @@ pub async fn transfer(
     let trans_inner = TransferInner {
         from: account_pair.public_key,
         to: req.account_key,
-        amount: amount,
+        amount,
         from_last_action_hash: account.action_hash,
         gas_price: 0,
     };

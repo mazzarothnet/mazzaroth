@@ -11,10 +11,8 @@ use mvm::core::{
     merkle_tree::MerkleTree,
     vm::{Mvm, NOW_BLOCK_ACTION_DO, NOW_BLOCK_ACTION_ROLLBACK},
 };
-use std::{
-    sync::{Arc, Mutex},
-    time::Duration,
-};
+use std::{sync::Arc, time::Duration};
+use utils::mutex_log::Mutex;
 
 const MVM_MOVE_INTERVAL_MS: u64 = 500;
 
@@ -193,7 +191,7 @@ fn get_mvm_now_key(mz_state: &MzState) -> anyhow::Result<BlockKey> {
     let now_key = if let Some(now_key) = now_key {
         now_key
     } else {
-        return Ok(BlockKey(GENESIS_BLOCK_KEY));
+        return Ok(GENESIS_BLOCK_KEY);
     };
     if let Some(now_action) = now_action {
         let block = get_block(&mz_state.block_storage, &now_key)

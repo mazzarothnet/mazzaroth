@@ -55,10 +55,35 @@ macro_rules! define_byte_array {
 
 macro_rules! impl_u256_ops {
     ($type_name:ident) => {
-        #[derive(
-            Debug, Clone, PartialEq, Eq, Copy, Serialize, Deserialize, Ord, PartialOrd, Hash,
-        )]
+        #[derive(Clone, PartialEq, Eq, Copy, Ord, PartialOrd, Hash)]
         pub struct $type_name(pub crypto_bigint::U256);
+
+        impl Serialize for $type_name {
+            fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+            where
+                S: Serializer,
+            {
+                let hex_str = hex::encode(self.0.to_be_bytes());
+                serializer.serialize_str(&hex_str)
+            }
+        }
+
+        impl<'de> Deserialize<'de> for $type_name {
+            fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+            where
+                D: Deserializer<'de>,
+            {
+                let s = String::deserialize(deserializer)?;
+                let bytes = hex::decode(s).map_err(serde::de::Error::custom)?;
+                Ok($type_name(crypto_bigint::U256::from_be_slice(&bytes)))
+            }
+        }
+
+        impl std::fmt::Debug for $type_name {
+            fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+                write!(f, "{}", self.to_string())
+            }
+        }
 
         impl Add for $type_name {
             type Output = Self;
@@ -128,7 +153,8 @@ macro_rules! impl_u256_ops {
 
         impl std::fmt::Display for $type_name {
             fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-                write!(f, "{}", self.0)
+                let hex_str = hex::encode(self.0.to_be_bytes());
+                write!(f, "{}", hex_str)
             }
         }
 

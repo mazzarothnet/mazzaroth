@@ -58,7 +58,14 @@ pub async fn req_tips(host: &str) -> anyhow::Result<Vec<BlockKey>> {
         .text()
         .await
         .with_context(|| format!("Failed to get tips from {}", url))?;
-    let tips: Vec<BlockKey> = serde_json::from_str(&tip_str)
-        .with_context(|| format!("Failed to parse tips from {} {} {} {:?}", url, tip_str.len(), res_status, tip_str))?;
+    let tips: Vec<BlockKey> = serde_json::from_str(&tip_str).with_context(|| {
+        format!(
+            "Failed to parse tips from {} {} {} {:?}",
+            url,
+            tip_str.len(),
+            res_status,
+            tip_str
+        )
+    })?;
     Ok(tips)
 }

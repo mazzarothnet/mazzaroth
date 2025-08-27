@@ -1,23 +1,23 @@
 use crate::{
-    config::Config, network::gossip::load_or_generate_keypair, state::{
+    config::Config,
+    network::gossip::load_or_generate_keypair,
+    state::{
         account_manager::AccountManager,
-        block_storage::{get_block_storage, BlockStorage},
+        block_storage::{BlockStorage, get_block_storage},
         mvm::get_mvm_storage,
         tips::TempBlock,
         transfer::PendingTransfer,
-    }
+    },
 };
 use consensus::types::BlockKey;
 use database::rocksdb_no_batch::RocksDbStorage;
 use mvm::core::vm::Mvm;
-use std::{
-    collections::BTreeMap,
-    path::Path,
-    sync::{Arc, Mutex},
-};
+use std::{collections::BTreeMap, path::Path, sync::Arc};
+use utils::mutex_log::Mutex;
 
 #[derive(Clone)]
 pub struct MzState {
+    pub path: &'static str,
     pub mvm: Arc<Mutex<Mvm<RocksDbStorage>>>,
     pub block_storage: Arc<Mutex<BlockStorage>>,
     pub tips: Arc<Mutex<BTreeMap<BlockKey, u64>>>,
@@ -45,22 +45,26 @@ pub fn clean_block_and_mvm(path: &str) -> anyhow::Result<()> {
     Ok(())
 }
 
-pub fn get_mz_state(path: &str) -> anyhow::Result<MzState> {
+pub fn get_mz_state(path: &'static str) -> anyhow::Result<MzState> {
     let block_path = format!("{}/block", path);
     let mvm_path = format!("{}/mvm", path);
-    let block_storage = Arc::new(Mutex::new(get_block_storage(&block_path)?));
-    let mvm = Arc::new(Mutex::new(get_mvm_storage(&mvm_path)?));
-    let tips = Arc::new(Mutex::new(BTreeMap::new()));
-    let temp_blocks = Arc::new(Mutex::new(TempBlock::new(block_storage.clone())));
+    let block_storage = Arc::new(Mutex::new(get_block_storage(&block_path)?, "block_storage"));
+    let mvm = Arc::new(Mutex::new(get_mvm_storage(&mvm_path)?, "mvm"));
+    let tips = Arc::new(Mutex::new(BTreeMap::new(), "tips"));
+    let temp_blocks = Arc::new(Mutex::new(
+        TempBlock::new(block_storage.clone()),
+        "temp_blocks",
+    ));
     let config_path = format!("{}/config.toml", path);
     let config = Config::init(&config_path)?;
-    let account_manager = Arc::new(Mutex::new(AccountManager::init(&format!(
-        "{}/account_manager.json",
-        path
-    ))?));
-    let pending_transfers = Arc::new(Mutex::new(PendingTransfer::default()));
+    let account_manager = Arc::new(Mutex::new(
+        AccountManager::init(&format!("{}/account_manager.json", path))?,
+        "account_manager",
+    ));
+    let pending_transfers = Arc::new(Mutex::new(PendingTransfer::default(), "pending_transfers"));
     let p2p_keypair = load_or_generate_keypair(&format!("{}/p2p_keypair.bin", path))?;
     Ok(MzState {
+        path,
         mvm,
         block_storage,
         tips,

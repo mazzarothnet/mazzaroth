@@ -1,10 +1,10 @@
-use std::sync::{Arc, Mutex};
-
 use crate::state::{
     block_storage::{BlockStorage, gen_consensus_header_with_global_storage, set_block},
     tips::u32_to_block_key,
 };
 use mvm::models::block::{Block, BlockInner};
+use std::sync::Arc;
+use utils::mutex_log::Mutex;
 use utils::time::get_current_time_ms;
 
 pub fn gen_test_block_and_save(

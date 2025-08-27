@@ -6,7 +6,7 @@ use alloy_rlp::{RlpDecodable, RlpEncodable};
 use serde::{Deserialize, Serialize};
 use utils::error::Result;
 
-pub const GENESIS_BLOCK_KEY: crypto_bigint::U256 = crypto_bigint::U256::ZERO;
+pub const GENESIS_BLOCK_KEY: BlockKey = BlockKey(crypto_bigint::U256::ZERO);
 
 // 如果旷工只连接少量的parent，那么它的dag_work就会很少，容易无效挖矿
 // 如果连接过多的parent，那么就无法通过验证，无效挖矿
