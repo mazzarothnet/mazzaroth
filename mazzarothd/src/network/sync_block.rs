@@ -30,10 +30,10 @@ async fn sync_begin_with_key(
             break;
         }
         let block = req_block(host, key).await?;
-        // info!(
-        //     "sync_begin_with_key, sync head key: {:?}",
-        //     block.inner.header.part_sort_header.head_key
-        // );
+        info!(
+            "sync_begin_with_key, sync head key: {:?}",
+            block.inner.header.part_sort_header.head_key
+        );
         key = block.inner.header.part_sort_header.head_key;
     }
     for key in head_link.iter().rev() {
