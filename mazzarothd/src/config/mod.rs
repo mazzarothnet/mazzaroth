@@ -19,13 +19,9 @@ impl Default for Config {
             http_port: 8080,
             gossip_tcp_port: 43221,
             gossip_udp_port: 43222,
-            bootstrap_addr: Some(
-                "/ip6/2409:8a00:31d4:48b0:20c7:506c:85c1:67a6/udp/43222/quic-v1".to_string(),
-            ),
-            bootstrap_peer_id: Some(
-                "12D3KooWGfiJK6duQayz8cnWNJ8aBKNgUhsnfmq1jJTBsJvWzLEq".to_string(),
-            ),
-            block_sync_host: Some("[2409:8a00:31d4:48b0:20c7:506c:85c1:67a6]:8080".to_string()),
+            bootstrap_addr: None,
+            bootstrap_peer_id: None,
+            block_sync_host: None,
         }
     }
 }
