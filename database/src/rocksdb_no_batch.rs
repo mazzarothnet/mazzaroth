@@ -4,27 +4,44 @@ use alloy_rlp::{Decodable, Encodable};
 use anyhow::Context;
 // use log::info;
 use mvm::core::storage::{DbStorage, DbStorageTransaction};
-use rocksdb::{DB, WriteBatch};
+use rocksdb::{TransactionDB, WriteBatchWithTransaction};
 use utils::error::Result;
 
-pub struct RocksDbStorage(pub DB);
+pub struct RocksDbStorage(pub TransactionDB);
 
 impl RocksDbStorage {
     pub fn new(path: &str) -> Result<Self> {
-        let db = DB::open_default(path).with_context(|| "Failed to open database")?;
+        let db = TransactionDB::open_default(path).with_context(|| "Failed to open database")?;
         Ok(Self(db))
     }
 }
 
-impl DbStorage for RocksDbStorage {
-    type Transaction<'a> = RocksDbTransaction<'a>;
-    fn begin_transaction(&self) -> Result<Self::Transaction<'_>> {
-        Ok(RocksDbTransaction::new(&self.0))
-    }
-
-    fn get_data<K: Encodable, V: Decodable>(&self, key: &K) -> Result<Option<V>> {
+impl RocksDbStorage {
+    pub fn set_data<K: Encodable, V: Encodable>(&self, key: &K, value: &V) -> Result<()> {
         let mut key_bytes = Vec::new();
         key.encode(&mut key_bytes);
+        let mut value_bytes = Vec::new();
+        value.encode(&mut value_bytes);
+        self.0
+            .put(key_bytes, value_bytes)
+            .with_context(|| "Failed to set data")?;
+        Ok(())
+    }
+
+    pub fn has_data<K: Encodable>(&self, key: &K) -> Result<bool> {
+        let mut key_bytes = Vec::new();
+        key.encode(&mut key_bytes);
+        let value = self
+            .0
+            .get(key_bytes.clone())
+            .with_context(|| "Failed to get data")?;
+        Ok(value.is_some())
+    }
+
+    pub fn get_data<K: Encodable, V: Decodable>(&self, key: K) -> Result<Option<V>> {
+        let mut key_bytes = Vec::new();
+        key.encode(&mut key_bytes);
+
         let value = self
             .0
             .get(key_bytes.clone())
@@ -37,37 +54,23 @@ impl DbStorage for RocksDbStorage {
             Ok(None)
         }
     }
+}
 
-    fn set_data<K: Encodable, V: Encodable>(&self, key: &K, value: &V) -> Result<()> {
-        let mut key_bytes = Vec::new();
-        key.encode(&mut key_bytes);
-        let mut value_bytes = Vec::new();
-        value.encode(&mut value_bytes);
-        self.0
-            .put(key_bytes, value_bytes)
-            .with_context(|| "Failed to set data")?;
-        Ok(())
-    }
-
-    fn has_data<K: Encodable>(&self, key: &K) -> Result<bool> {
-        let mut key_bytes = Vec::new();
-        key.encode(&mut key_bytes);
-        let value = self
-            .0
-            .get(key_bytes.clone())
-            .with_context(|| "Failed to get data")?;
-        Ok(value.is_some())
+impl DbStorage for RocksDbStorage {
+    type Transaction<'a> = RocksDbTransaction<'a>;
+    fn begin_transaction(&self) -> Result<Self::Transaction<'_>> {
+        Ok(RocksDbTransaction::new(&self.0))
     }
 }
 
 pub struct RocksDbTransaction<'db> {
-    db_ref: &'db DB,
+    db_ref: &'db TransactionDB,
     cache: HashMap<Vec<u8>, Vec<u8>>,
     deleted: HashSet<Vec<u8>>,
 }
 
 impl<'db> RocksDbTransaction<'db> {
-    pub fn new(db_ref: &'db DB) -> Self {
+    pub fn new(db_ref: &'db TransactionDB) -> Self {
         Self {
             db_ref,
             cache: HashMap::new(),
@@ -80,6 +83,14 @@ impl<'db> RocksDbTransaction<'db> {
     fn get_data<K: Encodable, V: Decodable>(&mut self, key: K) -> Result<Option<V>> {
         let mut key_bytes = Vec::new();
         key.encode(&mut key_bytes);
+        if self.deleted.contains(&key_bytes) {
+            return Ok(None);
+        }
+        if let Some(value) = self.cache.get(&key_bytes) {
+            let v: V = Decodable::decode(&mut value.as_slice())
+                .with_context(|| "Failed to decode data")?;
+            return Ok(Some(v));
+        }
 
         let value = self
             .db_ref
@@ -119,12 +130,13 @@ impl<'db> DbStorageTransaction for RocksDbTransaction<'db> {
     fn delete_data<K: Encodable>(&mut self, key: K) -> Result<()> {
         let mut key_bytes = Vec::new();
         key.encode(&mut key_bytes);
+        self.cache.remove(&key_bytes);
         self.deleted.insert(key_bytes);
         Ok(())
     }
 
     fn commit(self) -> Result<()> {
-        let mut batch = WriteBatch::default();
+        let mut batch = WriteBatchWithTransaction::default();
         for (key, value) in self.cache {
             batch.put(key, value);
         }

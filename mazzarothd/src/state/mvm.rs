@@ -7,10 +7,7 @@ use anyhow::Context;
 use consensus::{traits::GENESIS_BLOCK_KEY, types::BlockKey};
 use database::rocksdb_no_batch::RocksDbStorage;
 use log::info;
-use mvm::core::{
-    merkle_tree::MerkleTree,
-    vm::{Mvm, NOW_BLOCK_ACTION_DO, NOW_BLOCK_ACTION_ROLLBACK},
-};
+use mvm::core::{merkle_tree::MerkleTree, vm::Mvm};
 use std::{sync::Arc, time::Duration};
 use utils::mutex_log::Mutex;
 
@@ -156,65 +153,35 @@ fn move_mvm_to_next_key(
     //     "move mvm to next key now_node path: {:?} next_node path: {:?}",
     //     now_to_head_path, next_to_head_path
     // );
-    for psk in now_to_head_path {
-        let block = get_block(&mz_state.block_storage, &psk)?
-            .ok_or_else(|| anyhow::anyhow!("Block not found"))?;
-        let mut mvm_storage = mz_state
-            .mvm
-            .lock()
-            .map_err(|e| anyhow::anyhow!("Failed to lock mvm storage: {}", e))?;
-        mvm_storage.do_block_rollback(&block)?;
-    }
-    for psk in next_to_head_path.into_iter().rev() {
-        let block = get_block(&mz_state.block_storage, &psk)?
-            .ok_or_else(|| anyhow::anyhow!("Block not found"))?;
-        let mut mvm_storage = mz_state
-            .mvm
-            .lock()
-            .map_err(|e| anyhow::anyhow!("Failed to lock mvm storage: {}", e))?;
-        mvm_storage.do_block(&block)?;
-    }
+    // for psk in now_to_head_path {
+    //     let block = get_block(&mz_state.block_storage, &psk)?
+    //         .ok_or_else(|| anyhow::anyhow!("Block not found"))?;
+    //     let mut mvm_storage = mz_state
+    //         .mvm
+    //         .lock()
+    //         .map_err(|e| anyhow::anyhow!("Failed to lock mvm storage: {}", e))?;
+    //     mvm_storage.do_block_rollback(&block)?;
+    // }
+    // for psk in next_to_head_path.into_iter().rev() {
+    //     let block = get_block(&mz_state.block_storage, &psk)?
+    //         .ok_or_else(|| anyhow::anyhow!("Block not found"))?;
+    //     let mut mvm_storage = mz_state
+    //         .mvm
+    //         .lock()
+    //         .map_err(|e| anyhow::anyhow!("Failed to lock mvm storage: {}", e))?;
+    //     mvm_storage.do_block(&block)?;
+    // }
 
     Ok(())
 }
 
 fn get_mvm_now_key(mz_state: &MzState) -> anyhow::Result<BlockKey> {
-    let (now_key, now_action) = {
-        let mvm_storage = mz_state
-            .mvm
-            .lock()
-            .map_err(|e| anyhow::anyhow!("Failed to lock mvm storage: {}", e))?;
-        mvm_storage
-            .get_now_block_key_and_action()
-            .with_context(|| "Failed to get now block key")?
-    };
-    let now_key = if let Some(now_key) = now_key {
-        now_key
-    } else {
-        return Ok(GENESIS_BLOCK_KEY);
-    };
-    if let Some(now_action) = now_action {
-        let block = get_block(&mz_state.block_storage, &now_key)
-            .with_context(|| "Failed to get block")?
-            .ok_or_else(|| anyhow::anyhow!("Block not found"))?;
-        let mut mvm_storage = mz_state
-            .mvm
-            .lock()
-            .map_err(|e| anyhow::anyhow!("Failed to lock mvm storage: {}", e))?;
-        if now_action == NOW_BLOCK_ACTION_DO {
-            mvm_storage
-                .do_block(&block)
-                .with_context(|| "Failed to do block")?;
-        } else if now_action == NOW_BLOCK_ACTION_ROLLBACK {
-            mvm_storage
-                .do_block_rollback(&block)
-                .with_context(|| "Failed to do block rollback")?;
-            mvm_storage
-                .do_block(&block)
-                .with_context(|| "Failed to do block")?;
-        }
-    }
-
+    let mut mvm_storage = mz_state
+        .mvm
+        .lock()
+        .map_err(|e| anyhow::anyhow!("Failed to lock mvm storage: {}", e))?;
+    let mut transaction = mvm_storage.begin_transaction()?;
+    let now_key = Mvm::get_block_key(&mut transaction)?;
     Ok(now_key)
 }
 
@@ -223,12 +190,8 @@ pub fn get_mvm_storage(path: &str) -> anyhow::Result<Mvm<RocksDbStorage>> {
     if !os_path.exists() {
         std::fs::create_dir_all(os_path)?;
     }
-    let merkle_path = format!("{}/merkle", path);
     let account_path = format!("{}/account", path);
-    let state_path = format!("{}/state", path);
-    let merkle_tree_db = RocksDbStorage::new(&merkle_path)?;
-    let merkle_tree = MerkleTree::new(merkle_tree_db)?;
+    let merkle_tree = MerkleTree::default();
     let account_db = RocksDbStorage::new(&account_path)?;
-    let state_db = RocksDbStorage::new(&state_path)?;
-    Ok(Mvm::new(account_db, merkle_tree, state_db))
+    Ok(Mvm::new(account_db, merkle_tree))
 }

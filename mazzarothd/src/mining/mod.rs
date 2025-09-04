@@ -19,7 +19,7 @@ pub fn spawn_mining_thread(mz_state: MzState, block_sender: tokio::sync::mpsc::S
     std::thread::spawn(move || {
         let sha256_context = Sha256Context::new().unwrap();
         let rt = tokio::runtime::Builder::new_current_thread()
-            .enable_all() // 启用 I/O、时间等驱动（按需配置）
+            .enable_all() 
             .build()
             .unwrap();
         rt.block_on(async move {

@@ -21,7 +21,6 @@ struct MyBehaviour {
 #[allow(clippy::expect_used)]
 #[tokio::main]
 async fn main() {
-    // 解析命令行参数
     let is_bootstrap = std::env::args().any(|arg| arg == "--bootstrap");
     let bootstrap_addr = std::env::var("BOOTSTRAP_ADDR").ok();
     let bootstrap_peer_id = std::env::var("BOOTSTRAP_PEER_ID").ok();
@@ -64,9 +63,7 @@ async fn main() {
     let topic = gossipsub::IdentTopic::new("test-net");
     swarm.behaviour_mut().gossipsub.subscribe(&topic).unwrap();
 
-    // 根据节点类型配置
     if !is_bootstrap {
-        // 普通节点：连接到引导节点
         if let (Some(addr), Some(peer_id)) = (bootstrap_addr, bootstrap_peer_id) {
             let bootstrap_addr: Multiaddr = addr.parse().expect("Invalid bootstrap address");
             let bootstrap_peer_id = peer_id.parse().expect("Invalid PeerId");
@@ -82,7 +79,6 @@ async fn main() {
         }
     }
 
-    // 监听地址（引导节点用固定地址，普通节点用动态地址）
     let listen_addr = if is_bootstrap {
         "/ip6/::/tcp/4001".parse::<Multiaddr>().unwrap()
     } else {

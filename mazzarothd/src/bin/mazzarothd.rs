@@ -23,22 +23,9 @@ async fn main() {
     spawn_api_thread(mz_state.clone(), mz_state.config.http_port);
     let new_block_sender = spawn_gossip_thread(mz_state.clone()).await;
     if let Some(host) = mz_state.config.block_sync_host.as_ref() {
-        match sync_block(&mz_state, host).await {
-            Ok(_) => {
-                log::info!("Sync block from host {} success", host);
-            },
-            Err(e) => {
-                log::error!("Failed to sync block from host {}: {:?}", host, e);
-                log::warn!("Falling back to force inserting genesis block as tip.");
-                if let Err(e) = force_insert_tips(vec![GENESIS_BLOCK_KEY], &mz_state) {
-                    log::error!("Failed to force insert genesis block as tip: {:?}", e);
-                }
-            }
-        }
+        sync_block(&mz_state, host).await.unwrap();
     } else {
-        if let Err(e) = force_insert_tips(vec![GENESIS_BLOCK_KEY], &mz_state) {
-            log::error!("Failed to force insert genesis block as tip: {:?}", e);
-        }
+        force_insert_tips(vec![GENESIS_BLOCK_KEY], &mz_state).unwrap();
     }
     log::info!("spawn_mvm_thread");
     spawn_mvm_thread(mz_state.clone());

@@ -31,26 +31,171 @@ use crate::{
 };
 
 const NOW_BLOCK_KEY: &str = "NOW_BLOCK_KEY";
-const NOW_BLOCK_ACTION_KEY: &str = "NOW_BLOCK_ACTION_KEY";
-pub const NOW_BLOCK_ACTION_DO: &str = "NOW_BLOCK_ACTION_DO";
-pub const NOW_BLOCK_ACTION_ROLLBACK: &str = "NOW_BLOCK_ACTION_ROLLBACK";
 
 pub struct Mvm<S: DbStorage> {
     account_db: S,
-    merkle_tree: MerkleTree<S>,
-    state: S,
+    merkle_tree: MerkleTree,
 }
 
-impl<S: DbStorage> Mvm<S> {
-    pub fn new(account_db: S, merkle_tree: MerkleTree<S>, state: S) -> Self {
+pub struct MvmTransaction<'a, S: DbStorage + 'static> {
+    transaction: S::Transaction<'a>,
+    merkle_tree: &'a mut MerkleTree,
+}
+
+// todo: try use lifetime check to replace has_transaction
+impl<'a, S: DbStorage + 'static> MvmTransaction<'a, S> {
+    fn new(
+        transaction: S::Transaction<'a>,
+        merkle_tree: &'a mut MerkleTree,
+    ) -> Self {
         Self {
-            account_db,
+            transaction,
             merkle_tree,
-            state,
         }
     }
 
-    pub fn verify_transfer(
+    pub fn commit(mut self, block_key: BlockKey) -> Result<()> {
+        self.transaction.set_data(NOW_BLOCK_KEY, block_key)?;
+        self.transaction.commit()?;
+        Ok(())
+    }
+}
+impl<S: DbStorage> Mvm<S> {
+    pub fn new(account_db: S, merkle_tree: MerkleTree) -> Self {
+        Self {
+            account_db,
+            merkle_tree,
+        }
+    }
+
+    pub fn begin_transaction(&mut self) -> Result<MvmTransaction<'_, S>> {
+        let transaction = self.account_db.begin_transaction()?;
+        Ok(MvmTransaction::new(
+            transaction,
+            &mut self.merkle_tree,
+        ))
+    }
+
+    pub fn get_state_root(transaction: &mut MvmTransaction<'_, S>) -> Result<Hash> {
+        let merkle_tree = transaction.merkle_tree.clone();
+        let state_root = merkle_tree.get_state_root::<S>(&mut transaction.transaction)?;
+        Ok(state_root)
+    }
+
+    pub fn get_block_key(transaction: &mut MvmTransaction<'_, S>) -> Result<BlockKey> {
+        let block_key = transaction
+            .transaction
+            .batch_read::<String, BlockKey>(vec![NOW_BLOCK_KEY.to_string()])?;
+        let block_key = block_key.first().ok_or_else(|| Error::AccountNotFound {
+            message: format!("block key not found: {:?}", NOW_BLOCK_KEY),
+        })?;
+        Ok(*block_key)
+    }
+
+    pub fn get_account(
+        transaction: &mut MvmTransaction<'_, S>,
+        account_key: AccountKey,
+    ) -> Result<Account> {
+        let account = transaction
+            .transaction
+            .batch_read::<AccountKey, Account>(vec![account_key])?;
+        let account = account
+            .first()
+            .ok_or_else(|| Error::AccountNotFound {
+                message: format!("account not found: {:?}", account_key),
+            })?
+            .clone();
+        Ok(account)
+    }
+
+    pub fn do_block(transaction: &mut MvmTransaction<'_, S>, block: &Block) -> Result<()> {
+        let mut account_transaction = &mut transaction.transaction;
+        let mut now_state_map = Self::get_now_state_map(&mut account_transaction, block)?;
+        let mut delete_set = BTreeSet::new();
+
+        #[cfg(debug_assertions)]
+        {
+            use utils::file::write_to_json;
+
+            write_to_json(
+                &format!(
+                    "test_mvm/forward_before_{}.json",
+                    get_key_from_block_key(&block.key.0.to_be_bytes())
+                ),
+                &get_map(&now_state_map),
+            )?;
+        }
+
+        Self::do_all_transfer_and_merge(block, &mut now_state_map, &mut delete_set)?;
+
+        #[cfg(debug_assertions)]
+        {
+            use utils::file::write_to_json;
+            write_to_json(
+                &format!(
+                    "test_mvm/forward_after_{}.json",
+                    get_key_from_block_key(&block.key.0.to_be_bytes())
+                ),
+                &get_map(&now_state_map),
+            )?;
+        }
+
+        let set_account_hash =
+            Self::save_now_state_map(&mut account_transaction, &now_state_map, &delete_set)?;
+        transaction.merkle_tree.update_tree::<S>(
+            &mut account_transaction,
+            set_account_hash,
+            delete_set.into_iter().collect(),
+        )?;
+
+        Ok(())
+    }
+
+    pub fn do_block_rollback(transaction: &mut MvmTransaction<'_, S>, block: &Block) -> Result<()> {
+        let mut account_transaction = &mut transaction.transaction;
+        let mut now_state_map = Self::get_now_state_map(&mut account_transaction, block)?;
+        let mut delete_set = BTreeSet::new();
+
+        #[cfg(debug_assertions)]
+        {
+            use utils::file::write_to_json;
+
+            write_to_json(
+                &format!(
+                    "test_mvm/rollback_before_{}.json",
+                    get_key_from_block_key(&block.key.0.to_be_bytes())
+                ),
+                &get_map(&now_state_map),
+            )?;
+        }
+
+        Self::rollback_all_transfer_and_merge(block, &mut now_state_map, &mut delete_set)?;
+
+        #[cfg(debug_assertions)]
+        {
+            use utils::file::write_to_json;
+
+            write_to_json(
+                &format!(
+                    "test_mvm/rollback_after_{}.json",
+                    get_key_from_block_key(&block.key.0.to_be_bytes())
+                ),
+                &get_map(&now_state_map),
+            )?;
+        }
+
+        let set_account_hash =
+            Self::save_now_state_map(&mut account_transaction, &now_state_map, &delete_set)?;
+        transaction.merkle_tree.update_tree::<S>(
+            &mut account_transaction,
+            set_account_hash,
+            delete_set.into_iter().collect(),
+        )?;
+
+        Ok(())
+    }
+
+    fn verify_transfer(
         transfer: &Transfer,
         miner: &AccountKey,
         now_state_map: &BTreeMap<AccountKey, Account>,
@@ -115,7 +260,7 @@ impl<S: DbStorage> Mvm<S> {
         Ok(min_need)
     }
 
-    pub fn verify_merge(
+    fn verify_merge(
         merge: &Merge,
         miner: &AccountKey,
         now_state_map: &BTreeMap<AccountKey, Account>,
@@ -177,124 +322,6 @@ impl<S: DbStorage> Mvm<S> {
             });
         }
 
-        Ok(())
-    }
-
-    pub fn do_block(&mut self, block: &Block) -> Result<()> {
-        self.set_now_block_action(NOW_BLOCK_ACTION_DO)?;
-        self.set_now_block_key(block.key)?;
-        let mut account_transaction = self.account_db.begin_transaction()?;
-        let mut now_state_map = Self::get_now_state_map(&mut account_transaction, block)?;
-        let mut delete_set = BTreeSet::new();
-
-        #[cfg(debug_assertions)]
-        {
-            use utils::file::write_to_json;
-
-            write_to_json(
-                &format!(
-                    "test_mvm/forward_before_{}.json",
-                    get_key_from_block_key(&block.key.0.to_be_bytes())
-                ),
-                &get_map(&now_state_map),
-            )?;
-        }
-
-        Self::do_all_transfer_and_merge(block, &mut now_state_map, &mut delete_set)?;
-
-        #[cfg(debug_assertions)]
-        {
-            use utils::file::write_to_json;
-            write_to_json(
-                &format!(
-                    "test_mvm/forward_after_{}.json",
-                    get_key_from_block_key(&block.key.0.to_be_bytes())
-                ),
-                &get_map(&now_state_map),
-            )?;
-        }
-
-        let set_account_hash =
-            Self::save_now_state_map(&mut account_transaction, &now_state_map, &delete_set)?;
-        let transaction = self
-            .merkle_tree
-            .update_tree(set_account_hash, delete_set.into_iter().collect())?;
-        transaction.commit()?;
-        account_transaction.commit()?;
-
-        Ok(())
-    }
-
-    pub fn do_block_rollback(&mut self, block: &Block) -> Result<()> {
-        self.set_now_block_action(NOW_BLOCK_ACTION_ROLLBACK)?;
-        self.set_now_block_key(block.key)?;
-        let mut account_transaction = self.account_db.begin_transaction()?;
-        let mut now_state_map = Self::get_now_state_map(&mut account_transaction, block)?;
-        let mut delete_set = BTreeSet::new();
-
-        #[cfg(debug_assertions)]
-        {
-            use utils::file::write_to_json;
-
-            write_to_json(
-                &format!(
-                    "test_mvm/rollback_before_{}.json",
-                    get_key_from_block_key(&block.key.0.to_be_bytes())
-                ),
-                &get_map(&now_state_map),
-            )?;
-        }
-
-        Self::rollback_all_transfer_and_merge(block, &mut now_state_map, &mut delete_set)?;
-
-        #[cfg(debug_assertions)]
-        {
-            use utils::file::write_to_json;
-
-            write_to_json(
-                &format!(
-                    "test_mvm/rollback_after_{}.json",
-                    get_key_from_block_key(&block.key.0.to_be_bytes())
-                ),
-                &get_map(&now_state_map),
-            )?;
-        }
-
-        let set_account_hash =
-            Self::save_now_state_map(&mut account_transaction, &now_state_map, &delete_set)?;
-        let transaction = self
-            .merkle_tree
-            .update_tree(set_account_hash, delete_set.into_iter().collect())?;
-        transaction.commit()?;
-        account_transaction.commit()?;
-
-        Ok(())
-    }
-
-    pub fn get_state_root(&self) -> Result<Hash> {
-        self.merkle_tree.get_state_root()
-    }
-
-    pub fn get_account(&self, account_key: AccountKey) -> Result<Option<Account>> {
-        self.account_db.get_data(&account_key)
-    }
-
-    pub fn get_now_block_key_and_action(&self) -> Result<(Option<BlockKey>, Option<String>)> {
-        Ok((
-            self.state.get_data(&NOW_BLOCK_KEY.to_string())?,
-            self.state.get_data(&NOW_BLOCK_ACTION_KEY.to_string())?,
-        ))
-    }
-
-    fn set_now_block_key(&self, block_key: BlockKey) -> Result<()> {
-        let key = NOW_BLOCK_KEY.to_string();
-        self.state.set_data(&key, &block_key)?;
-        Ok(())
-    }
-
-    fn set_now_block_action(&self, action: &str) -> Result<()> {
-        let key = NOW_BLOCK_ACTION_KEY.to_string();
-        self.state.set_data(&key, &action)?;
         Ok(())
     }
 

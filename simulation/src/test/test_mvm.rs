@@ -3,6 +3,7 @@ mod tests {
     use std::collections::BTreeMap;
 
     use crate::smvm::random_block::{gen_rand_blocks, new_test_mvm};
+    use mvm::core::vm::Mvm;
     use rand::{SeedableRng, rngs::StdRng};
     use utils::sha256::sha256_hash_rlp;
 
@@ -16,14 +17,18 @@ mod tests {
         let blocks = gen_rand_blocks(&mut rng, block_num, account_num);
         let mut forward_map = BTreeMap::new();
         for block in &blocks {
-            mvm.do_block(block).unwrap();
-            let now_state_map = mvm.get_state_root().unwrap();
+            let mut transaction = mvm.begin_transaction().unwrap();
+            Mvm::do_block(&mut transaction, block).unwrap();
+            let now_state_map = Mvm::get_state_root(&mut transaction).unwrap();
+            transaction.commit(block.key).unwrap();
             forward_map.insert(block.key, now_state_map);
         }
         let mut backward_map = BTreeMap::new();
         for block in blocks.iter().rev() {
-            let now_state_map = mvm.get_state_root().unwrap();
-            mvm.do_block_rollback(block).unwrap();
+            let mut transaction = mvm.begin_transaction().unwrap();
+            let now_state_map = Mvm::get_state_root(&mut transaction).unwrap();
+            Mvm::do_block_rollback(&mut transaction, block).unwrap();
+            transaction.commit(block.key).unwrap();
             backward_map.insert(block.key, now_state_map);
         }
         let forward_vec = forward_map.into_values().collect::<Vec<_>>();

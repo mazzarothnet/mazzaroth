@@ -8,8 +8,8 @@ use utils::error::Result;
 
 pub const GENESIS_BLOCK_KEY: BlockKey = BlockKey(crypto_bigint::U256::ZERO);
 
-// 如果旷工只连接少量的parent，那么它的dag_work就会很少，容易无效挖矿
-// 如果连接过多的parent，那么就无法通过验证，无效挖矿
+// if the miner only connects a few parents, then its dag_work will be less, and it is easy to invalid mining
+// if the miner connects too many parents, then it cannot pass the verification, and invalid mining
 #[derive(
     Clone, Serialize, Deserialize, PartialEq, Eq, Debug, RlpDecodable, RlpEncodable, Default,
 )]

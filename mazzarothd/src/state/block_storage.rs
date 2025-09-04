@@ -6,10 +6,7 @@ use consensus::{
 use crypto_bigint::U256;
 use database::rocksdb_no_batch::RocksDbStorage;
 use log::info;
-use mvm::{
-    core::storage::DbStorage,
-    models::block::{Block, BlockInner},
-};
+use mvm::models::block::{Block, BlockInner};
 use std::sync::Arc;
 use utils::error::{Error, Result};
 use utils::mutex_log::Mutex;

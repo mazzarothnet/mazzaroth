@@ -9,17 +9,14 @@ use std::collections::{BTreeMap, BTreeSet};
 use utils::error::{Error, Result};
 const ZERO_STATE_HASH: Hash = Hash([0; 32]);
 
-pub struct MerkleTree<S: DbStorage> {
-    storage: S,
-}
+#[derive(Default, Clone)]
+pub struct MerkleTree {}
 
-impl<S: DbStorage> MerkleTree<S> {
-    pub fn new(storage: S) -> Result<Self> {
-        Ok(Self { storage })
-    }
-
-    pub fn get_state_root(&self) -> Result<Hash> {
-        let mut transaction: S::Transaction<'_> = self.storage.begin_transaction()?;
+impl MerkleTree {
+    pub fn get_state_root<S: DbStorage>(
+        &self,
+        transaction: &mut S::Transaction<'_>,
+    ) -> Result<Hash> {
         let node = transaction
             .batch_read::<TreeKey, TreeNode>(vec![TreeKey {
                 mask_num: 33,
@@ -31,16 +28,15 @@ impl<S: DbStorage> MerkleTree<S> {
                 info!("get_state_root: TreeKey not found, creating new one");
                 ZERO_STATE_HASH
             });
-        transaction.commit()?;
         Ok(node)
     }
 
-    pub fn update_tree(
+    pub fn update_tree<S: DbStorage>(
         &mut self,
+        transaction: &mut S::Transaction<'_>,
         set_account: Vec<(AccountKey, Hash)>,
         delete_account: Vec<AccountKey>,
-    ) -> Result<S::Transaction<'_>> {
-        let mut transaction: S::Transaction<'_> = self.storage.begin_transaction()?;
+    ) -> Result<()> {
         let mut set_account = set_account
             .into_iter()
             .map(|(key, state_hash)| {
@@ -53,7 +49,7 @@ impl<S: DbStorage> MerkleTree<S> {
             .map(|key| TreeKey { mask_num: 0, key })
             .collect::<Vec<_>>();
         let mut total_account_map =
-            Self::read_nodes(&mut transaction, &set_account, &delete_account)?;
+            Self::read_nodes::<S>(transaction, &set_account, &delete_account)?;
         for i in 0..ACCOUNT_KEY_LEN {
             let mut account_map = total_account_map.remove(&(i + 1)).unwrap_or_default();
             let mut new_set_account = vec![];
@@ -98,10 +94,10 @@ impl<S: DbStorage> MerkleTree<S> {
             });
         }
 
-        Ok(transaction)
+        Ok(())
     }
 
-    fn read_nodes(
+    fn read_nodes<S: DbStorage>(
         transaction: &mut S::Transaction<'_>,
         set_account: &[TreeNode],
         delete_account: &[TreeKey],
@@ -202,20 +198,20 @@ impl<S: DbStorage> MerkleTree<S> {
     PartialEq,
     Copy,
 )]
-struct TreeKey {
-    mask_num: usize,
-    key: AccountKey,
+pub struct TreeKey {
+    pub mask_num: usize,
+    pub key: AccountKey,
 }
 
 #[derive(Debug, Serialize, Deserialize, RlpEncodable, RlpDecodable, Clone)]
-struct TreeNode {
-    key: TreeKey,
-    hash: Hash,
-    children: Vec<TreeNodeChildren>,
+pub struct TreeNode {
+    pub key: TreeKey,
+    pub hash: Hash,
+    pub children: Vec<TreeNodeChildren>,
 }
 
 impl TreeNode {
-    fn new(key: TreeKey, hash: Hash) -> Self {
+    pub fn new(key: TreeKey, hash: Hash) -> Self {
         Self {
             key,
             hash,
@@ -237,7 +233,7 @@ impl TreeNode {
     PartialEq,
     Copy,
 )]
-struct TreeNodeChildren {
-    key: TreeKey,
-    state_hash: Hash,
+pub struct TreeNodeChildren {
+    pub key: TreeKey,
+    pub state_hash: Hash,
 }

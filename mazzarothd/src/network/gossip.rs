@@ -108,7 +108,6 @@ pub async fn spawn_gossip_thread(mz_state: MzState) -> mpsc::Sender<Block> {
             .add_explicit_peer(&bootstrap_peer_id);
     }
 
-    // 监听地址（引导节点用固定地址，普通节点用动态地址）
     let listen_addr = format!("/ip6/::/tcp/{}", mz_state.config.gossip_tcp_port)
         .parse::<Multiaddr>()
         .unwrap();

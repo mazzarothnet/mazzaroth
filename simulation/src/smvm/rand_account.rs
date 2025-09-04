@@ -1,6 +1,5 @@
 use consensus::types::{AccountKey, Hash};
 use database::rocksdb_no_batch::RocksDbStorage;
-use mvm::core::merkle_tree::MerkleTree;
 use rand::{Rng, rngs::StdRng};
 use std::path::Path;
 
@@ -21,11 +20,10 @@ pub fn gen_rand_account(rng: &mut StdRng, num: u64) -> Vec<(AccountKey, Hash)> {
     accounts
 }
 
-pub fn gen_merkle_tree(path: &str) -> MerkleTree<RocksDbStorage> {
+pub fn gen_merkle_tree(path: &str) -> RocksDbStorage {
     if Path::new(path).exists() {
         std::fs::remove_dir_all(path).unwrap();
     }
 
-    let mt_storage = RocksDbStorage::new(&format!("{path}/mt")).unwrap();
-    MerkleTree::new(mt_storage).unwrap()
+    RocksDbStorage::new(&format!("{path}/mt")).unwrap()
 }

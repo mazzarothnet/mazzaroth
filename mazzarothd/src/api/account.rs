@@ -2,9 +2,12 @@ use crate::state::{account_manager::AccountKeyPair, mz_state::MzState};
 use anyhow::Context;
 use axum::extract::{Query, State};
 use consensus::types::{AccountKey, Signature};
-use mvm::models::{
-    account::Account,
-    transfer::{Transfer, TransferInner},
+use mvm::{
+    core::vm::Mvm,
+    models::{
+        account::Account,
+        transfer::{Transfer, TransferInner},
+    },
 };
 use serde::Deserialize;
 use utils::{
@@ -28,14 +31,7 @@ pub async fn get_account(
     State(mz_state): State<MzState>,
     Query(req): Query<GetAccountReq>,
 ) -> Result<Res<Account>> {
-    let account_key = req.account_key;
-    let account = mz_state
-        .mvm
-        .lock()
-        .map_err(|e| anyhow::anyhow!("get_account Failed to lock mvm: {}", e))?
-        .get_account(account_key)
-        .map_err(|e| anyhow::anyhow!("get_account Failed to get account: {}", e))?
-        .ok_or_else(|| anyhow::anyhow!("get_account Failed to get account"))?;
+    let account = get_account_by_mz_state(&mz_state, req.account_key)?;
     Ok(Res { data: account })
 }
 
@@ -89,12 +85,14 @@ fn get_account_pair_by_mz_state(mz_state: &MzState) -> Result<AccountKeyPair> {
 }
 
 fn get_account_by_mz_state(mz_state: &MzState, account_key: AccountKey) -> Result<Account> {
-    let account = mz_state
+    let mut mvm = mz_state
         .mvm
         .lock()
-        .map_err(|e| anyhow::anyhow!("get_account Failed to lock mvm: {}", e))?
-        .get_account(account_key)
-        .map_err(|e| anyhow::anyhow!("get_account Failed to get account: {}", e))?
-        .ok_or_else(|| anyhow::anyhow!("get_account Failed to get account"))?;
+        .map_err(|e| anyhow::anyhow!("get_account Failed to lock mvm: {}", e))?;
+    let mut mvm_transaction = mvm
+        .begin_transaction()
+        .map_err(|e| anyhow::anyhow!("get_account Failed to begin transaction: {}", e))?;
+    let account = Mvm::get_account(&mut mvm_transaction, account_key)
+        .map_err(|e| anyhow::anyhow!("get_account Failed to get account: {}", e))?;
     Ok(account)
 }

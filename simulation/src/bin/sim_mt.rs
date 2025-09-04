@@ -1,6 +1,10 @@
 #![allow(clippy::unwrap_used)]
+use database::rocksdb_no_batch::RocksDbStorage;
 use log::info;
-use mvm::core::storage::DbStorageTransaction;
+use mvm::core::{
+    merkle_tree::MerkleTree,
+    storage::{DbStorage, DbStorageTransaction},
+};
 use rand::{SeedableRng, rngs::StdRng, seq::SliceRandom};
 use simulation::smvm::rand_account::{gen_merkle_tree, gen_rand_account};
 use std::time::Instant;
@@ -9,7 +13,8 @@ use utils::{get_u8_vec_sum, log::init_log};
 #[allow(clippy::cast_lossless, clippy::unwrap_used)]
 fn main() {
     init_log();
-    let mut mt = gen_merkle_tree("tmp_storage");
+    let mts = gen_merkle_tree("tmp_storage");
+    let mut mt = MerkleTree::default();
     let mut account_vec = Vec::new();
     let mut rand = StdRng::seed_from_u64(23);
     let account_len = 200;
@@ -20,19 +25,33 @@ fn main() {
     }
     let now = Instant::now();
     for accounts in &account_vec {
-        let ts = mt.update_tree(accounts.clone(), vec![]).unwrap();
-        ts.commit().unwrap();
+        info!("update_tree, accounts: {:?}", accounts.len());
+        let mut transaction = mts.begin_transaction().unwrap();
+        mt.update_tree::<RocksDbStorage>(&mut transaction, accounts.clone(), vec![])
+            .unwrap();
+        transaction.commit().unwrap();
     }
     let tm_ms1 = now.elapsed().as_millis();
-    let state_root1 = mt.get_state_root().unwrap();
+    let mut transaction = mts.begin_transaction().unwrap();
+    let state_root1 = mt
+        .get_state_root::<RocksDbStorage>(&mut transaction)
+        .unwrap();
+    transaction.commit().unwrap();
     account_vec.shuffle(&mut rand);
     let now = Instant::now();
     for accounts in account_vec {
-        let ts = mt.update_tree(accounts, vec![]).unwrap();
-        ts.commit().unwrap();
+        info!("update_tree, accounts: {:?}", accounts.len());
+        let mut transaction = mts.begin_transaction().unwrap();
+        mt.update_tree::<RocksDbStorage>(&mut transaction, accounts, vec![])
+            .unwrap();
+        transaction.commit().unwrap();
     }
     let tm_ms2 = now.elapsed().as_millis();
-    let state_root2 = mt.get_state_root().unwrap();
+    let mut transaction = mts.begin_transaction().unwrap();
+    let state_root2 = mt
+        .get_state_root::<RocksDbStorage>(&mut transaction)
+        .unwrap();
+    transaction.commit().unwrap();
     info!("state_root1: {:?}", state_root1);
     info!("state_root2: {:?}", state_root2);
     info!(

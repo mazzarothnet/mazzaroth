@@ -1,6 +1,6 @@
 #![allow(clippy::unwrap_used)]
 use log::info;
-use mvm::models::block::Block;
+use mvm::{core::vm::Mvm, models::block::Block};
 use rand::{SeedableRng, rngs::StdRng};
 use simulation::smvm::random_block::{gen_rand_blocks, new_test_mvm};
 use std::{collections::BTreeMap, fs::File, io::Write};
@@ -9,7 +9,6 @@ use utils::{file::write_to_json, log::init_log};
 fn main() {
     init_log();
     let mut mvm = new_test_mvm("test_mvm");
-    //let mut rng = StdRng::seed_from_u64(1112331);
     let mut rng = StdRng::seed_from_u64(11891);
     let block_num = 33;
     let account_num = 50;
@@ -19,23 +18,19 @@ fn main() {
     let mut forward_map = BTreeMap::new();
     for block in &blocks {
         info!("do block {}", block.key);
-        // let old_state_map = mvm.get_state_root().unwrap();
-        mvm.do_block(block).unwrap();
-        let now_state_map = mvm.get_state_root().unwrap();
-        // info!("do block {} done", block.key);
-        // mvm.do_block_rollback(block).unwrap();
-        // let last_state_map = mvm.get_state_root().unwrap();
-        // if last_state_map != old_state_map {
-        //     panic!("state map not match {:?}", block.key);
-        // }
-        // mvm.do_block(block).unwrap();
+        let mut transaction = mvm.begin_transaction().unwrap();
+        Mvm::do_block(&mut transaction, block).unwrap();
+        let now_state_map = Mvm::get_state_root(&mut transaction).unwrap();
+        transaction.commit(block.key).unwrap();
         forward_map.insert(block.key, now_state_map);
     }
     let mut backward_map = BTreeMap::new();
     for block in blocks.iter().rev() {
         info!("do block rollback {}", block.key);
-        let now_state_map = mvm.get_state_root().unwrap();
-        mvm.do_block_rollback(block).unwrap();
+        let mut transaction = mvm.begin_transaction().unwrap();
+        let now_state_map = Mvm::get_state_root(&mut transaction).unwrap();
+        Mvm::do_block_rollback(&mut transaction, block).unwrap();
+        transaction.commit(block.key).unwrap();
         info!("do block rollback {} done", block.key);
         backward_map.insert(block.key, now_state_map);
     }
