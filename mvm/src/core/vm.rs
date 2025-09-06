@@ -44,10 +44,7 @@ pub struct MvmTransaction<'a, S: DbStorage + 'static> {
 
 // todo: try use lifetime check to replace has_transaction
 impl<'a, S: DbStorage + 'static> MvmTransaction<'a, S> {
-    fn new(
-        transaction: S::Transaction<'a>,
-        merkle_tree: &'a mut MerkleTree,
-    ) -> Self {
+    fn new(transaction: S::Transaction<'a>, merkle_tree: &'a mut MerkleTree) -> Self {
         Self {
             transaction,
             merkle_tree,
@@ -70,10 +67,7 @@ impl<S: DbStorage> Mvm<S> {
 
     pub fn begin_transaction(&mut self) -> Result<MvmTransaction<'_, S>> {
         let transaction = self.account_db.begin_transaction()?;
-        Ok(MvmTransaction::new(
-            transaction,
-            &mut self.merkle_tree,
-        ))
+        Ok(MvmTransaction::new(transaction, &mut self.merkle_tree))
     }
 
     pub fn get_state_root(transaction: &mut MvmTransaction<'_, S>) -> Result<Hash> {
@@ -475,7 +469,8 @@ impl<S: DbStorage> Mvm<S> {
         }
 
         miner_account.balance += now_reward;
-        miner_account.action_hash = Hash(block.key.0.to_be_bytes());
+        miner_account.action_hash =
+            Hash(block.inner.header.part_sort_header.head_key.0.to_be_bytes());
         debug!(
             "do miner update account: {:?} {:?} {:?}",
             miner_account.key, miner_account.action_hash, miner_account.balance
@@ -660,13 +655,14 @@ impl<S: DbStorage> Mvm<S> {
         delete_set: &mut BTreeSet<AccountKey>,
         miner: &AccountKey,
     ) -> Result<()> {
-        let miner_account =
-            now_state_map
-                .get_mut(miner)
-                .ok_or_else(|| Error::AccountNotFound {
-                    message: format!("miner account not found: {:?}", miner),
-                })?;
-        if miner_account.action_hash != Hash(block.key.0.to_be_bytes()) {
+        let miner_account = now_state_map
+            .get_mut(miner)
+            .ok_or_else(|| Error::AccountNotFound {
+                message: format!("miner account not found: {:?}", miner),
+            })?;
+        if miner_account.action_hash
+            != Hash(block.inner.header.part_sort_header.head_key.0.to_be_bytes())
+        {
             return Err(Error::AccountHashNotMatch {
                 message: format!(
                     "miner account action hash not match: {:?}",

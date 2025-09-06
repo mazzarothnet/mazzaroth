@@ -5,10 +5,14 @@ use std::ops::{Add, AddAssign, Div, Mul, Sub};
 
 macro_rules! define_byte_array {
     ($struct_name:ident, $len:expr) => {
-        #[derive(
-            Debug, RlpEncodable, RlpDecodable, Clone, PartialEq, Eq, Copy, Ord, PartialOrd, Hash,
-        )]
+        #[derive(RlpEncodable, RlpDecodable, Clone, PartialEq, Eq, Copy, Ord, PartialOrd, Hash)]
         pub struct $struct_name(pub [u8; $len]);
+
+        impl std::fmt::Debug for $struct_name {
+            fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+                write!(f, "{}", hex::encode(self.0))
+            }
+        }
 
         impl Default for $struct_name {
             fn default() -> Self {

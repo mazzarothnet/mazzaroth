@@ -85,13 +85,16 @@ pub fn gen_rand_blocks(rng: &mut StdRng, block_num: u64, account_num: u64) -> Ve
     }
     let mut blocks = Vec::new();
     for i in 0..block_num {
-        let block_key = BlockKey(U256::from_u64(i));
+        let mut consensus_header = ConsensusHeader::default();
+        consensus_header.part_sort_header.head_key = BlockKey(U256::from_u64(i));
+        let block_key = BlockKey(U256::from_u64(i + 1));
         let miner_index = get_rand_exist_index(rng, &account_map);
         let (miner_key, miner_last_action_hash) = {
             let miner_package = account_map.get_mut(&miner_index).unwrap();
             let last_action_hash = miner_package.account.action_hash;
             miner_package.account.balance += get_now_block_reward(0);
-            miner_package.account.action_hash = Hash(block_key.0.to_be_bytes());
+            miner_package.account.action_hash =
+                Hash(consensus_header.part_sort_header.head_key.0.to_be_bytes());
             debug!(
                 "random miner update account: {:?} {:?} {:?}",
                 miner_package.account.key,
@@ -105,7 +108,7 @@ pub fn gen_rand_blocks(rng: &mut StdRng, block_num: u64, account_num: u64) -> Ve
             nonce: 0,
             inner: BlockInner {
                 version: 0,
-                header: ConsensusHeader::default(),
+                header: consensus_header,
                 transfers: vec![],
                 merges: vec![],
                 miner: miner_key,

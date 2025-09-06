@@ -20,6 +20,8 @@ fn main() {
         info!("do block {}", block.key);
         let mut transaction = mvm.begin_transaction().unwrap();
         Mvm::do_block(&mut transaction, block).unwrap();
+        // Mvm::do_block_rollback(&mut transaction, block).unwrap();
+        // Mvm::do_block(&mut transaction, block).unwrap();
         let now_state_map = Mvm::get_state_root(&mut transaction).unwrap();
         transaction.commit(block.key).unwrap();
         forward_map.insert(block.key, now_state_map);
