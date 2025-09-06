@@ -437,6 +437,20 @@ impl<S: DbStorage> Mvm<S> {
                 });
             }
         }
+        let miner_account_action_hash = now_state_map
+            .get(&block.inner.miner)
+            .map(|v| v.action_hash)
+            .unwrap_or(Hash([0; 32]));
+        if miner_account_action_hash != block.inner.miner_last_action_hash {
+            return Err(Error::AccountHashNotMatch {
+                message: format!(
+                    "miner account action hash not match: {:?} {:?} {:?}",
+                    block.inner.miner,
+                    miner_account_action_hash,
+                    block.inner.miner_last_action_hash
+                ),
+            });
+        }
         Ok(())
     }
 
@@ -461,6 +475,7 @@ impl<S: DbStorage> Mvm<S> {
         }
 
         miner_account.balance += now_reward;
+        miner_account.action_hash = Hash(block.key.0.to_be_bytes());
         debug!(
             "do miner update account: {:?} {:?} {:?}",
             miner_account.key, miner_account.action_hash, miner_account.balance
@@ -645,12 +660,22 @@ impl<S: DbStorage> Mvm<S> {
         delete_set: &mut BTreeSet<AccountKey>,
         miner: &AccountKey,
     ) -> Result<()> {
-        let miner_account = now_state_map
-            .get_mut(miner)
-            .ok_or_else(|| Error::AccountNotFound {
-                message: format!("miner account not found: {:?}", miner),
-            })?;
+        let miner_account =
+            now_state_map
+                .get_mut(miner)
+                .ok_or_else(|| Error::AccountNotFound {
+                    message: format!("miner account not found: {:?}", miner),
+                })?;
+        if miner_account.action_hash != Hash(block.key.0.to_be_bytes()) {
+            return Err(Error::AccountHashNotMatch {
+                message: format!(
+                    "miner account action hash not match: {:?}",
+                    block.inner.miner
+                ),
+            });
+        }
         miner_account.balance -= get_now_block_reward(block.inner.header.part_sort_header.size);
+        miner_account.action_hash = block.inner.miner_last_action_hash;
         if miner_account.balance == 0 {
             now_state_map.remove(miner);
             delete_set.insert(*miner);

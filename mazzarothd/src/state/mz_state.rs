@@ -9,9 +9,9 @@ use crate::{
         transfer::PendingTransfer,
     },
 };
-use consensus::types::BlockKey;
+use consensus::types::{AccountKey, BlockKey};
 use database::rocksdb_no_batch::RocksDbStorage;
-use mvm::core::vm::Mvm;
+use mvm::{core::vm::Mvm, models::account::Account};
 use std::{collections::BTreeMap, path::Path, sync::Arc};
 use utils::mutex_log::Mutex;
 
@@ -74,4 +74,17 @@ pub fn get_mz_state(path: &'static str) -> anyhow::Result<MzState> {
         pending_transfers,
         p2p_keypair,
     })
+}
+
+pub fn mvm_get_account(mz_state: &MzState, account_key: AccountKey) -> anyhow::Result<Account> {
+    let mut mvm = mz_state
+        .mvm
+        .lock()
+        .map_err(|e| anyhow::anyhow!("mvm_get_account Failed to lock mvm: {}", e))?;
+    let mut mvm_transaction = mvm
+        .begin_transaction()
+        .map_err(|e| anyhow::anyhow!("mvm_get_account Failed to begin transaction: {}", e))?;
+    let account = Mvm::get_account(&mut mvm_transaction, account_key)
+        .map_err(|e| anyhow::anyhow!("mvm_get_account Failed to get account: {}", e))?;
+    Ok(account)
 }

@@ -2,7 +2,7 @@ use crate::models::transfer::{Merge, Transfer};
 use alloy_rlp::{RlpDecodable, RlpEncodable};
 use consensus::{
     block_header::ConsensusHeader,
-    types::{AccountKey, BlockKey},
+    types::{AccountKey, BlockKey, Hash},
 };
 use serde::{Deserialize, Serialize};
 
@@ -20,6 +20,7 @@ pub struct BlockInner {
     pub transfers: Vec<Transfer>,
     pub merges: Vec<Merge>,
     pub miner: AccountKey,
+    pub miner_last_action_hash: Hash,
 }
 
 impl BlockInner {
