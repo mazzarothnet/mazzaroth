@@ -1,5 +1,5 @@
 use crate::state::{
-    block_storage::{BlockStorage, get_block},
+    block_storage::{BlockStorage, get_block, get_block_hard},
     mz_state::MzState,
     tips::get_tips,
 };
@@ -12,13 +12,6 @@ use std::{sync::Arc, time::Duration};
 use utils::mutex_log::Mutex;
 
 const MVM_MOVE_INTERVAL_MS: u64 = 500;
-
-#[allow(clippy::unwrap_used)]
-pub fn spawn_mvm_thread(mz_state: MzState) {
-    std::thread::spawn(move || {
-        mvm_process_block(&mz_state).unwrap();
-    });
-}
 
 /// it will block thread
 fn mvm_process_block(mz_state: &MzState) -> anyhow::Result<()> {
@@ -47,61 +40,7 @@ fn mvm_process_block(mz_state: &MzState) -> anyhow::Result<()> {
     }
 }
 
-struct MvmMoveNode<'a> {
-    block_storage_arc: &'a Arc<Mutex<BlockStorage>>,
-    key: BlockKey,
-    head_size: u64,
-    head_key: BlockKey,
-    to_head_path: Vec<BlockKey>,
-}
-
-impl<'a> MvmMoveNode<'a> {
-    fn new(key: BlockKey, block_storage_arc: &'a Arc<Mutex<BlockStorage>>) -> anyhow::Result<Self> {
-        let block = get_block(block_storage_arc, &key)?
-            .ok_or_else(|| anyhow::anyhow!("Block not found"))?;
-        let head_size = block.inner.header.part_sort_header.size;
-        let head_key = block.inner.header.part_sort_header.head_key;
-        let mut to_head_path = Vec::new();
-        to_head_path.push(key);
-        for psk in block
-            .inner
-            .header
-            .part_sort_header
-            .part_sort
-            .into_iter()
-            .rev()
-        {
-            to_head_path.push(psk);
-        }
-        Ok(Self {
-            block_storage_arc,
-            key,
-            head_size,
-            head_key,
-            to_head_path,
-        })
-    }
-
-    fn move_to_head(&mut self) -> anyhow::Result<()> {
-        let head_block = get_block(self.block_storage_arc, &self.head_key)?
-            .ok_or_else(|| anyhow::anyhow!("Block not found"))?;
-        self.key = self.head_key;
-        self.head_size = head_block.inner.header.part_sort_header.size;
-        self.head_key = head_block.inner.header.part_sort_header.head_key;
-        for psk in head_block
-            .inner
-            .header
-            .part_sort_header
-            .part_sort
-            .into_iter()
-            .rev()
-        {
-            self.to_head_path.push(psk);
-        }
-        Ok(())
-    }
-}
-
+#[derive(Debug, Default, Clone)]
 pub struct MvmMovePath {
     pub now_to_head_path: Vec<BlockKey>,
     pub next_to_head_path: Vec<BlockKey>,
@@ -112,31 +51,32 @@ pub fn get_mvm_move_path(
     next_key: BlockKey,
     block_storage_arc: &Arc<Mutex<BlockStorage>>,
 ) -> anyhow::Result<MvmMovePath> {
-    let mut now_node = MvmMoveNode::new(now_key, block_storage_arc)?;
-    let mut next_node = MvmMoveNode::new(next_key, block_storage_arc)?;
-    while now_node.head_key != next_node.head_key {
-        if now_node.head_size > next_node.head_size {
-            now_node.move_to_head()?;
+    let mut path = MvmMovePath::default();
+    let mut now_node = get_block_hard(block_storage_arc, &now_key)
+        .with_context(|| "get_mvm_move_path now_node")?;
+    let mut next_node = get_block_hard(block_storage_arc, &next_key)
+        .with_context(|| "get_mvm_move_path next_node")?;
+    while now_node.inner.header.part_sort_header.head_key
+        != next_node.inner.header.part_sort_header.head_key
+    {
+        if now_node.inner.header.part_sort_header.size
+            > next_node.inner.header.part_sort_header.size
+        {
+            let head_key = now_node.inner.header.part_sort_header.head_key;
+            path.now_to_head_path.push(head_key);
+            now_node = get_block_hard(block_storage_arc, &head_key)
+                .with_context(|| "get_mvm_move_path now_node head_key")?;
         } else {
-            next_node.move_to_head()?;
+            let head_key = next_node.inner.header.part_sort_header.head_key;
+            path.next_to_head_path.push(head_key);
+            next_node = get_block_hard(block_storage_arc, &head_key)
+                .with_context(|| "get_mvm_move_path now_node next_node")?;
         }
     }
-    info!("now_node: {:?}", now_node.to_head_path);
-    info!("next_node: {:?}", next_node.to_head_path);
-    while check_end_equal(&now_node.to_head_path, &next_node.to_head_path).unwrap_or(false) {
-        now_node.to_head_path.pop();
-        next_node.to_head_path.pop();
-    }
-    Ok(MvmMovePath {
-        now_to_head_path: now_node.to_head_path,
-        next_to_head_path: next_node.to_head_path,
-    })
-}
 
-fn check_end_equal(now_node: &[BlockKey], next_node: &[BlockKey]) -> Option<bool> {
-    let now_node_end = now_node.last()?;
-    let next_node_end = next_node.last()?;
-    Some(now_node_end == next_node_end)
+    info!("now_node: {:?}", path.now_to_head_path);
+    info!("next_node: {:?}", path.next_to_head_path);
+    Ok(path)
 }
 
 fn move_mvm_to_next_key(

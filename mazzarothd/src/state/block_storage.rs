@@ -1,3 +1,4 @@
+use anyhow::anyhow;
 use consensus::{
     block_header::{ConsensusHeader, PowHeader, gen_consensus_header},
     traits::{ConsensusHeaderStorage, GENESIS_BLOCK_KEY, PartSortHeader},
@@ -19,6 +20,19 @@ pub fn get_block(
         .lock()
         .map_err(|e| anyhow::anyhow!("Failed to lock block storage: {}", e))?;
     block_storage.get_block(block_key)
+}
+
+pub fn get_block_hard(
+    block_storage_arc: &Arc<Mutex<BlockStorage>>,
+    block_key: &BlockKey,
+) -> anyhow::Result<Block> {
+    let block_storage = block_storage_arc
+        .lock()
+        .map_err(|e| anyhow::anyhow!("Failed to lock block storage: {}", e))?;
+    let bolck = block_storage
+        .get_block(block_key)?
+        .ok_or_else(|| anyhow!("block not find {:?}", block_key))?;
+    Ok(bolck)
 }
 
 pub fn set_block(

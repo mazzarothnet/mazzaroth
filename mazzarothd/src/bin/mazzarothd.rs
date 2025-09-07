@@ -7,7 +7,6 @@ use mazzarothd::{
     mining::spawn_mining_thread,
     network::{gossip::spawn_gossip_thread, sync_block::sync_block},
     state::{
-        mvm::spawn_mvm_thread,
         mz_state::{MzState, get_mz_state},
         tips::force_insert_tips,
     },
@@ -27,8 +26,6 @@ async fn main() {
     } else {
         force_insert_tips(vec![GENESIS_BLOCK_KEY], &mz_state).unwrap();
     }
-    log::info!("spawn_mvm_thread");
-    spawn_mvm_thread(mz_state.clone());
     log::info!("spawn_mining_thread");
     spawn_mining_thread(mz_state.clone(), new_block_sender);
     spawn_exit_thread(mz_state.clone());
