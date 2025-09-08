@@ -82,8 +82,8 @@ mod tests {
             .collect::<Vec<_>>();
         eprintln!("u32_now_path: {:?}", u32_now_path);
         eprintln!("u32_next_path: {:?}", u32_next_path);
-        assert_eq!(u32_now_path, vec![9]);
-        assert_eq!(u32_next_path, vec![10, 6, 2]);
+        assert_eq!(u32_now_path, vec![9, 5]);
+        assert_eq!(u32_next_path, vec![12, 10, 6, 2]);
 
         let mvm_move_path = get_mvm_move_path(
             u32_to_block_key(12),
@@ -91,8 +91,8 @@ mod tests {
             &mz_state.block_storage,
         )
         .unwrap();
-        assert_eq!(mvm_move_path.now_to_head_path.len(), 0);
-        assert_eq!(mvm_move_path.next_to_head_path.len(), 0);
+        assert_eq!(mvm_move_path.now_to_head_path.len(), 1);
+        assert_eq!(mvm_move_path.next_to_head_path.len(), 1);
 
         let mvm_move_path = get_mvm_move_path(
             u32_to_block_key(12),
@@ -100,12 +100,12 @@ mod tests {
             &mz_state.block_storage,
         )
         .unwrap();
-        assert_eq!(mvm_move_path.next_to_head_path.len(), 0);
+        assert_eq!(mvm_move_path.next_to_head_path.len(), 1);
         let u32_now_path = mvm_move_path
             .now_to_head_path
             .iter()
             .map(|k| block_key_to_u32(*k))
             .collect::<Vec<_>>();
-        assert_eq!(u32_now_path, vec![10, 6, 2, 5, 1]);
+        assert_eq!(u32_now_path, vec![10, 6, 2, 5, 1, 0]);
     }
 }

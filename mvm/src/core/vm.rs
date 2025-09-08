@@ -103,8 +103,8 @@ impl<S: DbStorage> Mvm<S> {
     }
 
     pub fn do_block(transaction: &mut MvmTransaction<'_, S>, block: &Block) -> Result<()> {
-        let mut account_transaction = &mut transaction.transaction;
-        let mut now_state_map = Self::get_now_state_map(&mut account_transaction, block)?;
+        let account_transaction = &mut transaction.transaction;
+        let mut now_state_map = Self::get_now_state_map(account_transaction, block)?;
         let mut delete_set = BTreeSet::new();
 
         #[cfg(debug_assertions)]
@@ -135,9 +135,9 @@ impl<S: DbStorage> Mvm<S> {
         }
 
         let set_account_hash =
-            Self::save_now_state_map(&mut account_transaction, &now_state_map, &delete_set)?;
+            Self::save_now_state_map(account_transaction, &now_state_map, &delete_set)?;
         transaction.merkle_tree.update_tree::<S>(
-            &mut account_transaction,
+            account_transaction,
             set_account_hash,
             delete_set.into_iter().collect(),
         )?;
@@ -146,8 +146,8 @@ impl<S: DbStorage> Mvm<S> {
     }
 
     pub fn do_block_rollback(transaction: &mut MvmTransaction<'_, S>, block: &Block) -> Result<()> {
-        let mut account_transaction = &mut transaction.transaction;
-        let mut now_state_map = Self::get_now_state_map(&mut account_transaction, block)?;
+        let account_transaction = &mut transaction.transaction;
+        let mut now_state_map = Self::get_now_state_map(account_transaction, block)?;
         let mut delete_set = BTreeSet::new();
 
         #[cfg(debug_assertions)]
@@ -179,9 +179,9 @@ impl<S: DbStorage> Mvm<S> {
         }
 
         let set_account_hash =
-            Self::save_now_state_map(&mut account_transaction, &now_state_map, &delete_set)?;
+            Self::save_now_state_map(account_transaction, &now_state_map, &delete_set)?;
         transaction.merkle_tree.update_tree::<S>(
-            &mut account_transaction,
+            account_transaction,
             set_account_hash,
             delete_set.into_iter().collect(),
         )?;
