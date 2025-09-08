@@ -1,7 +1,6 @@
 use alloy_rlp::{Decodable, Encodable, Error as RlpError, RlpDecodable, RlpEncodable, bytes};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::ops::Deref;
-use std::ops::{Add, AddAssign, Div, Mul, Sub};
 
 macro_rules! define_byte_array {
     ($struct_name:ident, $len:expr) => {
@@ -62,6 +61,10 @@ macro_rules! impl_u256_ops {
         #[derive(Clone, PartialEq, Eq, Copy, Ord, PartialOrd, Hash)]
         pub struct $type_name(pub crypto_bigint::U256);
 
+        impl $type_name {
+            pub const MAX_VAL: $type_name = $type_name(crypto_bigint::U256::MAX);
+        }
+
         impl Serialize for $type_name {
             fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
             where
@@ -86,41 +89,6 @@ macro_rules! impl_u256_ops {
         impl std::fmt::Debug for $type_name {
             fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
                 write!(f, "{}", self.to_string())
-            }
-        }
-
-        impl Add for $type_name {
-            type Output = Self;
-
-            fn add(self, rhs: Self) -> Self::Output {
-                $type_name(self.0 + rhs.0)
-            }
-        }
-
-        impl Sub for $type_name {
-            type Output = Self;
-            fn sub(self, rhs: Self) -> Self::Output {
-                $type_name(self.0 - rhs.0)
-            }
-        }
-
-        impl Mul for $type_name {
-            type Output = Self;
-            fn mul(self, rhs: Self) -> Self::Output {
-                $type_name(self.0 * rhs.0)
-            }
-        }
-
-        impl Div for $type_name {
-            type Output = Self;
-            fn div(self, rhs: Self) -> Self::Output {
-                $type_name(self.0 / rhs.0)
-            }
-        }
-
-        impl AddAssign for $type_name {
-            fn add_assign(&mut self, rhs: Self) {
-                self.0 += rhs.0;
             }
         }
 

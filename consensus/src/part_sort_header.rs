@@ -14,6 +14,10 @@ fn get_work_from_target(target: BlockKey) -> DagWork {
     DagWork::from(U256::MAX / u256_target)
 }
 
+fn add_assign(dag_work: DagWork, num: DagWork) -> DagWork {
+    DagWork(dag_work.0.add_mod(&num.0, &DagWork::MAX_VAL.0))
+}
+
 pub fn gen_part_sort_block<S: ConsensusHeaderStorage>(
     storage: &S,
     parent_keys: &[BlockKey],
@@ -41,7 +45,10 @@ pub fn gen_part_sort_block<S: ConsensusHeaderStorage>(
     parent_keys.push(selected_head_key);
     for key in &top_sort {
         let block_header = storage.get_consensus_header(key)?;
-        selected_head_dag_work += get_work_from_target(block_header.pow_header.target);
+        selected_head_dag_work = add_assign(
+            selected_head_dag_work,
+            get_work_from_target(block_header.pow_header.target),
+        );
     }
     if parent_keys.is_empty() || top_sort.is_empty() {
         return Err(Error::EmptyParentKeys);
