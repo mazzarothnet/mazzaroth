@@ -15,6 +15,9 @@ pub fn move_mvm_to_next_key(
     next_key: BlockKey,
     mz_state: &MzState,
 ) -> anyhow::Result<()> {
+    if now_key == next_key {
+        return Ok(());
+    }
     let MvmMovePath {
         now_to_head_path,
         next_to_head_path,
