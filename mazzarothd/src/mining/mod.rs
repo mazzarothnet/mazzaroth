@@ -1,19 +1,24 @@
-use std::time::Duration;
-
 use crate::state::{
+    account_manager::{AccountKeyPair, get_miner_account},
     block_storage::gen_consensus_header_with_global_storage,
-    mz_state::{MzState, mvm_get_account},
+    mvm::{get_mvm_now_key, move_mvm_to_next_key, mvm_get_account},
+    mz_state::MzState,
     tips::{get_tips, push_block},
+    transfer::{SelfTransfer, get_pending_transfers},
 };
-use consensus::types::{BlockKey, Hash};
+use consensus::types::{BlockKey, Hash, Signature, block_key_to_hash};
 use crypto_bigint::U256;
 use log::info;
 use mining::{
     run_gpu::{Sha256Context, mining_gpu_sha256},
     sha256_mining::gen_sha256_by_block_hash_and_nonce,
 };
-use mvm::models::block::{Block, BlockInner};
-use utils::{sha256::sha256_hash_rlp, time::get_current_time_ms};
+use mvm::models::{
+    block::{Block, BlockInner},
+    transfer::{Transfer, TransferInner},
+};
+use std::{collections::HashSet, time::Duration};
+use utils::{secp::sign_message, sha256::sha256_hash_rlp, time::get_current_time_ms};
 
 #[allow(clippy::unwrap_used)]
 pub fn spawn_mining_thread(mz_state: MzState, block_sender: tokio::sync::mpsc::Sender<Block>) {
@@ -25,7 +30,7 @@ pub fn spawn_mining_thread(mz_state: MzState, block_sender: tokio::sync::mpsc::S
             .unwrap();
         rt.block_on(async move {
             loop {
-                let block = try_gen_new_block(&mz_state, &sha256_context).unwrap();
+                let block = update_mvm_and_try_mining(&mz_state, &sha256_context).unwrap();
                 if let Some(block) = block {
                     info!(
                         "mining new block: {:?} target: {:?}",
@@ -35,52 +40,47 @@ pub fn spawn_mining_thread(mz_state: MzState, block_sender: tokio::sync::mpsc::S
                     push_block(block, &mz_state).unwrap();
                 } else {
                     info!("mining new block failed");
+                    tokio::time::sleep(Duration::from_millis(1000)).await;
                 }
-                tokio::time::sleep(Duration::from_millis(1000)).await;
             }
         });
     });
 }
 
-fn try_gen_new_block(
+fn update_mvm_and_try_mining(
     mz_state: &MzState,
     sha256_context: &Sha256Context,
 ) -> anyhow::Result<Option<Block>> {
-    let now_time = get_current_time_ms();
     let tips = get_tips(mz_state)?.into_iter().collect::<Vec<_>>();
     if tips.is_empty() {
         return Ok(None);
     }
+    let now_time = get_current_time_ms();
     let consensus_header =
         gen_consensus_header_with_global_storage(&mz_state.block_storage, &tips, now_time)?;
-    let miner_account = mz_state
-        .account_manager
-        .lock()
-        .map_err(|e| anyhow::anyhow!("try_gen_new_block Failed to lock account_manager: {}", e))?
-        .now_selected_account
-        .clone();
-    let account_action_hash = mvm_get_account(mz_state, miner_account.public_key)
-        .map(|account| account.action_hash)
-        .unwrap_or_else(|e| {
-            info!("miner account not found, use default account {:?}", e);
-            Hash([0u8; 32])
-        });
-    let pending_transfers = {
-        let mut pending_transfers_lock = mz_state.pending_transfers.lock().map_err(|e| {
-            anyhow::anyhow!("try_gen_new_block Failed to lock pending_transfers: {}", e)
-        })?;
-        std::mem::take(&mut pending_transfers_lock.transfers)
-    }
-    .into_iter()
-    .collect::<Vec<_>>();
+    let now_key = get_mvm_now_key(mz_state)?;
+    move_mvm_to_next_key(
+        now_key,
+        consensus_header.part_sort_header.head_key,
+        mz_state,
+    )?;
+    let miner_account_pair = get_miner_account(mz_state)?;
+    let miner_account = mvm_get_account(mz_state, miner_account_pair.public_key)?;
+    let miner_action_hash = miner_account.action_hash;
+    let self_transfers = get_pending_transfers(mz_state)?;
+    let transfers = self_transfers_to_transfers(
+        self_transfers.transfers,
+        &miner_account_pair,
+        block_key_to_hash(consensus_header.part_sort_header.head_key),
+    )?;
     let target = consensus_header.pow_header.target;
     let block_inner = BlockInner {
         version: 0,
         header: consensus_header,
-        transfers: pending_transfers,
+        transfers,
         merges: Vec::new(),
-        miner: miner_account.public_key,
-        miner_last_action_hash: account_action_hash,
+        miner: miner_account_pair.public_key,
+        miner_last_action_hash: miner_action_hash,
     };
     let block_inner_hash = sha256_hash_rlp(&block_inner);
     let nonce = if let Some(nonce) =
@@ -100,4 +100,29 @@ fn try_gen_new_block(
         inner: block_inner.clone(),
     };
     Ok(Some(block))
+}
+
+fn self_transfers_to_transfers(
+    self_transfers: HashSet<SelfTransfer>,
+    miner_account_pair: &AccountKeyPair,
+    mut miner_action_hash: Hash,
+) -> anyhow::Result<Vec<Transfer>> {
+    let mut transfers = Vec::new();
+    for self_transfer in self_transfers {
+        let transfer_inner = TransferInner {
+            from: miner_account_pair.public_key,
+            to: self_transfer.to,
+            amount: self_transfer.amount,
+            from_last_action_hash: miner_action_hash,
+            gas_price: 0,
+        };
+        let now_hash = sha256_hash_rlp(&transfer_inner);
+        let signature = sign_message(&now_hash, &miner_account_pair.private_key)?;
+        transfers.push(Transfer {
+            inner: transfer_inner,
+            from_signature: Signature(signature),
+        });
+        miner_action_hash = Hash(now_hash);
+    }
+    Ok(transfers)
 }

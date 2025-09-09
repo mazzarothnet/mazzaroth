@@ -146,3 +146,7 @@ define_byte_array!(AccountKey, ACCOUNT_KEY_LEN);
 
 impl_u256_ops!(BlockKey);
 impl_u256_ops!(DagWork);
+
+pub fn block_key_to_hash(block_key: BlockKey) -> Hash {
+    Hash(block_key.0.to_be_bytes())
+}

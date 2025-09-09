@@ -1,20 +1,14 @@
-use crate::state::{account_manager::AccountKeyPair, mz_state::MzState};
+use crate::state::{
+    account_manager::AccountKeyPair,
+    mz_state::MzState,
+    transfer::{SelfTransfer, insert_pending_transfers},
+};
 use anyhow::Context;
 use axum::extract::{Query, State};
-use consensus::types::{AccountKey, Signature};
-use mvm::{
-    core::vm::Mvm,
-    models::{
-        account::Account,
-        transfer::{Transfer, TransferInner},
-    },
-};
+use consensus::types::AccountKey;
+use mvm::{core::vm::Mvm, models::account::Account};
 use serde::Deserialize;
-use utils::{
-    error::{Res, Result},
-    secp::sign_message,
-    sha256::sha256_hash_rlp,
-};
+use utils::error::{Res, Result};
 
 pub async fn get_current_account(State(mz_state): State<MzState>) -> Result<Res<Account>> {
     let account_key = get_account_pair_by_mz_state(&mz_state)?.public_key;
@@ -49,27 +43,11 @@ pub async fn transfer(
         .amount
         .parse()
         .with_context(|| "transfer amount parse error")?;
-    let account_pair = get_account_pair_by_mz_state(&mz_state)?;
-    let account = get_account_by_mz_state(&mz_state, account_pair.public_key)?;
-    let trans_inner = TransferInner {
-        from: account_pair.public_key,
+    let self_trans = SelfTransfer {
         to: req.account_key,
         amount,
-        from_last_action_hash: account.action_hash,
-        gas_price: 0,
     };
-    let hash = sha256_hash_rlp(&trans_inner);
-    let sign = sign_message(&hash, &account_pair.private_key)
-        .with_context(|| "transfer sign_message error")?;
-    let trans = Transfer {
-        inner: trans_inner,
-        from_signature: Signature(sign),
-    };
-    let mut pending_transfers_lock = mz_state
-        .pending_transfers
-        .lock()
-        .map_err(|e| anyhow::anyhow!("transfer Failed to lock pending_transfers: {}", e))?;
-    pending_transfers_lock.transfers.insert(trans);
+    insert_pending_transfers(&mz_state, self_trans)?;
 
     Ok(Res { data: () })
 }

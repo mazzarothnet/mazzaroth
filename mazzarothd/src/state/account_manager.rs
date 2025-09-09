@@ -9,6 +9,8 @@ use utils::{
     time::get_current_time_ms,
 };
 
+use crate::state::mz_state::MzState;
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct AccountKeyPair {
     pub public_key: AccountKey,
@@ -52,4 +54,12 @@ impl AccountManager {
             read_from_json(path).with_context(|| "Failed to read account manager file")?;
         Ok(account_manager)
     }
+}
+
+pub fn get_miner_account(mz_state: &MzState) -> anyhow::Result<AccountKeyPair> {
+    let account_manager = mz_state
+        .account_manager
+        .lock()
+        .map_err(|e| anyhow::anyhow!("get_miner_account Failed to lock account_manager: {}", e))?;
+    Ok(account_manager.now_selected_account.clone())
 }

@@ -3,10 +3,13 @@ use crate::state::{
     mz_state::MzState,
 };
 use anyhow::Context;
-use consensus::types::BlockKey;
+use consensus::types::{AccountKey, BlockKey};
 use database::rocksdb_no_batch::RocksDbStorage;
 use log::info;
-use mvm::core::{merkle_tree::MerkleTree, vm::Mvm};
+use mvm::{
+    core::{merkle_tree::MerkleTree, vm::Mvm},
+    models::account::Account,
+};
 use std::sync::Arc;
 use utils::mutex_log::Mutex;
 
@@ -99,6 +102,19 @@ pub fn get_mvm_move_path(
     info!("now_node: {:?}", path.now_to_head_path);
     info!("next_node: {:?}", path.next_to_head_path);
     Ok(path)
+}
+
+pub fn mvm_get_account(mz_state: &MzState, account_key: AccountKey) -> anyhow::Result<Account> {
+    let mut mvm = mz_state
+        .mvm
+        .lock()
+        .map_err(|e| anyhow::anyhow!("mvm_get_account Failed to lock mvm: {}", e))?;
+    let mut mvm_transaction = mvm
+        .begin_transaction()
+        .map_err(|e| anyhow::anyhow!("mvm_get_account Failed to begin transaction: {}", e))?;
+    let account = Mvm::get_account(&mut mvm_transaction, account_key)
+        .map_err(|e| anyhow::anyhow!("mvm_get_account Failed to get account: {}", e))?;
+    Ok(account)
 }
 
 fn do_mvm_to_next_key(

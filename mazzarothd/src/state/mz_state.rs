@@ -6,12 +6,12 @@ use crate::{
         block_storage::{BlockStorage, get_block_storage},
         mvm::get_mvm_storage,
         tips::TempBlock,
-        transfer::PendingTransfer,
+        transfer::PendingSelfTransfer,
     },
 };
-use consensus::types::{AccountKey, BlockKey};
+use consensus::types::BlockKey;
 use database::rocksdb_no_batch::RocksDbStorage;
-use mvm::{core::vm::Mvm, models::account::Account};
+use mvm::core::vm::Mvm;
 use std::{collections::BTreeMap, path::Path, sync::Arc};
 use utils::mutex_log::Mutex;
 
@@ -24,7 +24,7 @@ pub struct MzState {
     pub temp_blocks: Arc<Mutex<TempBlock>>,
     pub config: Arc<Config>,
     pub account_manager: Arc<Mutex<AccountManager>>,
-    pub pending_transfers: Arc<Mutex<PendingTransfer>>,
+    pub pending_transfers: Arc<Mutex<PendingSelfTransfer>>,
     pub p2p_keypair: libp2p::identity::Keypair,
 }
 
@@ -61,7 +61,10 @@ pub fn get_mz_state(path: &'static str) -> anyhow::Result<MzState> {
         AccountManager::init(&format!("{}/account_manager.json", path))?,
         "account_manager",
     ));
-    let pending_transfers = Arc::new(Mutex::new(PendingTransfer::default(), "pending_transfers"));
+    let pending_transfers = Arc::new(Mutex::new(
+        PendingSelfTransfer::default(),
+        "pending_transfers",
+    ));
     let p2p_keypair = load_or_generate_keypair(&format!("{}/p2p_keypair.bin", path))?;
     Ok(MzState {
         path,
@@ -74,17 +77,4 @@ pub fn get_mz_state(path: &'static str) -> anyhow::Result<MzState> {
         pending_transfers,
         p2p_keypair,
     })
-}
-
-pub fn mvm_get_account(mz_state: &MzState, account_key: AccountKey) -> anyhow::Result<Account> {
-    let mut mvm = mz_state
-        .mvm
-        .lock()
-        .map_err(|e| anyhow::anyhow!("mvm_get_account Failed to lock mvm: {}", e))?;
-    let mut mvm_transaction = mvm
-        .begin_transaction()
-        .map_err(|e| anyhow::anyhow!("mvm_get_account Failed to begin transaction: {}", e))?;
-    let account = Mvm::get_account(&mut mvm_transaction, account_key)
-        .map_err(|e| anyhow::anyhow!("mvm_get_account Failed to get account: {}", e))?;
-    Ok(account)
 }

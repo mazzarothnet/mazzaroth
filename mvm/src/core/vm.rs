@@ -1,6 +1,6 @@
 use std::collections::{BTreeMap, BTreeSet};
 
-use consensus::types::BlockKey;
+use consensus::types::{BlockKey, block_key_to_hash};
 #[cfg(not(feature = "disable_storage_limit"))]
 use consensus::{
     STO_ACCOUNT_MIN_BALANCE, TRANSFER_GAS, get_now_block_reward,
@@ -107,32 +107,7 @@ impl<S: DbStorage> Mvm<S> {
         let mut now_state_map = Self::get_now_state_map(account_transaction, block)?;
         let mut delete_set = BTreeSet::new();
 
-        #[cfg(debug_assertions)]
-        {
-            use utils::file::write_to_json;
-
-            write_to_json(
-                &format!(
-                    "test_mvm/forward_before_{}.json",
-                    get_key_from_block_key(&block.key.0.to_be_bytes())
-                ),
-                &get_map(&now_state_map),
-            )?;
-        }
-
         Self::do_all_transfer_and_merge(block, &mut now_state_map, &mut delete_set)?;
-
-        #[cfg(debug_assertions)]
-        {
-            use utils::file::write_to_json;
-            write_to_json(
-                &format!(
-                    "test_mvm/forward_after_{}.json",
-                    get_key_from_block_key(&block.key.0.to_be_bytes())
-                ),
-                &get_map(&now_state_map),
-            )?;
-        }
 
         let set_account_hash =
             Self::save_now_state_map(account_transaction, &now_state_map, &delete_set)?;
@@ -150,33 +125,7 @@ impl<S: DbStorage> Mvm<S> {
         let mut now_state_map = Self::get_now_state_map(account_transaction, block)?;
         let mut delete_set = BTreeSet::new();
 
-        #[cfg(debug_assertions)]
-        {
-            use utils::file::write_to_json;
-
-            write_to_json(
-                &format!(
-                    "test_mvm/rollback_before_{}.json",
-                    get_key_from_block_key(&block.key.0.to_be_bytes())
-                ),
-                &get_map(&now_state_map),
-            )?;
-        }
-
         Self::rollback_all_transfer_and_merge(block, &mut now_state_map, &mut delete_set)?;
-
-        #[cfg(debug_assertions)]
-        {
-            use utils::file::write_to_json;
-
-            write_to_json(
-                &format!(
-                    "test_mvm/rollback_after_{}.json",
-                    get_key_from_block_key(&block.key.0.to_be_bytes())
-                ),
-                &get_map(&now_state_map),
-            )?;
-        }
 
         let set_account_hash =
             Self::save_now_state_map(account_transaction, &now_state_map, &delete_set)?;
@@ -469,8 +418,7 @@ impl<S: DbStorage> Mvm<S> {
         }
 
         miner_account.balance += now_reward;
-        miner_account.action_hash =
-            Hash(block.inner.header.part_sort_header.head_key.0.to_be_bytes());
+        miner_account.action_hash = block_key_to_hash(block.inner.header.part_sort_header.head_key);
         debug!(
             "do miner update account: {:?} {:?} {:?}",
             miner_account.key, miner_account.action_hash, miner_account.balance
@@ -661,7 +609,7 @@ impl<S: DbStorage> Mvm<S> {
                 message: format!("miner account not found: {:?}", miner),
             })?;
         if miner_account.action_hash
-            != Hash(block.inner.header.part_sort_header.head_key.0.to_be_bytes())
+            != block_key_to_hash(block.inner.header.part_sort_header.head_key)
         {
             return Err(Error::AccountHashNotMatch {
                 message: format!(
