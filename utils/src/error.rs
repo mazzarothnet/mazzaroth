@@ -62,6 +62,12 @@ pub enum Error {
 
     #[error("merge from and to is the same: {message}")]
     MergeFromAndToIsTheSame { message: String },
+
+    #[error("tips not found")]
+    TipsNotFound,
+
+    #[error("mining failed")]
+    MiningFailed,
 }
 
 pub type Result<T> = std::result::Result<T, Error>;
