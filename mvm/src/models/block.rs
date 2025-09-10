@@ -21,6 +21,7 @@ pub struct BlockInner {
     pub merges: Vec<Merge>,
     pub miner: AccountKey,
     pub miner_last_action_hash: Hash,
+    pub state_root: Hash,
 }
 
 impl BlockInner {

@@ -73,6 +73,15 @@ pub fn force_insert_tips(tips: Vec<BlockKey>, mz_state: &MzState) -> anyhow::Res
     Ok(())
 }
 
+pub fn force_remove_tips( mz_state: &MzState,key: BlockKey) -> anyhow::Result<()> {
+    let mut tips_map = mz_state
+        .tips
+        .lock()
+        .map_err(|e| anyhow::anyhow!("force_remove_tips Failed to lock tips: {}", e))?;
+    tips_map.remove(&key);
+    Ok(())
+}
+
 pub fn get_temp_blocks(
     mz_state: &MzState,
 ) -> anyhow::Result<BTreeMap<BlockKey, (Block, BTreeSet<BlockKey>)>> {
@@ -216,6 +225,7 @@ pub fn gen_test_block(key: u32, parent_keys: &HashSet<u32>) -> Block {
             merges: vec![],
             miner: AccountKey::default(),
             miner_last_action_hash: Hash::default(),
+            state_root: Hash::default(),
         },
     }
 }

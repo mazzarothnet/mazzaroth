@@ -59,6 +59,7 @@ pub fn gen_empty_block(account_num: u64) -> Vec<Block> {
                 merges: vec![],
                 miner: AccountKey([i as u8; 33]),
                 miner_last_action_hash: Hash([0; 32]),
+                state_root: Hash::default(),
             },
         });
     }
@@ -113,6 +114,7 @@ pub fn gen_rand_blocks(rng: &mut StdRng, block_num: u64, account_num: u64) -> Ve
                 merges: vec![],
                 miner: miner_key,
                 miner_last_action_hash,
+                state_root: Hash::default(),
             },
         };
 

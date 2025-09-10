@@ -68,6 +68,9 @@ pub enum Error {
 
     #[error("mining failed")]
     MiningFailed,
+
+    #[error("invalid state root")]
+    InvalidStateRoot,
 }
 
 pub type Result<T> = std::result::Result<T, Error>;
