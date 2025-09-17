@@ -1,6 +1,5 @@
 use std::collections::{BTreeMap, BTreeSet};
 
-use consensus::types::{BlockKey, block_key_to_hash};
 #[cfg(not(feature = "disable_storage_limit"))]
 use consensus::{
     STO_ACCOUNT_MIN_BALANCE, TRANSFER_GAS, get_now_block_reward,
@@ -10,6 +9,10 @@ use consensus::{
 use consensus::{
     TRANSFER_GAS, get_now_block_reward,
     types::{AccountKey, Hash},
+};
+use consensus::{
+    traits::GENESIS_BLOCK_KEY,
+    types::{BlockKey, block_key_to_hash},
 };
 use log::{debug, info};
 use utils::{
@@ -80,9 +83,7 @@ impl<S: DbStorage> Mvm<S> {
         let block_key = transaction
             .transaction
             .batch_read::<String, BlockKey>(vec![NOW_BLOCK_KEY.to_string()])?;
-        let block_key = block_key.first().ok_or_else(|| Error::AccountNotFound {
-            message: format!("block key not found: {:?}", NOW_BLOCK_KEY),
-        })?;
+        let block_key = block_key.first().unwrap_or(&GENESIS_BLOCK_KEY);
         Ok(*block_key)
     }
 

@@ -3,7 +3,7 @@ use crate::state::{
     mz_state::MzState,
 };
 use anyhow::Context;
-use consensus::types::{AccountKey, BlockKey};
+use consensus::types::{AccountKey, BlockKey, Hash};
 use database::rocksdb_no_batch::RocksDbStorage;
 use log::info;
 use mvm::{
@@ -26,17 +26,21 @@ pub fn move_mvm_to_next_key(
         next_to_head_path,
     } = get_mvm_move_path(now_key, next_key, &mz_state.block_storage)?;
     for key in &now_to_head_path {
+        if *key == now_key {
+            continue;
+        }
+        info!(
+            "rollback mvm from now_key: {:?} to key: {:?}",
+            now_key, *key
+        );
         rollback_mvm_to_head_key(now_key, *key, mz_state)?;
         now_key = *key;
     }
     for key in next_to_head_path.iter().rev() {
+        info!("do mvm from now_key: {:?} to key: {:?}", now_key, *key);
         do_mvm_to_next_key(now_key, *key, mz_state)?;
         now_key = *key;
     }
-    info!(
-        "move mvm to next key now_node path: {:?} next_node path: {:?}",
-        now_to_head_path, next_to_head_path
-    );
 
     Ok(())
 }
@@ -74,33 +78,27 @@ pub fn get_mvm_move_path(
     block_storage_arc: &Arc<Mutex<BlockStorage>>,
 ) -> anyhow::Result<MvmMovePath> {
     let mut path = MvmMovePath::default();
-    path.next_to_head_path.push(next_key);
     let mut now_node = get_block_hard(block_storage_arc, &now_key)
         .with_context(|| "get_mvm_move_path now_node")?;
     let mut next_node = get_block_hard(block_storage_arc, &next_key)
         .with_context(|| "get_mvm_move_path next_node")?;
-    while now_node.inner.header.part_sort_header.head_key
-        != next_node.inner.header.part_sort_header.head_key
-    {
+    while now_node.key != next_node.key {
         if now_node.inner.header.part_sort_header.size
             > next_node.inner.header.part_sort_header.size
         {
+            path.now_to_head_path.push(now_node.key);
             let head_key = now_node.inner.header.part_sort_header.head_key;
-            path.now_to_head_path.push(head_key);
             now_node = get_block_hard(block_storage_arc, &head_key)
                 .with_context(|| "get_mvm_move_path now_node head_key")?;
         } else {
+            path.next_to_head_path.push(next_node.key);
             let head_key = next_node.inner.header.part_sort_header.head_key;
-            path.next_to_head_path.push(head_key);
             next_node = get_block_hard(block_storage_arc, &head_key)
                 .with_context(|| "get_mvm_move_path now_node next_node")?;
         }
     }
-    path.now_to_head_path
-        .push(now_node.inner.header.part_sort_header.head_key);
+    path.now_to_head_path.push(now_node.key);
 
-    info!("now_node: {:?}", path.now_to_head_path);
-    info!("next_node: {:?}", path.next_to_head_path);
     Ok(path)
 }
 
@@ -113,7 +111,15 @@ pub fn mvm_get_account(mz_state: &MzState, account_key: AccountKey) -> anyhow::R
         .begin_transaction()
         .map_err(|e| anyhow::anyhow!("mvm_get_account Failed to begin transaction: {}", e))?;
     let account = Mvm::get_account(&mut mvm_transaction, account_key)
-        .map_err(|e| anyhow::anyhow!("mvm_get_account Failed to get account: {}", e))?;
+        .map_err(|e| {
+            info!("mvm_get_account Failed to get account: {}", e);
+            e
+        })
+        .unwrap_or(Account {
+            key: account_key,
+            balance: 0,
+            action_hash: Hash::default(),
+        });
     Ok(account)
 }
 

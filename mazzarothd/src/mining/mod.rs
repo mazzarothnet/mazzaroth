@@ -6,7 +6,7 @@ use crate::{
         mvm::{get_mvm_now_key, move_mvm_to_next_key, mvm_get_account},
         mz_state::MzState,
         tips::{force_remove_tips, get_tips, push_block},
-        transfer::get_pending_transfers,
+        transfer::take_pending_transfers,
     },
 };
 use anyhow::Context;
@@ -60,6 +60,10 @@ pub fn spawn_mining_thread(mz_state: MzState, block_sender: tokio::sync::mpsc::S
                     Err(Error::MiningFailed) => {
                         info!("mining new block failed");
                     }
+                    Err(Error::InvalidStateRoot) => {
+                        info!("invalid state root");
+                        panic!("invalid state root");
+                    }
                     Err(e) => {
                         panic!("mining new block failed: {:?}", e);
                     }
@@ -70,6 +74,7 @@ pub fn spawn_mining_thread(mz_state: MzState, block_sender: tokio::sync::mpsc::S
 }
 
 fn update_mvm_and_try_mining(mz_state: &MzState, sha256_context: &Sha256Context) -> Result<Block> {
+    let now = get_current_time_ms();
     let tips = get_tips(mz_state)?.into_iter().collect::<Vec<_>>();
     if tips.is_empty() {
         return Err(Error::TipsNotFound);
@@ -80,11 +85,15 @@ fn update_mvm_and_try_mining(mz_state: &MzState, sha256_context: &Sha256Context)
     let head_key = consensus_header.part_sort_header.head_key;
     let now_key = get_mvm_now_key(mz_state)?;
     move_mvm_to_next_key(now_key, head_key, mz_state)?;
-    force_remove_tips(mz_state, head_key)?;
-    check_head_state_root(mz_state, head_key)?;
+    check_head_state_root(mz_state, head_key).inspect_err(|_e| {
+        if let Err(e) = force_remove_tips(mz_state, head_key) {
+            info!("force_remove_tips error: {:?}", e);
+        }
+    })?;
     let target = consensus_header.pow_header.target;
     let block_inner = gen_new_block_inner(mz_state, consensus_header)?;
     let block_inner_hash = sha256_hash_rlp(&block_inner);
+    let mvm_time = get_current_time_ms();
     let nonce = if let Some(nonce) =
         mining_gpu_sha256(sha256_context, block_inner_hash, now_time, target)?
     {
@@ -92,10 +101,17 @@ fn update_mvm_and_try_mining(mz_state: &MzState, sha256_context: &Sha256Context)
     } else {
         return Err(Error::MiningFailed);
     };
+    let mining_time = get_current_time_ms();
     let block_key = BlockKey(U256::from_be_slice(&gen_sha256_by_block_hash_and_nonce(
         block_inner_hash,
         nonce,
     )));
+    info!(
+        "now: {:?} mvm cost: {:?} mining cost: {:?}",
+        now,
+        mvm_time - now,
+        mining_time - mvm_time
+    );
     let block = Block {
         key: block_key,
         nonce,
@@ -131,9 +147,9 @@ fn gen_new_block_inner(
 ) -> Result<BlockInner> {
     let miner_account_pair = get_miner_account(mz_state)?;
     let miner_action_hash = mvm_get_account(mz_state, miner_account_pair.public_key)?.action_hash;
-    let self_transfers = get_pending_transfers(mz_state)?;
+    let self_transfers = take_pending_transfers(mz_state)?;
     let transfers = self_transfers_to_transfers(
-        self_transfers.transfers,
+        self_transfers,
         &miner_account_pair,
         block_key_to_hash(consensus_header.part_sort_header.head_key),
     )?;

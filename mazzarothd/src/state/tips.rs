@@ -40,11 +40,6 @@ pub fn push_block(block: Block, mz_state: &MzState) -> anyhow::Result<()> {
                 "push_block, save_block_and_update_tips key: {:?}, error: {:?}",
                 block.key, e
             );
-        } else {
-            info!(
-                "push_block, save_block_and_update_tips key: {:?}, success",
-                block.key
-            );
         }
     }
 

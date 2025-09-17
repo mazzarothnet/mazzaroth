@@ -14,17 +14,14 @@ pub struct PendingSelfTransfer {
     pub transfers: HashSet<SelfTransfer>,
 }
 
-pub fn get_pending_transfers(mz_state: &MzState) -> anyhow::Result<PendingSelfTransfer> {
-    let pending_transfers = mz_state
-        .pending_transfers
-        .lock()
-        .map_err(|e| {
-            anyhow::anyhow!(
-                "get_pending_transfers Failed to lock pending_transfers: {}",
-                e
-            )
-        })?
-        .clone();
+pub fn take_pending_transfers(mz_state: &MzState) -> anyhow::Result<HashSet<SelfTransfer>> {
+    let mut pending_transfers_lock = mz_state.pending_transfers.lock().map_err(|e| {
+        anyhow::anyhow!(
+            "get_pending_transfers Failed to lock pending_transfers: {}",
+            e
+        )
+    })?;
+    let pending_transfers = std::mem::take(&mut pending_transfers_lock.transfers);
     Ok(pending_transfers)
 }
 
